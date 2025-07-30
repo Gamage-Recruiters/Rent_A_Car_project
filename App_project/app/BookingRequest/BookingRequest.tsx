@@ -10,8 +10,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CheckCircle, XCircle } from 'lucide-react-native';
 
+interface BookingRequest {
+  id: string;
+  user: string;
+  mobile: string;
+  date: string;
+  car: string;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
 export default function BookingRequestsScreen() {
-  const [requests, setRequests] = useState([
+  const [requests, setRequests] = useState<BookingRequest[]>([
     {
       id: '1',
       user: 'John Doe',
@@ -30,16 +39,19 @@ export default function BookingRequestsScreen() {
     },
   ]);
 
-  const handleAction = (id, action) => {
+  const handleAction = (id: string, action: 'approve' | 'reject') => {
+    const newStatus = action === 'approve' ? 'approved' : 'rejected';
+
     setRequests((prev) =>
       prev.map((req) =>
-        req.id === id ? { ...req, status: action } : req
+        req.id === id ? { ...req, status: newStatus } : req
       )
     );
-    Alert.alert(`Booking ${action === 'approve' ? 'approved' : 'rejected'}`);
+
+    Alert.alert(`Booking ${newStatus}`);
   };
 
-  const renderItem = ({ item }) => (
+  const renderItem = ({ item }: { item: BookingRequest }) => (
     <View style={styles.card}>
       <Text style={styles.name}>{item.user}</Text>
       <View style={styles.separator} />
