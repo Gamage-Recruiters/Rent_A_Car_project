@@ -3,14 +3,20 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   TextInput,
-  Image,
+  TouchableOpacity,
   FlatList,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Filter, Star, MapPin, Fuel, Users, Settings2 } from 'lucide-react-native';
+import {
+  Search,
+  Filter,
+  Star,
+  MapPin,
+  Fuel,
+  Users,
+} from 'lucide-react-native';
 import { useUserStore } from '@/stores/userStore';
 import { router, useLocalSearchParams } from 'expo-router';
 import Animated, {
@@ -23,18 +29,20 @@ import Animated, {
 export default function SearchScreen() {
   const { allCars } = useUserStore();
   const params = useLocalSearchParams();
+
   const [searchQuery, setSearchQuery] = useState((params.query as string) || '');
   const [selectedLocation, setSelectedLocation] = useState((params.location as string) || '');
   const [selectedCategory, setSelectedCategory] = useState((params.category as string) || '');
+  const [availability, setAvailability] = useState('All');
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [showFilters, setShowFilters] = useState(false);
-  const [priceRange, setPriceRange] = useState({ min: 0, max: 500 });
   const [filteredCars, setFilteredCars] = useState(allCars);
 
   const filterScale = useSharedValue(0);
 
   useEffect(() => {
     filterCars();
-  }, [searchQuery, selectedLocation, selectedCategory, priceRange]);
+  }, [searchQuery, selectedLocation, selectedCategory, availability, priceRange]);
 
   const filterCars = () => {
     let filtered = allCars;
@@ -69,9 +77,22 @@ export default function SearchScreen() {
       });
     }
 
-    filtered = filtered.filter(car =>
-      car.pricePerDay >= priceRange.min && car.pricePerDay <= priceRange.max
-    );
+    const min = parseFloat(priceRange.min);
+    const max = parseFloat(priceRange.max);
+
+    if (!isNaN(min)) {
+      filtered = filtered.filter(car => car.pricePerDay >= min);
+    }
+
+    if (!isNaN(max)) {
+      filtered = filtered.filter(car => car.pricePerDay <= max);
+    }
+
+    if (availability.toLowerCase() === 'available') {
+      filtered = filtered.filter(car => car.available === true);
+    } else if (availability.toLowerCase() === 'unavailable') {
+      filtered = filtered.filter(car => car.available === false);
+    }
 
     setFilteredCars(filtered);
   };
@@ -90,17 +111,14 @@ export default function SearchScreen() {
 
   const filterAnimatedStyle = useAnimatedStyle(() => {
     return {
-      height: filterScale.value * 120,
+      height: filterScale.value * 300,
       opacity: filterScale.value,
     };
   });
 
   const renderCarCard = ({ item }: { item: typeof allCars[0] }) => (
     <Animated.View entering={FadeIn.delay(100)} style={styles.carCard}>
-      <TouchableOpacity
-        onPress={() => handleCarPress(item.id)}
-        activeOpacity={0.9}
-      >
+      <TouchableOpacity onPress={() => handleCarPress(item.id)} activeOpacity={0.9}>
         <Image source={{ uri: item.image }} style={styles.carImage} />
         <View style={styles.carInfo}>
           <View style={styles.carHeader}>
@@ -110,7 +128,7 @@ export default function SearchScreen() {
               <Text style={styles.ratingText}>{item.rating}</Text>
             </View>
           </View>
-          
+
           <View style={styles.carDetails}>
             <View style={styles.detailItem}>
               <MapPin size={14} color="#8E8E93" />
@@ -125,11 +143,16 @@ export default function SearchScreen() {
               <Text style={styles.detailText}>{item.seats} seats</Text>
             </View>
           </View>
-          
+
           <View style={styles.carFooter}>
             <Text style={styles.carPrice}>${item.pricePerDay}/day</Text>
             <View style={styles.availabilityBadge}>
-              <Text style={styles.availabilityText}>Available</Text>
+              <Text style={[
+                styles.availabilityText,
+                !item.available && styles.unavailableText
+              ]}>
+                {item.available ? 'Available' : 'Unavailable'}
+              </Text>
             </View>
           </View>
         </View>
@@ -139,7 +162,6 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Search Cars</Text>
         <TouchableOpacity onPress={toggleFilters} style={styles.filterButton}>
@@ -147,7 +169,6 @@ export default function SearchScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <Search size={20} color="#8E8E93" />
@@ -161,35 +182,51 @@ export default function SearchScreen() {
         </View>
       </View>
 
-      {/* Filters */}
       <Animated.View style={[styles.filtersContainer, filterAnimatedStyle]}>
-        <View style={styles.filterRow}>
+        <TextInput
+          style={styles.filterInput}
+          placeholder="Enter Location"
+          value={selectedLocation}
+          onChangeText={setSelectedLocation}
+          placeholderTextColor="#8E8E93"
+        />
+
+        <TextInput
+          style={styles.filterInput}
+          placeholder="Vehicle Type (sedan, suv, luxury, electric)"
+          value={selectedCategory}
+          onChangeText={setSelectedCategory}
+          placeholderTextColor="#8E8E93"
+        />
+
+        <TextInput
+          style={styles.filterInput}
+          placeholder="Availability (All / Available / Unavailable)"
+          value={availability}
+          onChangeText={setAvailability}
+          placeholderTextColor="#8E8E93"
+        />
+
+        <View style={styles.priceInputs}>
           <TextInput
-            style={styles.filterInput}
-            placeholder="Location"
-            value={selectedLocation}
-            onChangeText={setSelectedLocation}
-            placeholderTextColor="#8E8E93"
+            style={styles.priceInput}
+            placeholder="Min Price"
+            keyboardType="numeric"
+            value={priceRange.min}
+            onChangeText={(val) => setPriceRange({ ...priceRange, min: val })}
           />
           <TextInput
-            style={styles.filterInput}
-            placeholder="Category"
-            value={selectedCategory}
-            onChangeText={setSelectedCategory}
-            placeholderTextColor="#8E8E93"
+            style={styles.priceInput}
+            placeholder="Max Price"
+            keyboardType="numeric"
+            value={priceRange.max}
+            onChangeText={(val) => setPriceRange({ ...priceRange, max: val })}
           />
-        </View>
-        <View style={styles.priceRangeContainer}>
-          <Text style={styles.priceRangeLabel}>Price Range: ${priceRange.min} - ${priceRange.max}</Text>
         </View>
       </Animated.View>
 
-      {/* Results */}
       <View style={styles.resultsContainer}>
-        <Text style={styles.resultsText}>
-          {filteredCars.length} cars found
-        </Text>
-        
+        <Text style={styles.resultsText}>{filteredCars.length} cars found</Text>
         <FlatList
           data={filteredCars}
           renderItem={renderCarCard}
@@ -203,21 +240,17 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
-  },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 10,
   },
   title: {
     fontSize: 28,
-    fontFamily: 'Poppins-Bold',
+    fontWeight: '700',
     color: '#1D1D1F',
   },
   filterButton: {
@@ -228,10 +261,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  searchContainer: {
-    paddingHorizontal: 20,
-    marginTop: 10,
-  },
+  searchContainer: { paddingHorizontal: 20, marginTop: 10 },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -241,7 +271,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
@@ -249,38 +279,34 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
     color: '#1D1D1F',
   },
   filtersContainer: {
     paddingHorizontal: 20,
-    marginTop: 16,
+    marginTop: 12,
     overflow: 'hidden',
   },
-  filterRow: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
   filterInput: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#1D1D1F',
+    marginBottom: 10,
+  },
+  priceInputs: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  priceInput: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    borderRadius: 10,
+    paddingHorizontal: 14,
     paddingVertical: 10,
-    marginRight: 8,
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#1D1D1F',
-  },
-  priceRangeContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  priceRangeLabel: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
     color: '#1D1D1F',
   },
   resultsContainer: {
@@ -290,13 +316,11 @@ const styles = StyleSheet.create({
   },
   resultsText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontWeight: '600',
     color: '#8E8E93',
     marginBottom: 16,
   },
-  carsList: {
-    paddingBottom: 20,
-  },
+  carsList: { paddingBottom: 30 },
   carCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -304,7 +328,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 6,
     elevation: 4,
   },
   carImage: {
@@ -313,27 +337,20 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
-  carInfo: {
-    padding: 16,
-  },
+  carInfo: { padding: 16 },
   carHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 8,
   },
   carName: {
-    fontSize: 20,
-    fontFamily: 'Poppins-SemiBold',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#1D1D1F',
   },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  ratingContainer: { flexDirection: 'row', alignItems: 'center' },
   ratingText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
     color: '#1D1D1F',
     marginLeft: 4,
   },
@@ -342,13 +359,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  detailItem: { flexDirection: 'row', alignItems: 'center' },
   detailText: {
     fontSize: 12,
-    fontFamily: 'Inter-Regular',
     color: '#8E8E93',
     marginLeft: 4,
   },
@@ -358,8 +371,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   carPrice: {
-    fontSize: 18,
-    fontFamily: 'Poppins-Bold',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#007AFF',
   },
   availabilityBadge: {
@@ -370,7 +383,10 @@ const styles = StyleSheet.create({
   },
   availabilityText: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontWeight: '600',
     color: '#4CAF50',
+  },
+  unavailableText: {
+    color: '#FF3B30',
   },
 });

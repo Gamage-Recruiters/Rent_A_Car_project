@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "EXPO_NO_TELEMETRY=1 expo start",
-    "build:web": "expo export --platform web",
+    "dev": "node init && EXPO_NO_TELEMETRY=1 expo start",
+    "build:web": "node init && expo export --platform web",
     "lint": "expo lint"
   },
   "dependencies": {
@@ -15,6 +15,7 @@
     "@lucide/lab": "^0.1.2",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/datetimepicker": "^8.4.2",
+    "@react-native-community/slider": "^4.5.7",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "expo": "^53.0.19",
     "expo-blur": "~14.1.3",
