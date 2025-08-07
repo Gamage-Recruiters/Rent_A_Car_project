@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { Users, Calendar, DollarSign, Clock, TrendingUp, TrendingDown, Eye, Download, Filter } from "lucide-react"
+import { Users, Calendar, DollarSign, Clock, TrendingUp, TrendingDown, FileText, FileSpreadsheet } from "lucide-react"
 
 const AdminDashboard: React.FC = () => {
   const metrics = [
@@ -68,7 +68,17 @@ const AdminDashboard: React.FC = () => {
               <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
               <p className="text-gray-600 mt-2">Welcome back! Here's what's happening with your platform.</p>
             </div>
-            
+            {/* Report Generation Buttons */}
+            <div className="flex space-x-3">
+              <button className="flex items-center gap-2 bg-transparent border border-gray-300 rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">
+                <FileText className="h-4 w-4" />
+                <span>Generate PDF</span>
+              </button>
+              <button className="flex items-center gap-2 bg-transparent border border-gray-300 rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">
+                <FileSpreadsheet className="h-4 w-4" />
+                <span>Generate Excel</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
