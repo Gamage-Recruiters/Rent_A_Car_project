@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "EXPO_NO_TELEMETRY=1 expo start",
-    "build:web": "expo export --platform web",
+    "dev": "node init && EXPO_NO_TELEMETRY=1 expo start",
+    "build:web": "node init && expo export --platform web",
     "lint": "expo lint"
   },
   "dependencies": {
