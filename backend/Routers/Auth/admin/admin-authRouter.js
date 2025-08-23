@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 
-const { addSuperAdmin, loginSuperAdmin, logoutSuperAdmin,requestPasswordReset, resetPassword } = require('../../../controllers/Auth/admin/admin-authController');
+const { addSuperAdmin, loginSuperAdmin, logoutSuperAdmin,requestPasswordReset, resetPassword,createAdminBySuperAdmin,getAllAdmins,getAdminById,deleteAdmin } = require('../../../controllers/Auth/admin/admin-authController');
 const {verifySuperAdminToken} = require('../../../middleware/Auth/verifyToken');
 const {isSuperAdmin}  = require('../../../middleware/Auth/authorization');
 const { verifyRefreshToken, createAccessToken } = require('../../../utils/jwtUtil');
 // Route to add new Super Admin (protected by secret key)
-router.post('/add', addSuperAdmin);
+
 
 // Super Admin login
 router.post('/login', loginSuperAdmin);
@@ -19,17 +19,17 @@ router.put('/reset-password/:token', resetPassword);
 
 
 router.post('/refresh', async (req, res) => {
-    const refreshToken = req.cookies.superadminrefreshtoken;
-    if (!refreshToken) return res.status(401).json({ message: "No Refresh Token" });
+    const refreshToken = req.cookies[process.env.SUPERADMIN_REFRESH_COOKIE_NAME] || req.cookies.superadminrefreshtoken;
+     if (!refreshToken) return res.status(401).json({ message: "No Refresh Token" });
 
     try {
         const decoded = verifyRefreshToken(refreshToken);
-        const newAccessToken = createToken({
+        const newAccessToken = createAccessToken({
             id: decoded.id,
             email: decoded.email,
             userRole: decoded.userRole
         });
-        res.cookie('superadmintoken', newAccessToken, { httpOnly: true });
+         res.cookie(process.env.SUPERADMIN_COOKIE_NAME || 'superadmintoken', newAccessToken, { httpOnly: true });
         res.json({ message: "Access token refreshed" });
     } catch (err) {
         res.status(403).json({ message: "Invalid Refresh Token" });
@@ -38,6 +38,12 @@ router.post('/refresh', async (req, res) => {
 
 // Super Admin logout
 router.post('/logout', logoutSuperAdmin);
+
+// Protected admin-management routes (only for logged-in superadmin)
++router.post('/admins', verifySuperAdminToken, isSuperAdmin, createAdminBySuperAdmin);
++router.get('/admins', verifySuperAdminToken, isSuperAdmin, getAllAdmins);
++router.get('/admins/:id', verifySuperAdminToken, isSuperAdmin, getAdminById);
++router.delete('/admins/:id', verifySuperAdminToken, isSuperAdmin, deleteAdmin);
 
 //Protected Super Admin route 
 router.get('/owners/pending', verifySuperAdminToken, isSuperAdmin, (req, res) => {
