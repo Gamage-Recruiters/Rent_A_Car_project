@@ -25,7 +25,7 @@ const dummyCustomers: User[] = [
   { id: 9, name: 'Clara Thompson', email: 'clara.t@example.com', phone: '0713333333', status: 'suspend', type: 'customer', registeredDate: '2024-01-10' },
   { id: 10, name: 'Daniel Lee', email: 'daniel.lee@example.com', phone: '0714444444', status: 'verify', type: 'customer', registeredDate: '2024-04-02' },
   { id: 11, name: 'Emma Garcia', email: 'emma.garcia@example.com', phone: '0715555555', status: 'verify', type: 'customer', registeredDate: '2024-03-28' },
-  { id: 12, name: 'Dev Jhons', email: 'dev.jhons@example.com', phone: '0716666666', status: 'verify', type: 'customer', registeredDate: '2024-03-31' },
+  { id: 12, name: 'neku kayomi', email: 'neku.kayomi@example.com', phone: '0716666666', status: 'verify', type: 'customer', registeredDate: '2024-03-31' },
 ];
 
 const ManageAccounts: React.FC = () => {
@@ -163,7 +163,7 @@ const ManageAccounts: React.FC = () => {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-gray-800 capitalize">
-              {view} Accounts ({view === 'owner' ? owners.length : customers.length})
+              Total {view} Accounts ({view === 'owner' ? owners.length : customers.length})
             </h2>
             <div className="flex gap-2">
               <div className="flex items-center gap-2 text-sm text-gray-600">
