@@ -1,4 +1,5 @@
-import { Vehicle, Review } from '../types';
+import { Vehicle, Review, Inquiry} from '../types';
+import { User } from "lucide-react";
 
 export const mockVehicles: Vehicle[] = [
   {
@@ -170,5 +171,54 @@ export const mockReviews: Review[] = [
     comment: 'Amazing SUV! Perfect for our family trip. The driver was professional and friendly.',
     createdAt: '2024-01-05T09:15:00Z',
     userName: 'Mike Davis'
+  }
+];
+
+
+export const inquiries: Inquiry[] = [
+  {
+    id: 1,
+    profileImage: "/images/user1.jpg",
+    fullName: "John Doe",
+    email: "john@example.com",
+    phone: "+1 234 567 890",
+    subject: "Booking Inquiry",
+    message: "I have a question about my order status."
+  },
+  {
+    id: 2,
+    profileImage: "/images/user2.jpg",
+    fullName: "Jane Smith",
+    email: "jane@example.com",
+    phone: "+1 987 654 321",
+    subject: "Customer Support",
+    message: "How can I return an item I purchased?"
+  },
+  {
+    id: 3,
+    profileImage: "/images/user2.jpg",
+    fullName: "Jane Smith",
+    email: "jane@example.com",
+    phone: "+1 987 654 321",
+    subject: "Become Partner",
+    message: "How can I return an item I purchased?"
+  },
+  {
+    id: 4,
+    profileImage: "/images/user2.jpg",
+    fullName: "Jane Smith",
+    email: "jane@example.com",
+    phone: "+1 987 654 321",
+    subject: "Feedback",
+    message: "How can I return an item I purchased?"
+  },
+  {
+    id: 4,
+    profileImage: "/images/user2.jpg",
+    fullName: "Jane Smith",
+    email: "jane@example.com",
+    phone: "+1 987 654 321",
+    subject: "Other",
+    message: "How can I return an item I purchased?"
   }
 ];
