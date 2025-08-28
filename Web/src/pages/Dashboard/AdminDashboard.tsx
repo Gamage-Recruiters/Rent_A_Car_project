@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { Users, Calendar, DollarSign, Clock, TrendingUp, TrendingDown, FileText, FileSpreadsheet } from "lucide-react"
-import AdminProfileDropdown from "../../components/AdminProdileDropdown"
+import AdminProfileDropdown from "../../components/AdminProfileDropdown"
 
 const AdminDashboard: React.FC = () => {
   const metrics = [
@@ -61,23 +61,30 @@ const AdminDashboard: React.FC = () => {
 
   // Profile dropdown handlers
   const handleGetProfile = () => {
-    console.log("Get Admin Profile clicked")
-    // Add your logic here - maybe navigate to profile page or open modal
+    // Navigate to profile page
+    window.location.href = "/admin/profile"
+    // Or if using React Router: navigate('/admin/profile')
   }
 
   const handleUpdateProfile = () => {
-    console.log("Update Profile clicked")
-    // Add your logic here - maybe navigate to edit profile page
+    // Navigate directly to profile page in edit mode
+    window.location.href = "/admin/profile?edit=true"
+    // Or if using React Router: navigate('/admin/profile', { state: { edit: true } })
   }
 
   const handleChangePassword = () => {
-    console.log("Change Password clicked")
-    // Add your logic here - maybe open change password modal
+    // Navigate to profile page with password change mode
+    window.location.href = "/admin/profile?changePassword=true"
+    // Or if using React Router: navigate('/admin/profile', { state: { changePassword: true } })
   }
 
   const handleLogout = () => {
-    console.log("Logout clicked")
-    // Add your logout logic here
+    // Handle logout logic
+    if (confirm("Are you sure you want to logout?")) {
+      // Clear auth tokens, redirect to login, etc.
+      console.log("Logging out...")
+      window.location.href = "/admin/login"
+    }
   }
 
   return (
