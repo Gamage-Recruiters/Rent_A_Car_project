@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { Users, Calendar, DollarSign, Clock, TrendingUp, TrendingDown, FileText, FileSpreadsheet } from "lucide-react"
+import AdminProfileDropdown from "../../components/AdminProdileDropdown"
 
 const AdminDashboard: React.FC = () => {
   const metrics = [
@@ -58,6 +59,27 @@ const AdminDashboard: React.FC = () => {
     { action: "Verification pending", user: "mike.wilson@email.com", time: "18 minutes ago", type: "verification" },
   ]
 
+  // Profile dropdown handlers
+  const handleGetProfile = () => {
+    console.log("Get Admin Profile clicked")
+    // Add your logic here - maybe navigate to profile page or open modal
+  }
+
+  const handleUpdateProfile = () => {
+    console.log("Update Profile clicked")
+    // Add your logic here - maybe navigate to edit profile page
+  }
+
+  const handleChangePassword = () => {
+    console.log("Change Password clicked")
+    // Add your logic here - maybe open change password modal
+  }
+
+  const handleLogout = () => {
+    console.log("Logout clicked")
+    // Add your logout logic here
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -68,8 +90,8 @@ const AdminDashboard: React.FC = () => {
               <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
               <p className="text-gray-600 mt-2">Welcome back! Here's what's happening with your platform.</p>
             </div>
-            {/* Report Generation Buttons */}
-            <div className="flex space-x-3">
+            {/* Report Generation Buttons + Profile Dropdown */}
+            <div className="flex items-center space-x-3">
               <button className="flex items-center gap-2 bg-transparent border border-gray-300 rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">
                 <FileText className="h-4 w-4" />
                 <span>Generate PDF</span>
@@ -78,12 +100,22 @@ const AdminDashboard: React.FC = () => {
                 <FileSpreadsheet className="h-4 w-4" />
                 <span>Generate Excel</span>
               </button>
+
+              {/* Admin Profile Dropdown */}
+              <AdminProfileDropdown
+                adminName="John Admin"
+                adminEmail="john.admin@carrental.com"
+                onGetProfile={handleGetProfile}
+                onUpdateProfile={handleUpdateProfile}
+                onChangePassword={handleChangePassword}
+                onLogout={handleLogout}
+              />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content - Keep everything else exactly the same */}
       <div className="p-6">
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
