@@ -57,6 +57,31 @@ const VehicleDetailsPage: React.FC = () => {
     return days * vehicle.pricePerDay;
   };
 
+  const maskPhone = (p?: string) => {
+    if (!p) return 'N/A';
+    const digits = p.replace(/\D/g, '');
+    return digits.length > 2 ? `••• •• •• ${digits.slice(-2)}` : '•••';
+  };
+
+  const maskEmail = (e?: string) => {
+    if (!e) return 'N/A';
+    const [name, domain] = e.split('@');
+    if (!domain) return '••••@••••';
+    const maskedName = name.length <= 2 ? '••' : `${name[0]}••${name[name.length - 1]}`;
+    return `${maskedName}@${domain}`;
+  };
+
+  const owner = {
+    name: (vehicle as any).owner?.name || vehicle.contactInfo?.name || 'Owner',
+    phone: (vehicle as any).owner?.phone || vehicle.contactInfo?.phone,
+    email: (vehicle as any).owner?.email || vehicle.contactInfo?.email,
+    address: (vehicle as any).owner?.address || vehicle.contactInfo?.address || vehicle.location,
+    verified: (vehicle as any).owner?.verified ?? (vehicle as any).isVerified ?? false,
+    memberSince: (vehicle as any).owner?.memberSince || undefined,
+    rating: (vehicle as any).owner?.rating || undefined,
+    trips: (vehicle as any).owner?.trips || undefined,
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -132,6 +157,53 @@ const VehicleDetailsPage: React.FC = () => {
                     Driver Available
                   </span>
                 )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg p-6 shadow-md">
+              <h3 className="text-lg font-semibold mb-4">Owner Details</h3>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
+                    {(owner.name || 'O').charAt(0)}
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-medium text-gray-900">{owner.name}</span>
+                      {owner.verified && (
+                        <span className="inline-flex items-center text-green-700 bg-green-100 px-2 py-0.5 rounded-full text-xs">
+                          <Shield className="w-3 h-3 mr-1" /> Verified
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center text-sm text-gray-500 space-x-3 mt-1">
+                      {owner.memberSince && (
+                        <span className="inline-flex items-center"><Clock className="w-4 h-4 mr-1" /> Member since {owner.memberSince}</span>
+                      )}
+                      {typeof owner.rating === 'number' && (
+                        <span className="inline-flex items-center"><Star className="w-4 h-4 mr-1 text-yellow-400 fill-current" /> {owner.rating.toFixed(1)}</span>
+                      )}
+                      {typeof owner.trips === 'number' && (
+                        <span className="inline-flex items-center"><Award className="w-4 h-4 mr-1" /> {owner.trips} trips</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div className="flex items-center space-x-3">
+                  <Phone className="w-5 h-5 text-blue-600" />
+                  <span>{(user || showBookingModal) ? (owner.phone || 'N/A') : maskPhone(owner.phone)}</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Mail className="w-5 h-5 text-blue-600" />
+                  <span>{(user || showBookingModal) ? (owner.email || 'N/A') : maskEmail(owner.email)}</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <MapPin className="w-5 h-5 text-blue-600" />
+                  <span>{owner.address || '—'}</span>
+                </div>
               </div>
             </div>
 
@@ -336,7 +408,6 @@ const VehicleDetailsPage: React.FC = () => {
               </button>
               <button
                 onClick={() => {
-                  // Handle booking submission
                   alert('Booking submitted successfully!');
                   setShowBookingModal(false);
                 }}
