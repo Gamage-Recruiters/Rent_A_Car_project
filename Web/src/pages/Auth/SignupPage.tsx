@@ -8,7 +8,8 @@ const SignupPage: React.FC = () => {
   const initialUserType = searchParams.get('type') as 'user' | 'owner' || 'user';
   
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
     password: '',
@@ -42,7 +43,8 @@ const SignupPage: React.FC = () => {
     try {
       const success = await signup(
         {
-          name: formData.name,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
           email: formData.email,
           phone: formData.phone,
           type: formData.userType,
@@ -118,18 +120,34 @@ const SignupPage: React.FC = () => {
             )}
 
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
+              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                First Name
               </label>
               <input
-                id="name"
-                name="name"
+                id="firstName"
+                name="firstName"
                 type="text"
                 required
-                value={formData.name}
+                value={formData.firstName}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter your full name"
+                placeholder="Enter your first name"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                Last Name
+              </label>
+              <input
+                id="lastName"
+                name="lastName"
+                type="text"
+                required
+                value={formData.lastName}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter your last name"
               />
             </div>
 

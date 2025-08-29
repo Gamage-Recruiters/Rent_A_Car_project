@@ -1,8 +1,10 @@
 export interface User {
   id: string;
   email: string;
-  name: string;
-  phone: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
   type: 'user' | 'owner'|'admin';
   createdAt: string;
 }
@@ -76,4 +78,14 @@ export interface SearchFilters {
   hasDriver: boolean | null;
   transmission: string;
   fuelType: string;
+}
+
+export interface Inquiry {
+  id: number;
+  profileImage: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  subject: string;
+  message: string;
 }

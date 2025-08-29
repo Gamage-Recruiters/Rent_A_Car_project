@@ -69,7 +69,7 @@ const Footer: React.FC = () => {
                 <MapPin className="w-4 h-4 text-blue-400" />
                 <span className="text-gray-400">123 Main St, Downtown</span>
               </div>
-              <Link to="/admin-login" className="flex items-center space-x-3">Login as an Admin</Link>
+              
             </div>
           </div>
 

@@ -30,7 +30,11 @@ import AdminVehicleDetailsPage from './pages/AdminVehicleDetailsPage';
 
 import AdminLogin from './pages/Auth/AdminLogin';
 import AdminDashboard from './pages/Dashboard/AdminDashboard';
+
 import AdminProfile from './pages/AdminProfile';
+
+import AdminCustomerInquiry from './pages/AdminCustomerInquiry';
+
 
 
 
@@ -73,8 +77,12 @@ function App() {
             <Route path="/admin-vehicle-listings" element={<AdminVehicleListingsPage />} />
             <Route path="/admin/vehicles/:id" element={<AdminVehicleDetailsPage />} />
             <Route path="/admin/settings" element={<PlatformSettingsPage />} />
+
             <Route path="/admin/profile" element={<AdminProfile />} />
             
+
+            <Route path="/admininquiries" element={<AdminCustomerInquiry />} />
+
             
             {/* Fallback route */}
 
