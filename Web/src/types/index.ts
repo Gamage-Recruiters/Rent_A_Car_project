@@ -1,9 +1,10 @@
 export interface User {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
   type: 'user' | 'owner'|'admin';
   createdAt: string;
 }
