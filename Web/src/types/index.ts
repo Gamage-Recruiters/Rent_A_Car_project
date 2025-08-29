@@ -77,3 +77,13 @@ export interface SearchFilters {
   transmission: string;
   fuelType: string;
 }
+
+export interface Inquiry {
+  id: number;
+  profileImage: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  subject: string;
+  message: string;
+}
