@@ -11,7 +11,7 @@ interface AuthContextType {
   logout: () => Promise<boolean>;
   isLoading: boolean;
   error: string | null;
-  //forgotPassword: (email: string) => Promise<boolean>;
+  forgotPassword: (email: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -182,25 +182,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // const forgotPassword = async (email: string): Promise<boolean> => {
-  //   setIsLoading(true);
-  //   setError(null);
+  const forgotPassword = async (email: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
 
-  //   try {
-  //     const response = await axios.post(`${API_URL}/auth/customer/forgot-password`, { email });
-  //     return response.data.success;
-  //   } catch (error) {
-  //     console.error('Forgot password error:', error);
-  //     if (axios.isAxiosError(error) && error.response) {
-  //       setError(error.response.data.message || 'Forgot password failed');
-  //     } else {
-  //       setError('An error occurred during forgot password');
-  //     }
-  //     return false;
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
+    try {
+      const response = await axios.post(`${API_URL}/auth/customer/forgot-password`, { email });
+      return response.data.success;
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        setError(error.response.data.message || 'Forgot password failed');
+      } else {
+        setError('An error occurred during forgot password');
+      }
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <AuthContext.Provider value={{
@@ -210,7 +210,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logout,
       isLoading,
       error,
-      //forgotPassword
+      forgotPassword
     }}>
       {children}
     </AuthContext.Provider>
