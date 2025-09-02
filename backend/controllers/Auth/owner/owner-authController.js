@@ -10,7 +10,7 @@ const {
 // Direct Registration For Owner
 async function registerOwner(req, res) {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    const { email, password, firstName, lastName, phone } = req.body;
 
     // Check if required fields are not empty
     if (!email || !password || !firstName) {
@@ -34,6 +34,7 @@ async function registerOwner(req, res) {
       password: hashedPassword,
       firstName,
       lastName,
+      phone,
     });
 
     if (newOwner) {
