@@ -1,38 +1,38 @@
-import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Car, Eye, EyeOff, Loader2 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Car, Eye, EyeOff, Loader2 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [userType, setUserType] = useState<'user' | 'owner'>('user');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [userType, setUserType] = useState<"user" | "owner">("user");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = location.state?.from?.pathname || '/';
+  const from = location.state?.from?.pathname || "/";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
       const success = await login(email, password, userType);
       if (success) {
-        navigate(userType === 'owner' ? '/owner-dashboard' : from);
+        navigate(userType === "owner" ? "/owner-dashboard" : from);
       } else {
-        setError('Invalid credentials. Please try again.');
+        setError("Invalid credentials. Please try again.");
       }
     } catch (error) {
-      setError('An error occurred. Please try again.');
+      setError("An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -42,11 +42,16 @@ const LoginPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <Link to="/" className="inline-flex items-center space-x-2 text-blue-600">
+          <Link
+            to="/"
+            className="inline-flex items-center space-x-2 text-blue-600"
+          >
             <Car className="w-8 h-8" />
             <span className="text-2xl font-bold">RentACar</span>
           </Link>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">Welcome Back</h2>
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">
+            Welcome Back
+          </h2>
           <p className="mt-2 text-gray-600">Sign in to your account</p>
         </div>
 
@@ -56,22 +61,22 @@ const LoginPage: React.FC = () => {
             <div className="flex bg-gray-100 rounded-lg p-1">
               <button
                 type="button"
-                onClick={() => setUserType('user')}
+                onClick={() => setUserType("user")}
                 className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
-                  userType === 'user'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-700 hover:text-gray-900'
+                  userType === "user"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-700 hover:text-gray-900"
                 }`}
               >
                 Rent a Car
               </button>
               <button
                 type="button"
-                onClick={() => setUserType('owner')}
+                onClick={() => setUserType("owner")}
                 className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
-                  userType === 'owner'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-700 hover:text-gray-900'
+                  userType === "owner"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-700 hover:text-gray-900"
                 }`}
               >
                 Car Owner
@@ -87,7 +92,10 @@ const LoginPage: React.FC = () => {
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Email Address
               </label>
               <input
@@ -102,13 +110,16 @@ const LoginPage: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Password
               </label>
               <div className="relative">
                 <input
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -136,7 +147,10 @@ const LoginPage: React.FC = () => {
                   type="checkbox"
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <label htmlFor="remember" className="ml-2 block text-sm text-gray-700">
+                <label
+                  htmlFor="remember"
+                  className="ml-2 block text-sm text-gray-700"
+                >
                   Remember me
                 </label>
               </div>
@@ -159,7 +173,7 @@ const LoginPage: React.FC = () => {
                   Signing in...
                 </>
               ) : (
-                'Sign In'
+                "Sign In"
               )}
             </button>
             <div className="relative my-6">
@@ -167,7 +181,9 @@ const LoginPage: React.FC = () => {
                 <div className="w-full border-t border-gray-300"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                <span className="px-2 bg-white text-gray-500">
+                  Or continue with
+                </span>
               </div>
             </div>
 
@@ -199,7 +215,7 @@ const LoginPage: React.FC = () => {
 
           <div className="mt-6 text-center">
             <p className="text-gray-600">
-              Don't have an account?{' '}
+              Don't have an account?{" "}
               <Link
                 to="/signup"
                 className="text-blue-600 hover:text-blue-500 font-medium"
