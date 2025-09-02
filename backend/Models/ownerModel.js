@@ -25,6 +25,12 @@ const ownerSchema = new mongoose.Schema(
       default: "",
     },
 
+    phone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
     image: {
       type: String,
       default: null,
