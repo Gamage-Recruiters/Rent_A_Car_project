@@ -1,6 +1,7 @@
 # Node modules
 node_modules/
 
+
 # Logs
 logs
 *.log
@@ -49,3 +50,9 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+
+#.env
+#.env.local
+#.env.*.local
+package-lock.json
+
