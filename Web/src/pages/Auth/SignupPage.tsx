@@ -5,8 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 
 const SignupPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const initialUserType = searchParams.get('type') as 'user' | 'owner' || 'user';
-  
+  const initialUserType = (searchParams.get('type') as 'user' | 'owner') || 'user';
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -16,6 +16,7 @@ const SignupPage: React.FC = () => {
     confirmPassword: '',
     userType: initialUserType,
   });
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
@@ -46,7 +47,7 @@ const SignupPage: React.FC = () => {
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: formData.email,
-          phone: formData.phone,
+          phone: formData.phone, // ✅ always included now
           type: formData.userType,
         },
         formData.password
@@ -57,7 +58,7 @@ const SignupPage: React.FC = () => {
       } else {
         setError('Failed to create account. Please try again.');
       }
-    } catch (error) {
+    } catch (err) {
       setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
