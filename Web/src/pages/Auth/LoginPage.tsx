@@ -31,8 +31,8 @@ const LoginPage: React.FC = () => {
       } else {
         setError("Invalid credentials. Please try again.");
       }
-    } catch (error) {
-      setError("An error occurred. Please try again.");
+    } catch (err: any) {
+      setError(err.message || "An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -91,6 +91,7 @@ const LoginPage: React.FC = () => {
               </div>
             )}
 
+            {/* Email */}
             <div>
               <label
                 htmlFor="email"
@@ -109,6 +110,7 @@ const LoginPage: React.FC = () => {
               />
             </div>
 
+            {/* Password */}
             <div>
               <label
                 htmlFor="password"
@@ -140,6 +142,7 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Remember & Forgot */}
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <input
@@ -162,6 +165,7 @@ const LoginPage: React.FC = () => {
               </Link>
             </div>
 
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -176,6 +180,8 @@ const LoginPage: React.FC = () => {
                 "Sign In"
               )}
             </button>
+
+            {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300"></div>
@@ -187,6 +193,7 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Google Login */}
             <a
               href={`${API_URL}/auth/customer/google`}
               className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
