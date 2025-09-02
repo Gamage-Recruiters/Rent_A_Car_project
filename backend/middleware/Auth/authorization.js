@@ -60,4 +60,4 @@ function isAdmin(req, res, next) {
 
 }
 
-module.exports = {isAnyAdmin,isSuperAdmin,isSuperAdminUser,isAdmin}
+module.exports = { isAnyAdmin,isSuperAdmin,isSuperAdminUser,isAdmin }
