@@ -1,6 +1,6 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { SuperAdminAuthProvider } from "./context/SuperAdminAuthContext";
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
@@ -35,16 +35,14 @@ import AdminDashboard from './pages/Dashboard/AdminDashboard';
 
 function App() {
   return (
-    <AuthProvider>
+    
       <Router>
+        <SuperAdminAuthProvider>
+        <AuthProvider>
+      
         <div className="min-h-screen bg-gray-50">
           
-          <Routes>
-            <Route path="/admin-test" element={<AdminTestPage />} /> {/* Admin sidebar test page */}
-            
-            
           
-          </Routes>
           <Navbar />
           <Routes>
             <Route path="/" element={<HomePage />} />
@@ -67,12 +65,13 @@ function App() {
             <Route path='/manage-accounts' element={<ManageAccounts />} />
 
             {/* admin pages */}
+            
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/admin-vehicle-listings" element={<AdminVehicleListingsPage />} />
             <Route path="/admin/vehicles/:id" element={<AdminVehicleDetailsPage />} />
             <Route path="/admin/settings" element={<PlatformSettingsPage />} />
-            
+           
             
             {/* Fallback route */}
 
@@ -80,8 +79,11 @@ function App() {
           </Routes>
           <Footer />
         </div>
+        </AuthProvider>
+        </SuperAdminAuthProvider>
+    
       </Router>
-    </AuthProvider>
+      
   );
 }
 
