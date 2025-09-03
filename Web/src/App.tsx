@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { VehicleProvider } from './context/VehicleContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import ScrollToTop from './components/ScrollToTop';
 import HomePage from './pages/HomePage';
 import SearchPage from './pages/SearchPage';
 import VehicleDetailsPage from './pages/VehicleDetailsPage';
@@ -48,6 +49,7 @@ function App() {
     <AuthProvider>
       <VehicleProvider>
       <Router>
+        <ScrollToTop />
         <div className="min-h-screen bg-gray-50">
           
           <Routes>
