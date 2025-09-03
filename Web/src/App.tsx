@@ -1,4 +1,6 @@
 import React from 'react';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { VehicleProvider } from './context/VehicleContext';
@@ -97,8 +99,10 @@ function App() {
           <Footer />
         </div>
       </Router>
+      <ToastContainer position="top-right" autoClose={3000} />
       </VehicleProvider>
     </AuthProvider>
+    
   );
 }
 

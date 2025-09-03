@@ -5,8 +5,23 @@ export interface User {
   firstName?: string;
   lastName?: string;
   phone?: string;
+  phoneNumber?: string; // Add this to match backend model
   type: 'user' | 'owner'|'admin';
   createdAt: string;
+  photo?: string;
+  image?: { 
+    public_id?: string;
+    url?: string;
+  };
+  googleId?: string; 
+  dateOfBirth?: string;
+  driversLicense?: string;
+  emergencyContact?: string;
+  address?: string;
+  isNewsletterSubscribed?: boolean;
+  newsletterSubscribedAt?: string;
+  newsletterUnsubscribedAt?: string;
+  userRole?: string; 
 }
 
 export interface Vehicle {
