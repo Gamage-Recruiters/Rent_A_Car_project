@@ -62,22 +62,22 @@ export interface Vehicle {
   _id: string;
   isAvailable: boolean;
   isApproved: boolean;
-  vehicleName: string; // Changed from 'name' to match backend
+  vehicleName: string; 
   vehicleLicenseNumber: string;
   brand: string;
   model: string;
   year: string;
-  vehicleType: string; // Changed from enum to string to match backend
+  vehicleType: string; 
   images: string[];
   description: string;
-  noSeats: number; // Changed from 'seats' to match backend
-  fuelType: string; // Changed from enum to string to match backend
-  transmission: string; // Changed from enum to string to match backend
-  isDriverAvailable: boolean; // Changed from 'hasDriver' to match backend
+  noSeats: number; 
+  fuelType: string; 
+  transmission: string; 
+  isDriverAvailable: boolean;
   pricePerDay: number;
-  pricePerDistance: number; // Changed from 'pricePerKm' to match backend
-  phoneNumber: number; // Changed from contactInfo.phone to match backend
-  pickupAddress: string; // Changed from 'location' to match backend
+  pricePerDistance: number; 
+  phoneNumber: number; 
+  pickupAddress: string; 
   owner: {
     _id: string;
     email: string;
@@ -87,7 +87,7 @@ export interface Vehicle {
   unavailableDates: string[];
   __v: number;
   
-  // Optional fields that might not be in backend response
+  // Optional 
   rating?: number;
   reviewCount?: number;
   features?: string[];

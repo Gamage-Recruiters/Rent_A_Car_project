@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Star, Users, Fuel, Settings, MapPin } from 'lucide-react';
 
 interface VehicleCardProps {
-  vehicle: any; // Backend response type
+  vehicle: any;
   showContactInfo?: boolean;
 }
 

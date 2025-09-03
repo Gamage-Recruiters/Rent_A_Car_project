@@ -51,15 +51,14 @@ function App() {
       <Router>
         <ScrollToTop />
         <div className="min-h-screen bg-gray-50">
-          
+          <Navbar />
           <Routes>
             <Route path="/admin-test" element={<AdminTestPage />} /> {/* Admin sidebar test page */}
             
-            
           
-          </Routes>
-          <Navbar />
-          <Routes>
+
+          
+          
             <Route path="/" element={<HomePage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/vehicle/:id" element={<VehicleDetailsPage />} />
