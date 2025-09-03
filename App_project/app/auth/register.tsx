@@ -14,20 +14,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Checkbox } from 'react-native-paper';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react-native';
+import axios from 'axios';
 import { router } from 'expo-router';
 
 export default function RegisterScreen() {
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [userType, setUserType] = useState('customer');
   const [agree, setAgree] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
-    if (!name || !email || !password || !confirmPassword) {
+  const API_URL = 'http://localhost:8000/api'
+
+  const handleRegister = async () => {
+    if (!firstName || !email || !password || !confirmPassword) {
       Alert.alert('Please fill in all fields');
       return;
     }
@@ -42,14 +47,37 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Simulate API
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const endpoint = `/auth/${userType}/register`;
+
+      const userData = {
+        firstName,
+        lastName,
+        email,
+        password,
+      };
+
+      // Call the api
+      const response = await axios.post(`${API_URL}${endpoint}`, userData)
+
+      const data = response.data;
+
+      if (response.status < 200 || response.status >= 300) {
+        throw new Error(data.message || 'Registration failed');
+      }
+
+      Alert.alert(
+        'Success',
+        'Account created successfully!',
+        [{ text: 'OK', onPress: () => router.push('/auth/login') }]
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Something went wrong';
+      Alert.alert('Registration Failed', errorMessage);
+    } finally {
       setLoading(false);
-      Alert.alert('Success', 'Account created!', [
-        { text: 'OK', onPress: () => router.push('/auth/login') },
-      ]);
-    }, 1000);
+    }
   };
 
   return (
@@ -70,14 +98,58 @@ export default function RegisterScreen() {
               Create an account to get started
             </Text>
 
-            {/* Name */}
+            {/* User Type Selection */}
+            <View style={styles.userTypeContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.userTypeButton,
+                  userType === 'customer' && styles.activeUserTypeButton
+                ]}
+                onPress={() => setUserType('customer')}
+              >
+                <Text style={[
+                  styles.userTypeText,
+                  userType === 'customer' && styles.activeUserTypeText
+                ]}>
+                  Customer
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[
+                  styles.userTypeButton, 
+                  userType === 'owner' && styles.activeUserTypeButton
+                ]}
+                onPress={() => setUserType('owner')}
+              >
+                <Text style={[
+                  styles.userTypeText,
+                  userType === 'owner' && styles.activeUserTypeText
+                ]}>
+                  Car Owner
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* First Name */}
             <View style={styles.inputWrapper}>
               <User size={20} color="#999" />
               <TextInput
-                placeholder="Name"
+                placeholder="First Name *"
                 style={styles.input}
-                value={name}
-                onChangeText={setName}
+                value={firstName}
+                onChangeText={setFirstName}
+              />
+            </View>
+
+            {/* Last Name */}
+            <View style={styles.inputWrapper}>
+              <User size={20} color="#999" />
+              <TextInput
+                placeholder="Last Name"
+                style={styles.input}
+                value={lastName}
+                onChangeText={setLastName}
               />
             </View>
 
@@ -98,7 +170,7 @@ export default function RegisterScreen() {
             <View style={styles.inputWrapper}>
               <Lock size={20} color="#999" />
               <TextInput
-                placeholder="Create a password"
+                placeholder="Create a password *"
                 secureTextEntry={!showPassword}
                 style={styles.input}
                 value={password}
@@ -156,6 +228,15 @@ export default function RegisterScreen() {
                 {loading ? 'Creating...' : 'Create Account'}
               </Text>
             </TouchableOpacity>
+
+            {/* Login Link */}
+            <View style={styles.loginContainer}>
+              <Text style={styles.loginText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => router.push('/auth/login')}>
+                <Text style={styles.loginLink}>Login</Text>
+              </TouchableOpacity>
+            </View>
+
           </View>
         </KeyboardAvoidingView>
       </ScrollView>
@@ -239,5 +320,41 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  userTypeContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  userTypeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  activeUserTypeButton: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  userTypeText: {
+    color: '#666',
+    fontWeight: '500',
+  },
+  activeUserTypeText: {
+    color: '#fff',
+  },
+  loginContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  loginText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  loginLink: {
+    color: '#007AFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });
