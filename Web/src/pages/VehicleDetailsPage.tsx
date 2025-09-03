@@ -19,7 +19,7 @@ const VehicleDetailsPage: React.FC = () => {
     notes: ''
   });
 
-  const vehicle = mockVehicles.find(v => v.id === id);
+  const vehicle = mockVehicles.find(v => v._id === id);
   const reviews = mockReviews.filter(r => r.vehicleId === id);
 
   if (!vehicle) {
@@ -72,7 +72,7 @@ const VehicleDetailsPage: React.FC = () => {
   };
 
   const owner = {
-    name: (vehicle as any).owner?.name || vehicle.contactInfo?.name || 'Owner',
+    name: (vehicle as any).owner?.name || 'Owner',
     phone: (vehicle as any).owner?.phone || vehicle.contactInfo?.phone,
     email: (vehicle as any).owner?.email || vehicle.contactInfo?.email,
     address: (vehicle as any).owner?.address || vehicle.contactInfo?.address || vehicle.location,

@@ -24,38 +24,75 @@ export interface User {
   userRole?: string; 
 }
 
+// export interface Vehicle {
+//   _id: string;
+//   ownerId: string;
+//   name: string;
+//   brand: string;
+//   model: string;
+//   year: number;
+//   type: 'sedan' | 'suv' | 'hatchback' | 'luxury' | 'sports' | 'van';
+//   pricePerDay: number;
+//   pricePerKm?: number;
+//   location: string;
+//   images: string[];
+//   features: string[];
+//   hasDriver: boolean;
+//   availability: {
+//     from: string;
+//     to: string;
+//   };
+//   unavailableDates: string[];
+//   rating: number;
+//   reviewCount: number;
+//   description: string;
+//   fuelType: 'petrol' | 'diesel' | 'electric' | 'hybrid';
+//   transmission: 'manual' | 'automatic';
+//   seats: number;
+//   mileage: number;
+//   contactInfo: {
+//     phone: string;
+//     email: string;
+//     address: string;
+//   };
+//   status?: 'pending' | 'approved' | 'rejected';
+// }
+
 export interface Vehicle {
-  id: string;
-  ownerId: string;
-  name: string;
+  _id: string;
+  isAvailable: boolean;
+  isApproved: boolean;
+  vehicleName: string; // Changed from 'name' to match backend
+  vehicleLicenseNumber: string;
   brand: string;
   model: string;
-  year: number;
-  type: 'sedan' | 'suv' | 'hatchback' | 'luxury' | 'sports' | 'van';
-  pricePerDay: number;
-  pricePerKm?: number;
-  location: string;
+  year: string;
+  vehicleType: string; // Changed from enum to string to match backend
   images: string[];
-  features: string[];
-  hasDriver: boolean;
-  availability: {
-    from: string;
-    to: string;
+  description: string;
+  noSeats: number; // Changed from 'seats' to match backend
+  fuelType: string; // Changed from enum to string to match backend
+  transmission: string; // Changed from enum to string to match backend
+  isDriverAvailable: boolean; // Changed from 'hasDriver' to match backend
+  pricePerDay: number;
+  pricePerDistance: number; // Changed from 'pricePerKm' to match backend
+  phoneNumber: number; // Changed from contactInfo.phone to match backend
+  pickupAddress: string; // Changed from 'location' to match backend
+  owner: {
+    _id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
   };
   unavailableDates: string[];
-  rating: number;
-  reviewCount: number;
-  description: string;
-  fuelType: 'petrol' | 'diesel' | 'electric' | 'hybrid';
-  transmission: 'manual' | 'automatic';
-  seats: number;
-  mileage: number;
-  contactInfo: {
-    phone: string;
-    email: string;
-    address: string;
-  };
-  status?: 'pending' | 'approved' | 'rejected';
+  __v: number;
+  
+  // Optional fields that might not be in backend response
+  rating?: number;
+  reviewCount?: number;
+  features?: string[];
+  mileage?: number;
+  status?: string;
 }
 
 export interface Booking {
