@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { VehicleProvider } from './context/VehicleContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
@@ -43,6 +44,7 @@ import AdminCustomerInquiry from './pages/AdminCustomerInquiry';
 function App() {
   return (
     <AuthProvider>
+      <VehicleProvider>
       <Router>
         <div className="min-h-screen bg-gray-50">
           
@@ -95,6 +97,7 @@ function App() {
           <Footer />
         </div>
       </Router>
+      </VehicleProvider>
     </AuthProvider>
   );
 }

@@ -4,12 +4,14 @@ import { Filter, SortAsc } from 'lucide-react';
 import SearchForm from '../components/SearchForm';
 import VehicleCard from '../components/VehicleCard';
 import { SearchFilters, Vehicle } from '../types';
-import { mockVehicles } from '../data/mockData';
+import { useVehicle } from '../context/VehicleContext';
 
 const SearchPage: React.FC = () => {
   const location = useLocation();
+  const { getAllVehicles, searchVehicles } = useVehicle();
+
   const initialFilters = location.state?.filters || {};
-  
+
   const [filters, setFilters] = useState<SearchFilters>({
     location: '',
     vehicleType: '',
@@ -17,33 +19,57 @@ const SearchPage: React.FC = () => {
     hasDriver: null,
     transmission: '',
     fuelType: '',
-    ...initialFilters
+    ...initialFilters,
   });
-  const [vehicles, setVehicles] = useState<Vehicle[]>(mockVehicles);
-  const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>(mockVehicles);
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
   const [sortBy, setSortBy] = useState<'price' | 'rating' | 'name'>('price');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showFilters, setShowFilters] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    applyFilters();
-  }, [filters, vehicles, sortBy, sortOrder]);
+    fetchVehicles();
+  }, [filters]);
 
-  const applyFilters = () => {
-    let filtered = vehicles.filter(vehicle => {
-      const matchesLocation = !filters.location || vehicle.location === filters.location;
-      const matchesType = !filters.vehicleType || vehicle.type === filters.vehicleType;
-      const matchesPrice = vehicle.pricePerDay >= filters.priceRange[0] && 
-                          vehicle.pricePerDay <= filters.priceRange[1];
-      const matchesDriver = filters.hasDriver === null || vehicle.hasDriver === filters.hasDriver;
-      const matchesTransmission = !filters.transmission || vehicle.transmission === filters.transmission;
-      const matchesFuel = !filters.fuelType || vehicle.fuelType === filters.fuelType;
-      
-      return matchesLocation && matchesType && matchesPrice && 
-             matchesDriver && matchesTransmission && matchesFuel;
-    });
+  useEffect(() => {
+    applyFiltersAndSort();
+  }, [vehicles, sortBy, sortOrder]);
 
-    // Apply sorting
+  const fetchVehicles = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      // If a search term exists, use searchVehicles API
+      if (filters.location || filters.vehicleType || filters.fuelType || filters.transmission) {
+        const data = await getAllVehicles({
+          location: filters.location,
+          vehicleType: filters.vehicleType,
+          fuelType: filters.fuelType,
+          transmission: filters.transmission,
+          hasDriver: filters.hasDriver,
+          minPrice: filters.priceRange[0],
+          maxPrice: filters.priceRange[1],
+        });
+        setVehicles(data);
+      } else {
+        // Otherwise get all
+        const data = await getAllVehicles();
+        setVehicles(data);
+      }
+    } catch (err) {
+      setError('Failed to load vehicles');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyFiltersAndSort = () => {
+    let filtered = [...vehicles];
+
+    // Sort results
     filtered.sort((a, b) => {
       let aValue: number | string;
       let bValue: number | string;
@@ -54,8 +80,8 @@ const SearchPage: React.FC = () => {
           bValue = b.pricePerDay;
           break;
         case 'rating':
-          aValue = a.rating;
-          bValue = b.rating;
+          aValue = a.rating || 0;
+          bValue = b.rating || 0;
           break;
         case 'name':
           aValue = a.name;
@@ -67,11 +93,13 @@ const SearchPage: React.FC = () => {
       }
 
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+        return sortOrder === 'asc'
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
       } else {
-        return sortOrder === 'asc' ? 
-          (aValue as number) - (bValue as number) : 
-          (bValue as number) - (aValue as number);
+        return sortOrder === 'asc'
+          ? (aValue as number) - (bValue as number)
+          : (bValue as number) - (aValue as number);
       }
     });
 
@@ -156,23 +184,35 @@ const SearchPage: React.FC = () => {
 
           {/* Results */}
           <div className="flex-1">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">
-                {filteredVehicles.length} Vehicle{filteredVehicles.length !== 1 ? 's' : ''} Found
-              </h2>
-            </div>
+            {loading && <p className="text-gray-500">Loading vehicles...</p>}
+            {error && <p className="text-red-500">{error}</p>}
 
-            {filteredVehicles.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-gray-500 text-lg">No vehicles found matching your criteria</div>
-                <p className="text-gray-400 mt-2">Try adjusting your filters to see more results</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredVehicles.map((vehicle) => (
-                  <VehicleCard key={vehicle.id} vehicle={vehicle} />
-                ))}
-              </div>
+            {!loading && !error && (
+              <>
+                <div className="mb-6">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {filteredVehicles.length} Vehicle
+                    {filteredVehicles.length !== 1 ? 's' : ''} Found
+                  </h2>
+                </div>
+
+                {filteredVehicles.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-gray-500 text-lg">
+                      No vehicles found matching your criteria
+                    </div>
+                    <p className="text-gray-400 mt-2">
+                      Try adjusting your filters to see more results
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {filteredVehicles.map((vehicle) => (
+                      <VehicleCard key={vehicle._id} vehicle={vehicle} />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -6,6 +6,8 @@ import VehicleCard from '../components/VehicleCard';
 import { SearchFilters } from '../types';
 import { mockVehicles } from '../data/mockData';
 
+import { useAuth } from '../context/AuthContext';
+
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [searchResults, setSearchResults] = useState(mockVehicles.slice(0, 3));
