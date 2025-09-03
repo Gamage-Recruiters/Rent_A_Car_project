@@ -17,6 +17,8 @@ import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react-native';
 import axios from 'axios';
 import { router } from 'expo-router';
 
+import { API_URL } from '@env';
+
 export default function RegisterScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -29,11 +31,9 @@ export default function RegisterScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const API_URL = 'http://localhost:8000/api'
-
   const handleRegister = async () => {
     if (!firstName || !email || !password || !confirmPassword) {
-      Alert.alert('Please fill in all fields');
+      Alert.alert('Please fill in requied fields fields');
       return;
     }
 
@@ -73,7 +73,14 @@ export default function RegisterScreen() {
         [{ text: 'OK', onPress: () => router.push('/auth/login') }]
       );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Something went wrong';
+      let errorMessage = 'Something went wront. Pleas try again';
+
+      if (axios.isAxiosError(error) && error.response) {
+        errorMessage = error.response.data.message;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
       Alert.alert('Registration Failed', errorMessage);
     } finally {
       setLoading(false);
