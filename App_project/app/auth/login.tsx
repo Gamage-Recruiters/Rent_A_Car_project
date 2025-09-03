@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Eye, EyeOff } from 'lucide-react-native';
-import { useUserStore } from '@/stores/userStore';
 import { router } from 'expo-router';
+import axios from 'axios';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -22,14 +22,14 @@ import Animated, {
   FadeIn,
 } from 'react-native-reanimated';
 
+import { API_URL } from '@env';
+
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [userType, setUserType] = useState<'user' | 'owner'>('user');
+  const [userType, setUserType] = useState('customer');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
-  const { setUser, setUserType: setStoreUserType } = useUserStore();
 
   const scaleValue = useSharedValue(1);
 
@@ -41,23 +41,29 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Mock user data
-      const userData = {
-        id: '123',
-        name: 'John Doe',
+      // Api call
+      const endpoint = `/auth/${userType}/login`;
+      const response = await axios.post(`${API_URL}${endpoint}`, {
         email,
-        type: userType,
-      };
+        password,
+      });
 
-      setUser(userData);
-      setStoreUserType(userType);
-      router.push('/home');
+      if (response.status === 200) {
+        // Login successful, navigate to main app
+        router.replace('/(tabs)');
+      } else {
+        throw new Error('Login failed');
+      }
     } catch (error) {
-      Alert.alert('Login Failed', 'Please check your credentials and try again.');
-    } finally {
+      let errorMessage = 'Please check your credentials and try again.';
+        if (axios.isAxiosError(error) && error.response) {
+          // Get the error message from the API response
+          errorMessage = error.response.data.message || errorMessage;
+        } else if (error instanceof Error) {
+          errorMessage = error.message;
+        }
+        Alert.alert('Login Failed', errorMessage);
+      } finally {
       setIsLoading(false);
     }
   };
@@ -98,6 +104,39 @@ export default function LoginScreen() {
           <Animated.View style={styles.content} entering={FadeIn.delay(200)}>
             <Text style={styles.subtitle}>Welcome!</Text>
             <Text style={styles.description}>Sign in your account to continue</Text>
+
+            {/* User Type Selection */}
+            <View style={styles.userTypeContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.userTypeButton,
+                  userType === 'customer' && styles.activeUserTypeButton
+                ]}
+                onPress={() => setUserType('customer')}
+              >
+                <Text style={[
+                  styles.userTypeText,
+                  userType === 'customer' && styles.activeUserTypeText
+                ]}>
+                  Customer
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[
+                  styles.userTypeButton, 
+                  userType === 'owner' && styles.activeUserTypeButton
+                ]}
+                onPress={() => setUserType('owner')}
+              >
+                <Text style={[
+                  styles.userTypeText,
+                  userType === 'owner' && styles.activeUserTypeText
+                ]}>
+                  Car Owner
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.inputContainer}>
               <TextInput
@@ -195,6 +234,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#8E8E93',
     marginBottom: 24,
+  },
+  userTypeContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  userTypeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  activeUserTypeButton: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  userTypeText: {
+    color: '#666',
+    fontWeight: '500',
+  },
+  activeUserTypeText: {
+    color: '#fff',
   },
   inputContainer: {
     marginBottom: 16,
