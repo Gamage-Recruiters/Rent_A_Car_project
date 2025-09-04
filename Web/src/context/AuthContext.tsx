@@ -11,10 +11,10 @@ interface AuthContextType {
   logout: () => Promise<boolean>;
   isLoading: boolean;
   error: string | null;
-  forgotPassword: (email: string, userType: 'user' | 'owner' | 'admin') => Promise<boolean>;
-  resetPassword: (token: string, newPassword: string, userType: 'user' | 'owner' | 'admin') => Promise<boolean>;
-  
+  forgotPassword: (email: string, userType?: 'user' | 'admin') => Promise<boolean>;
+  resetPassword: (token: string, newPassword: string, userType?: 'user' | 'admin') => Promise<boolean>;
   updateUserData: (userData: any) => void;
+  checkAuthStatus: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,19 +39,106 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Initialize axios with credentials
   axios.defaults.withCredentials = true;
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+  const checkAuthStatus = async (): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      // Try to get user profile to verify authentication
+      const response = await axios.get(`${API_URL}/customer/profile`, {
+        withCredentials: true,
+      });
+      
+      if (response.data.success) {
+        const userData = response.data.data;
+        const updatedUser: User = {
+          id: userData._id,
+          email: userData.email,
+          name: `${userData.firstName} ${userData.lastName || ''}`.trim(),
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          phone: userData.phoneNumber || userData.phone,
+          phoneNumber: userData.phoneNumber,
+          photo: userData.photo,
+          type: 'user', 
+          createdAt: userData.createdAt,
+          dateOfBirth: userData.dateOfBirth,
+          driversLicense: userData.driversLicense,
+          emergencyContact: userData.emergencyContact,
+          address: userData.address,
+          isNewsletterSubscribed: userData.isNewsletterSubscribed,
+          googleId: userData.googleId,
+          userRole: userData.userRole,
+          // Add image object if it exists
+          image: userData.image
+        };
+        
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      // Clear invalid user data
+      setUser(null);
+      localStorage.removeItem('user');
+      return false;
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
+  };
+
+  // Initialize auth status on app load
+  useEffect(() => {
+    const initializeAuth = async () => {
+      // First check if we have stored user data
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+          
+          // Verify the stored user is still valid by checking auth status
+          await checkAuthStatus();
+        } catch (error) {
+          console.error('Error parsing stored user data:', error);
+          localStorage.removeItem('user');
+          setIsLoading(false);
+        }
+      } else {
+        // No stored user, just check if user is authenticated
+        await checkAuthStatus();
+      }
+    };
+
+    initializeAuth();
   }, []);
 
   const updateUserData = (userData: any) => {
     setUser(prevUser => {
-      if (!prevUser) return userData;
+      if (!prevUser) return null;
       
-      const updatedUser = { ...prevUser, ...userData };
+      // Create the updated user object with proper structure
+      const updatedUser: User = {
+        ...prevUser,
+        // Update basic fields
+        firstName: userData.firstName || prevUser.firstName,
+        lastName: userData.lastName || prevUser.lastName,
+        email: userData.email || prevUser.email,
+        phoneNumber: userData.phoneNumber || prevUser.phoneNumber,
+        phone: userData.phoneNumber || userData.phone || prevUser.phone,
+        photo: userData.photo || prevUser.photo,
+        dateOfBirth: userData.dateOfBirth || prevUser.dateOfBirth,
+        driversLicense: userData.driversLicense || prevUser.driversLicense,
+        emergencyContact: userData.emergencyContact || prevUser.emergencyContact,
+        address: userData.address || prevUser.address,
+        isNewsletterSubscribed: userData.isNewsletterSubscribed !== undefined 
+          ? userData.isNewsletterSubscribed 
+          : prevUser.isNewsletterSubscribed,
+        // Update name based on first and last name
+        name: `${userData.firstName || prevUser.firstName} ${userData.lastName || prevUser.lastName || ''}`.trim(),
+        // Preserve image object if it exists
+        image: userData.image || prevUser.image
+      };
       
       // Update localStorage with the new user data
       localStorage.setItem('user', JSON.stringify(updatedUser));
@@ -60,6 +147,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
   };
 
+  // ...existing code for login, signup, logout, forgotPassword...
   const login = async (email: string, password: string, userType: 'user' | 'owner' | 'admin'): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
@@ -71,25 +159,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         response = await axios.post(`${API_URL}/auth/customer/login`, { email, password });
       } else if(userType === 'owner') {
         response = await axios.post(`${API_URL}/auth/owner/login`, { email, password });
-      } else if(userType ==='admin'){
-
+      } else if(userType === 'admin') {
         response = await axios.post(`${API_URL}/auth/superadmin/login`, { email, password });
-
       } else {
-        throw new Error('Admin login not implemented');
+        throw new Error('Invalid user type');
       }
 
       if (response.data) {
-        const userData: User = {
-          id: response.data.id || 'unknown',
-          email,
-          name: response.data.firstName ? `${response.data.firstName} ${response.data.lastName || ''}` : email.split('@')[0],
-          type: userType,
-          createdAt: new Date().toISOString(),
-        };
-
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
+        // After successful login, fetch complete profile data
+        await checkAuthStatus();
         return true;
       }
       return false;
@@ -111,11 +189,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError(null);
     
     try {
-      
       let response;
 
       if (userData.type === 'user') {
-        // Customer signup
         response = await axios.post(`${API_URL}/auth/customer/register`, {
           email: userData.email,
           password,
@@ -124,7 +200,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           phone: userData.phone || ''
         });
       } else if (userData.type === 'owner') {
-        // Owner signup
         response = await axios.post(`${API_URL}/auth/owner/register`, {
           email: userData.email,
           password,
@@ -137,20 +212,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       if (response.data) {
-
-        const newUser: User = {
-          id: response.data.id || 'unknown',
-          email: userData.email,
-          name: userData.name || `${userData.firstName || ''} ${userData.lastName || ''}`,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          phone: userData.phone || '',
-          type: userData.type,
-          createdAt: new Date().toISOString(),
-        };
-
-        setUser(newUser);
-        localStorage.setItem('user', JSON.stringify(newUser));
+        // After successful signup, fetch complete profile data
+        await checkAuthStatus();
         return true;
       }
       return false;
@@ -172,14 +235,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError(null);
 
     try {
-      // Determine which logout endpoint to use based on user type
       let response;
       if (user?.type === 'user') {
         response = await axios.post(`${API_URL}/auth/customer/logout`);
       } else if (user?.type === 'owner') {
         response = await axios.get(`${API_URL}/auth/owner/logout`);
-      } else {
-        // If user type is unknown or not logged in, just clear local storage
+      } else if (user?.type === 'admin') {
+        response = await axios.post(`${API_URL}/auth/superadmin/logout`);
+      }else {
         setUser(null);
         localStorage.removeItem('user');
         return true;
@@ -193,7 +256,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return false;
     } catch (error) {
       console.error('Logout error:', error);
-      // Even if the API call fails, we should still clear the local state
       setUser(null);
       localStorage.removeItem('user');
       return true;
@@ -202,54 +264,63 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const forgotPassword = async (email: string, userType: 'user' | 'owner' | 'admin'): Promise<boolean> => {
-  setIsLoading(true);
-  setError(null);
-  try {
-    let endpoint = '';
-    if (userType === 'user') endpoint = `${API_URL}/auth/customer/forgot-password`;
-    else if (userType === 'owner') endpoint = `${API_URL}/auth/owner/forgot-password`;
-    else if (userType === 'admin') endpoint = `${API_URL}/auth/superadmin/forgot-password`;
+  const forgotPassword = async (email: string, userType: 'user' | 'admin' = 'user'): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
 
-    const response = await axios.post(endpoint, { email });
-    return response.data.message === 'Password reset email sent';
-  } catch (err) {
-    console.error('Forgot password error:', err);
-    if (axios.isAxiosError(err) && err.response) {
-      setError(err.response.data.message || 'Forgot password failed');
-    } else {
-      setError('An error occurred during forgot password');
+    try {
+      let response;
+
+      if (userType === 'admin') {
+        response = await axios.post(`${API_URL}/auth/superadmin/forgot-password`, { email });
+      } else if (userType === 'user') {
+        response = await axios.post(`${API_URL}/auth/customer/forgot-password`, { email });
+      } else {
+        throw new Error('Forgot password is only available for users and admins');
+      }
+      
+      return response.data.success;
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        setError(error.response.data.message || 'Forgot password failed');
+      } else {
+        setError('An error occurred during forgot password');
+      }
+      return false;
+    } finally {
+      setIsLoading(false);
     }
-    return false;
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
-const resetPassword = async (token: string, newPassword: string, userType: 'user' | 'owner' | 'admin'): Promise<boolean> => {
-  setIsLoading(true);
-  setError(null);
-  try {
-    let endpoint = '';
-    if (userType === 'user') endpoint = `${API_URL}/auth/customer/reset-password/${token}`;
-    else if (userType === 'owner') endpoint = `${API_URL}/auth/owner/reset-password/${token}`;
-    else if (userType === 'admin') endpoint = `${API_URL}/auth/superadmin/reset-password/${token}`;
+  const resetPassword = async (token: string, newPassword: string, userType: 'user' | 'admin' = 'user'): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
 
-    const response = await axios.put(endpoint, { newPassword });
-    return response.data.message === 'Password reset successfully';
-  } catch (err) {
-    console.error('Reset password error:', err);
-    if (axios.isAxiosError(err) && err.response) {
-      setError(err.response.data.message || 'Reset password failed');
-    } else {
-      setError('An error occurred during reset password');
+    try {
+      let response;
+      
+      if (userType === 'admin') {
+        response = await axios.post(`${API_URL}/auth/superadmin/reset-password`, { token, newPassword });
+      } else if (userType === 'user') {
+        response = await axios.post(`${API_URL}/auth/customer/reset-password`, { token, newPassword });
+      } else {
+        throw new Error('Password reset is only available for users and admins');
+      }
+      
+      return response.data.success;
+    } catch (error) {
+      console.error('Reset password error:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        setError(error.response.data.message || 'Reset password failed');
+      } else {
+        setError('An error occurred during reset password');
+      }
+      return false;
+    } finally {
+      setIsLoading(false);
     }
-    return false;
-  } finally {
-    setIsLoading(false);
-  }
-};
-
+  };
 
   return (
     <AuthContext.Provider value={{
@@ -259,7 +330,10 @@ const resetPassword = async (token: string, newPassword: string, userType: 'user
       logout,
       isLoading,
       error,
-      forgotPassword
+      forgotPassword,
+      updateUserData,
+      resetPassword,
+      checkAuthStatus
     }}>
       {children}
     </AuthContext.Provider>

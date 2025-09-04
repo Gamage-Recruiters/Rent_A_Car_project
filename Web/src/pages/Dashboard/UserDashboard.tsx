@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { mockVehicles } from '../../data/mockData';
 import PaymentModal from './PaymentModal';
 import ProfileTab from './User/ProfileTab';
+import BookingTab from './User/BookingTab';
 
 const UserDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -302,90 +303,91 @@ const UserDashboard: React.FC = () => {
             )}
 
             {activeTab === 'bookings' && (
-              <div className="space-y-6">
-                <div className="bg-white rounded-xl shadow-md p-6">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
-                    <h3 className="text-xl font-semibold">My Bookings</h3>
-                    <div className="flex space-x-2">
-                      <select
-                        value={bookingFilter}
-                        onChange={(e) => setBookingFilter(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="all">All Bookings</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="completed">Completed</option>
-                        <option value="pending">Pending</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                    </div>
-                  </div>
+              <BookingTab />
+              // <div className="space-y-6">
+              //   <div className="bg-white rounded-xl shadow-md p-6">
+              //     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
+              //       <h3 className="text-xl font-semibold">My Bookings</h3>
+              //       <div className="flex space-x-2">
+              //         <select
+              //           value={bookingFilter}
+              //           onChange={(e) => setBookingFilter(e.target.value)}
+              //           className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              //         >
+              //           <option value="all">All Bookings</option>
+              //           <option value="confirmed">Confirmed</option>
+              //           <option value="completed">Completed</option>
+              //           <option value="pending">Pending</option>
+              //           <option value="cancelled">Cancelled</option>
+              //         </select>
+              //       </div>
+              //     </div>
                   
-                  <div className="space-y-4">
-                    {filteredBookings.map((booking) => (
-                      <div key={booking.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center space-x-4">
-                            <img
-                              src={booking.vehicle.images[0]}
-                              alt={booking.vehicle.name}
-                              className="w-20 h-20 rounded-lg object-cover"
-                            />
-                            <div>
-                              <h4 className="text-lg font-semibold text-gray-900">{booking.vehicle.name}</h4>
-                              <p className="text-gray-600 flex items-center">
-                                <MapPin className="w-4 h-4 mr-1" />
-                                {booking.pickupLocation}
-                              </p>
-                              <p className="text-sm text-gray-500">Booking Code: {booking.bookingCode}</p>
-                              <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                                <div className="flex items-center space-x-1">
-                                  <Calendar className="w-4 h-4" />
-                                  <span>{booking.startDate} to {booking.endDate}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xl font-bold text-gray-900">${booking.totalPrice}</p>
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm ${getStatusColor(booking.status)}`}>
-                              {getStatusIcon(booking.status)}
-                              <span className="ml-1">{booking.status}</span>
-                            </span>
-                            <p className="text-xs text-gray-500 mt-1">Payment: {booking.paymentStatus}</p>
-                          </div>
-                        </div>
+              //     <div className="space-y-4">
+              //       {filteredBookings.map((booking) => (
+              //         <div key={booking.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+              //           <div className="flex items-start justify-between mb-4">
+              //             <div className="flex items-center space-x-4">
+              //               <img
+              //                 src={booking.vehicle.images[0]}
+              //                 alt={booking.vehicle.name}
+              //                 className="w-20 h-20 rounded-lg object-cover"
+              //               />
+              //               <div>
+              //                 <h4 className="text-lg font-semibold text-gray-900">{booking.vehicle.name}</h4>
+              //                 <p className="text-gray-600 flex items-center">
+              //                   <MapPin className="w-4 h-4 mr-1" />
+              //                   {booking.pickupLocation}
+              //                 </p>
+              //                 <p className="text-sm text-gray-500">Booking Code: {booking.bookingCode}</p>
+              //                 <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+              //                   <div className="flex items-center space-x-1">
+              //                     <Calendar className="w-4 h-4" />
+              //                     <span>{booking.startDate} to {booking.endDate}</span>
+              //                   </div>
+              //                 </div>
+              //               </div>
+              //             </div>
+              //             <div className="text-right">
+              //               <p className="text-xl font-bold text-gray-900">${booking.totalPrice}</p>
+              //               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm ${getStatusColor(booking.status)}`}>
+              //                 {getStatusIcon(booking.status)}
+              //                 <span className="ml-1">{booking.status}</span>
+              //               </span>
+              //               <p className="text-xs text-gray-500 mt-1">Payment: {booking.paymentStatus}</p>
+              //             </div>
+              //           </div>
                         
-                        <div className="flex flex-wrap gap-2">
-                          <Link
-                            to={`/vehicle/${booking.vehicleId}`}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                          >
-                            View Vehicle
-                          </Link>
-                          {booking.status === 'completed' && (
-                            <Link
-                              to={`/write-review/${booking.vehicleId}`} // Navigate to the review page with vehicle ID
-                              className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors text-sm"
-                            >
-                              Write Review
-                            </Link>
-                          )}
-                          {booking.status === 'confirmed' && (
-                            <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm">
-                              Contact Owner
-                            </button>
-                          )}
-                          <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center space-x-1">
-                            <Download className="w-4 h-4" />
-                            <span>Receipt</span>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              //           <div className="flex flex-wrap gap-2">
+              //             <Link
+              //               to={`/vehicle/${booking.vehicleId}`}
+              //               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              //             >
+              //               View Vehicle
+              //             </Link>
+              //             {booking.status === 'completed' && (
+              //               <Link
+              //                 to={`/write-review/${booking.vehicleId}`} // Navigate to the review page with vehicle ID
+              //                 className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors text-sm"
+              //               >
+              //                 Write Review
+              //               </Link>
+              //             )}
+              //             {booking.status === 'confirmed' && (
+              //               <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm">
+              //                 Contact Owner
+              //               </button>
+              //             )}
+              //             <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center space-x-1">
+              //               <Download className="w-4 h-4" />
+              //               <span>Receipt</span>
+              //             </button>
+              //           </div>
+              //         </div>
+              //       ))}
+              //     </div>
+              //   </div>
+              // </div>
             )}
 
             {activeTab === 'favorites' && (

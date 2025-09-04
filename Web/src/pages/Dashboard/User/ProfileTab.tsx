@@ -8,7 +8,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000';
 
 const ProfileTab = () => {
-  const { user, updateUserData } = useAuth();
+  const { user, updateUserData, checkAuthStatus } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
@@ -24,11 +24,29 @@ const ProfileTab = () => {
 
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
   // Debug user data
   useEffect(() => {
     console.log('Current user data:', user);
   }, [user]);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user) return;
+      
+      setIsLoadingProfile(true);
+      try {
+        await checkAuthStatus(); // This will refresh the user data
+      } catch (error) {
+        console.error('Error loading profile:', error);
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    loadProfile();
+  }, []);
   
   // Helper function to construct proper image URL
   const constructImageUrl = (photoPath: string) => {
@@ -191,6 +209,20 @@ const ProfileTab = () => {
   const handleImageLoad = () => {
     console.log('Image loaded successfully:', imagePreview);
   };
+
+  if (isLoadingProfile) {
+    return (
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <div className="animate-pulse">
+          <div className="h-4 bg-gray-200 rounded w-1/4 mb-6"></div>
+          <div className="space-y-4">
+            <div className="h-10 bg-gray-200 rounded"></div>
+            <div className="h-10 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
