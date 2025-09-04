@@ -13,6 +13,8 @@ interface AuthContextType {
   error: string | null;
   forgotPassword: (email: string, userType: 'user' | 'owner' | 'admin') => Promise<boolean>;
   resetPassword: (token: string, newPassword: string, userType: 'user' | 'owner' | 'admin') => Promise<boolean>;
+  
+  updateUserData: (userData: any) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,6 +46,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
     setIsLoading(false);
   }, []);
+
+  const updateUserData = (userData: any) => {
+    setUser(prevUser => {
+      if (!prevUser) return userData;
+      
+      const updatedUser = { ...prevUser, ...userData };
+      
+      // Update localStorage with the new user data
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      return updatedUser;
+    });
+  };
 
   const login = async (email: string, password: string, userType: 'user' | 'owner' | 'admin'): Promise<boolean> => {
     setIsLoading(true);
@@ -244,8 +259,7 @@ const resetPassword = async (token: string, newPassword: string, userType: 'user
       logout,
       isLoading,
       error,
-      forgotPassword,
-      resetPassword,
+      forgotPassword
     }}>
       {children}
     </AuthContext.Provider>

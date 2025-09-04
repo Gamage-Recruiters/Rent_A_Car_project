@@ -1,8 +1,12 @@
 import React from 'react';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { VehicleProvider } from './context/VehicleContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import ScrollToTop from './components/ScrollToTop';
 import HomePage from './pages/HomePage';
 import SearchPage from './pages/SearchPage';
 import VehicleDetailsPage from './pages/VehicleDetailsPage';
@@ -44,17 +48,18 @@ import AdminResetPasswordPage from './pages/Auth/AdminResetPasswordPage';
 function App() {
   return (
     <AuthProvider>
+      <VehicleProvider>
       <Router>
+        <ScrollToTop />
         <div className="min-h-screen bg-gray-50">
-          
+          <Navbar />
           <Routes>
             <Route path="/admin-test" element={<AdminTestPage />} /> {/* Admin sidebar test page */}
             
-            
           
-          </Routes>
-          <Navbar />
-          <Routes>
+
+          
+          
             <Route path="/" element={<HomePage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/vehicle/:id" element={<VehicleDetailsPage />} />
@@ -98,7 +103,10 @@ function App() {
           <Footer />
         </div>
       </Router>
+      <ToastContainer position="top-right" autoClose={3000} />
+      </VehicleProvider>
     </AuthProvider>
+    
   );
 }
 

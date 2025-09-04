@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { mockVehicles } from '../../data/mockData';
 import PaymentModal from './PaymentModal';
-
+import ProfileTab from './User/ProfileTab';
 
 const UserDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -131,7 +131,7 @@ const UserDashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, {user?.name}!</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, {user?.firstName || 'User'}!</h1>
           <p className="text-gray-600">Manage your bookings and explore new vehicles</p>
         </div>
 
@@ -509,107 +509,118 @@ const UserDashboard: React.FC = () => {
             )}
 
             {activeTab === 'profile' && (
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-xl font-semibold mb-6">Profile Settings</h3>
-                <form className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        defaultValue={user?.name}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email
-                      </label>
-                      <input
-                        type="email"
-                        defaultValue={user?.email}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Phone
-                      </label>
-                      <input
-                        type="tel"
-                        defaultValue={user?.phone}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Date of Birth
-                      </label>
-                      <input
-                        type="date"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Driver's License
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="License number"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Emergency Contact
-                      </label>
-                      <input
-                        type="tel"
-                        placeholder="Emergency contact number"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Address
-                    </label>
-                    <textarea
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter your address"
-                    />
-                  </div>
+              <ProfileTab />
+              // <div className="bg-white rounded-xl shadow-md p-6">
+              //   <h3 className="text-xl font-semibold mb-6">Profile Settings</h3>
+              //   <form className="space-y-6">
+              //     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              //       <div>
+              //         <label className="block text-sm font-medium text-gray-700 mb-2">
+              //           First Name
+              //         </label>
+              //         <input
+              //           type="text"
+              //           defaultValue={user?.firstName}
+              //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              //         />
+              //       </div>
+              //       <div>
+              //         <label className="block text-sm font-medium text-gray-700 mb-2">
+              //           Last Name
+              //         </label>
+              //         <input
+              //           type="text"
+              //           defaultValue={user?.lastName}
+              //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              //         />
+              //       </div>
+              //       <div>
+              //         <label className="block text-sm font-medium text-gray-700 mb-2">
+              //           Email
+              //         </label>
+              //         <input
+              //           type="email"
+              //           defaultValue={user?.email}
+              //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              //         />
+              //       </div>
+              //       <div>
+              //         <label className="block text-sm font-medium text-gray-700 mb-2">
+              //           Phone
+              //         </label>
+              //         <input
+              //           type="tel"
+              //           defaultValue={user?.phone}
+              //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              //         />
+              //       </div>
+              //       <div>
+              //         <label className="block text-sm font-medium text-gray-700 mb-2">
+              //           Date of Birth
+              //         </label>
+              //         <input
+              //           type="date"
+              //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              //         />
+              //       </div>
+              //       <div>
+              //         <label className="block text-sm font-medium text-gray-700 mb-2">
+              //           Driver's License
+              //         </label>
+              //         <input
+              //           type="text"
+              //           placeholder="License number"
+              //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              //         />
+              //       </div>
+              //       <div>
+              //         <label className="block text-sm font-medium text-gray-700 mb-2">
+              //           Emergency Contact
+              //         </label>
+              //         <input
+              //           type="tel"
+              //           placeholder="Emergency contact number"
+              //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              //         />
+              //       </div>
+              //     </div>
+              //     <div>
+              //       <label className="block text-sm font-medium text-gray-700 mb-2">
+              //         Address
+              //       </label>
+              //       <textarea
+              //         rows={3}
+              //         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              //         placeholder="Enter your address"
+              //       />
+              //     </div>
                   
-                  <div className="border-t pt-6">
-                    <h4 className="text-lg font-medium mb-4">Preferences</h4>
-                    <div className="space-y-4">
-                      <label className="flex items-center">
-                        <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                        <span className="ml-2 text-sm text-gray-700">Email notifications for booking updates</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                        <span className="ml-2 text-sm text-gray-700">SMS notifications for important updates</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                        <span className="ml-2 text-sm text-gray-700">Marketing emails and promotions</span>
-                      </label>
-                    </div>
-                  </div>
+              //     <div className="border-t pt-6">
+              //       <h4 className="text-lg font-medium mb-4">Preferences</h4>
+              //       <div className="space-y-4">
+              //         <label className="flex items-center">
+              //           <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              //           <span className="ml-2 text-sm text-gray-700">Email notifications for booking updates</span>
+              //         </label>
+              //         <label className="flex items-center">
+              //           <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              //           <span className="ml-2 text-sm text-gray-700">SMS notifications for important updates</span>
+              //         </label>
+              //         <label className="flex items-center">
+              //           <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              //           <span className="ml-2 text-sm text-gray-700">Marketing emails and promotions</span>
+              //         </label>
+              //       </div>
+              //     </div>
                   
-                  <button
-                    type="submit"
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Save Changes
-                  </button>
-                </form>
-              </div>
+              //     <button
+              //       type="submit"
+              //       className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              //     >
+              //       Save Changes
+              //     </button>
+              //   </form>
+              // </div>
             )}
           </div>
         </div>

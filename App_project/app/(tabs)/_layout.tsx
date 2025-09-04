@@ -1,9 +1,24 @@
 import { Tabs } from 'expo-router';
 import { Chrome as Home, Search, User, Settings, Car, HomeIcon } from 'lucide-react-native';
-import { useUserStore } from '@/stores/userStore';
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function TabLayout() {
-  const { user, userType } = useUserStore();
+  const [userType, setUserType] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Check for user type in AsyncStorage
+    const checkUserType = async () => {
+      try {
+        const storedUserType = await AsyncStorage.getItem('userType');
+        setUserType(storedUserType);
+      } catch (error) {
+        console.error('Error reading user type from storage:', error);
+      }
+    };
+    
+    checkUserType();
+  }, []);
 
   return (
     <Tabs
@@ -60,7 +75,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: user ? 'Profile' : 'Login',
+          title: 'Profile',
           tabBarIcon: ({ size, color }) => (
             <User size={size} color={color} />
           ),

@@ -5,42 +5,94 @@ export interface User {
   firstName?: string;
   lastName?: string;
   phone?: string;
+  phoneNumber?: string; // Add this to match backend model
   type: 'user' | 'owner'|'admin';
   createdAt: string;
+  photo?: string;
+  image?: { 
+    public_id?: string;
+    url?: string;
+  };
+  googleId?: string; 
+  dateOfBirth?: string;
+  driversLicense?: string;
+  emergencyContact?: string;
+  address?: string;
+  isNewsletterSubscribed?: boolean;
+  newsletterSubscribedAt?: string;
+  newsletterUnsubscribedAt?: string;
+  userRole?: string; 
 }
 
+// export interface Vehicle {
+//   _id: string;
+//   ownerId: string;
+//   name: string;
+//   brand: string;
+//   model: string;
+//   year: number;
+//   type: 'sedan' | 'suv' | 'hatchback' | 'luxury' | 'sports' | 'van';
+//   pricePerDay: number;
+//   pricePerKm?: number;
+//   location: string;
+//   images: string[];
+//   features: string[];
+//   hasDriver: boolean;
+//   availability: {
+//     from: string;
+//     to: string;
+//   };
+//   unavailableDates: string[];
+//   rating: number;
+//   reviewCount: number;
+//   description: string;
+//   fuelType: 'petrol' | 'diesel' | 'electric' | 'hybrid';
+//   transmission: 'manual' | 'automatic';
+//   seats: number;
+//   mileage: number;
+//   contactInfo: {
+//     phone: string;
+//     email: string;
+//     address: string;
+//   };
+//   status?: 'pending' | 'approved' | 'rejected';
+// }
+
 export interface Vehicle {
-  id: string;
-  ownerId: string;
-  name: string;
+  _id: string;
+  isAvailable: boolean;
+  isApproved: boolean;
+  vehicleName: string; 
+  vehicleLicenseNumber: string;
   brand: string;
   model: string;
-  year: number;
-  type: 'sedan' | 'suv' | 'hatchback' | 'luxury' | 'sports' | 'van';
-  pricePerDay: number;
-  pricePerKm?: number;
-  location: string;
+  year: string;
+  vehicleType: string; 
   images: string[];
-  features: string[];
-  hasDriver: boolean;
-  availability: {
-    from: string;
-    to: string;
+  description: string;
+  noSeats: number; 
+  fuelType: string; 
+  transmission: string; 
+  isDriverAvailable: boolean;
+  pricePerDay: number;
+  pricePerDistance: number; 
+  phoneNumber: number; 
+  pickupAddress: string; 
+  owner: {
+    _id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
   };
   unavailableDates: string[];
-  rating: number;
-  reviewCount: number;
-  description: string;
-  fuelType: 'petrol' | 'diesel' | 'electric' | 'hybrid';
-  transmission: 'manual' | 'automatic';
-  seats: number;
-  mileage: number;
-  contactInfo: {
-    phone: string;
-    email: string;
-    address: string;
-  };
-  status?: 'pending' | 'approved' | 'rejected';
+  __v: number;
+  
+  // Optional 
+  rating?: number;
+  reviewCount?: number;
+  features?: string[];
+  mileage?: number;
+  status?: string;
 }
 
 export interface Booking {
