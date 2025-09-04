@@ -43,6 +43,10 @@ const ownerSchema = new mongoose.Schema({
     createdAt: {
         type: Date, 
         default: Date.now 
+    },
+    resetPasswordExpires: {
+        type: Date,
+        default: null
     }
 },
     {

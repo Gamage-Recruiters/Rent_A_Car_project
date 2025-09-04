@@ -36,6 +36,7 @@ import AdminDashboard from './pages/Dashboard/AdminDashboard';
 import AdminProfile from './pages/AdminProfile';
 
 import AdminCustomerInquiry from './pages/AdminCustomerInquiry';
+import AdminResetPasswordPage from './pages/Auth/AdminResetPasswordPage';
 
 
 
@@ -83,6 +84,8 @@ function App() {
             <Route path="/admin/settings" element={<PlatformSettingsPage />} />
 
             <Route path="/admin/profile" element={<AdminProfile />} />
+
+            <Route path="/admin/reset-password/:token" element={<AdminResetPasswordPage/>}/>
             
 
             <Route path="/admininquiries" element={<AdminCustomerInquiry />} />

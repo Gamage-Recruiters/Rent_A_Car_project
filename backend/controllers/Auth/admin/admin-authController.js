@@ -140,7 +140,7 @@ const requestPasswordReset = async (req, res) => {
         await admin.save();
 
         // Send email
-        const resetUrl = `http://localhost:5000/api/superadmin/reset-password/${resetToken}`;
+        const resetUrl = `http://localhost:5173/admin/reset-password/${resetToken}`;
         const message = `You requested a password reset. Click the link to reset your password: ${resetUrl}`;
 
         const transporter = nodemailer.createTransport({
@@ -167,6 +167,9 @@ const resetPassword = async (req, res) => {
     try {
         const { token } = req.params;
         const { newPassword } = req.body;
+        console.log('Token from URL:', token);
+       console.log('New password:', newPassword);
+
 
         const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
         const admin = await User.findOne({

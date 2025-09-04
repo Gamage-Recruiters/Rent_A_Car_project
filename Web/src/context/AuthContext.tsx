@@ -11,7 +11,8 @@ interface AuthContextType {
   logout: () => Promise<boolean>;
   isLoading: boolean;
   error: string | null;
-  forgotPassword: (email: string) => Promise<boolean>;
+  forgotPassword: (email: string, userType: 'user' | 'owner' | 'admin') => Promise<boolean>;
+  resetPassword: (token: string, newPassword: string, userType: 'user' | 'owner' | 'admin') => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,6 +56,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         response = await axios.post(`${API_URL}/auth/customer/login`, { email, password });
       } else if(userType === 'owner') {
         response = await axios.post(`${API_URL}/auth/owner/login`, { email, password });
+      } else if(userType ==='admin'){
+
+        response = await axios.post(`${API_URL}/auth/superadmin/login`, { email, password });
+
       } else {
         throw new Error('Admin login not implemented');
       }
@@ -182,25 +187,54 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const forgotPassword = async (email: string): Promise<boolean> => {
-    setIsLoading(true);
-    setError(null);
+  const forgotPassword = async (email: string, userType: 'user' | 'owner' | 'admin'): Promise<boolean> => {
+  setIsLoading(true);
+  setError(null);
+  try {
+    let endpoint = '';
+    if (userType === 'user') endpoint = `${API_URL}/auth/customer/forgot-password`;
+    else if (userType === 'owner') endpoint = `${API_URL}/auth/owner/forgot-password`;
+    else if (userType === 'admin') endpoint = `${API_URL}/auth/superadmin/forgot-password`;
 
-    try {
-      const response = await axios.post(`${API_URL}/auth/customer/forgot-password`, { email });
-      return response.data.success;
-    } catch (error) {
-      console.error('Forgot password error:', error);
-      if (axios.isAxiosError(error) && error.response) {
-        setError(error.response.data.message || 'Forgot password failed');
-      } else {
-        setError('An error occurred during forgot password');
-      }
-      return false;
-    } finally {
-      setIsLoading(false);
+    const response = await axios.post(endpoint, { email });
+    return response.data.message === 'Password reset email sent';
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    if (axios.isAxiosError(err) && err.response) {
+      setError(err.response.data.message || 'Forgot password failed');
+    } else {
+      setError('An error occurred during forgot password');
     }
-  };
+    return false;
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+const resetPassword = async (token: string, newPassword: string, userType: 'user' | 'owner' | 'admin'): Promise<boolean> => {
+  setIsLoading(true);
+  setError(null);
+  try {
+    let endpoint = '';
+    if (userType === 'user') endpoint = `${API_URL}/auth/customer/reset-password/${token}`;
+    else if (userType === 'owner') endpoint = `${API_URL}/auth/owner/reset-password/${token}`;
+    else if (userType === 'admin') endpoint = `${API_URL}/auth/superadmin/reset-password/${token}`;
+
+    const response = await axios.put(endpoint, { newPassword });
+    return response.data.message === 'Password reset successfully';
+  } catch (err) {
+    console.error('Reset password error:', err);
+    if (axios.isAxiosError(err) && err.response) {
+      setError(err.response.data.message || 'Reset password failed');
+    } else {
+      setError('An error occurred during reset password');
+    }
+    return false;
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   return (
     <AuthContext.Provider value={{
@@ -210,7 +244,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logout,
       isLoading,
       error,
-      forgotPassword
+      forgotPassword,
+      resetPassword,
     }}>
       {children}
     </AuthContext.Provider>
