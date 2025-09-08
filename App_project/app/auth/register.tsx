@@ -17,8 +17,6 @@ import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react-native';
 import axios from 'axios';
 import { router } from 'expo-router';
 
-import { API_URL } from '@env';
-
 export default function RegisterScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -30,6 +28,8 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
   const handleRegister = async () => {
     if (!firstName || !email || !password || !confirmPassword) {

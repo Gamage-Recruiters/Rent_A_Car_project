@@ -22,8 +22,6 @@ import Animated, {
   FadeIn,
 } from 'react-native-reanimated';
 
-import { API_URL } from '@env';
-
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,6 +31,8 @@ export default function LoginScreen() {
 
   const scaleValue = useSharedValue(1);
 
+  const API_URL = process.env.EXPO_PUBLIC_API_URL;
+  
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter your email and password');

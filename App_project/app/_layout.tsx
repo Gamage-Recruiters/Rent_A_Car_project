@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Stack, Redirect } from 'expo-router';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { useFonts } from 'expo-font';
@@ -57,7 +57,6 @@ export default function RootLayout() {
         <Stack.Screen name="editProfile/edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="notification/notification" options={{ headerShown: false }} />
       </Stack>
-      {/* <Redirect href="/auth/login" /> */}
     </>
   );
 }
