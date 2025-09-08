@@ -11,6 +11,7 @@ import { mockVehicles } from '../../data/mockData';
 import PaymentModal from './PaymentModal';
 import ProfileTab from './User/ProfileTab';
 import BookingTab from './User/BookingTab';
+import FavoriteTab from './User/FavoriteTab';
 
 const UserDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -391,45 +392,46 @@ const UserDashboard: React.FC = () => {
             )}
 
             {activeTab === 'favorites' && (
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-xl font-semibold mb-6">Favorite Vehicles</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {favoriteVehicles.map((vehicle) => (
-                    <div key={vehicle.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <img
-                        src={vehicle.images[0]}
-                        alt={vehicle.name}
-                        className="w-full h-40 rounded-lg object-cover mb-4"
-                      />
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-semibold text-gray-900">{vehicle.name}</h4>
-                        <div className="flex items-center space-x-1">
-                          <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                          <span className="text-sm">{vehicle.rating}</span>
-                        </div>
-                      </div>
-                      <p className="text-gray-600 mb-2 flex items-center">
-                        <MapPin className="w-4 h-4 mr-1" />
-                        {vehicle.location}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-lg font-bold text-blue-600">${vehicle.pricePerDay}/day</span>
-                        <div className="flex space-x-2">
-                          <button className="text-red-600 hover:text-red-700">
-                            <Heart className="w-5 h-5 fill-current" />
-                          </button>
-                          <Link
-                            to={`/vehicle/${vehicle.id}`}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                          >
-                            Book Now
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <FavoriteTab />
+              // <div className="bg-white rounded-xl shadow-md p-6">
+              //   <h3 className="text-xl font-semibold mb-6">Favorite Vehicles</h3>
+              //   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              //     {favoriteVehicles.map((vehicle) => (
+              //       <div key={vehicle.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+              //         <img
+              //           src={vehicle.images[0]}
+              //           alt={vehicle.name}
+              //           className="w-full h-40 rounded-lg object-cover mb-4"
+              //         />
+              //         <div className="flex items-center justify-between mb-2">
+              //           <h4 className="font-semibold text-gray-900">{vehicle.name}</h4>
+              //           <div className="flex items-center space-x-1">
+              //             <Star className="w-4 h-4 text-yellow-400 fill-current" />
+              //             <span className="text-sm">{vehicle.rating}</span>
+              //           </div>
+              //         </div>
+              //         <p className="text-gray-600 mb-2 flex items-center">
+              //           <MapPin className="w-4 h-4 mr-1" />
+              //           {vehicle.location}
+              //         </p>
+              //         <div className="flex items-center justify-between">
+              //           <span className="text-lg font-bold text-blue-600">${vehicle.pricePerDay}/day</span>
+              //           <div className="flex space-x-2">
+              //             <button className="text-red-600 hover:text-red-700">
+              //               <Heart className="w-5 h-5 fill-current" />
+              //             </button>
+              //             <Link
+              //               to={`/vehicle/${vehicle.id}`}
+              //               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              //             >
+              //               Book Now
+              //             </Link>
+              //           </div>
+              //         </div>
+              //       </div>
+              //     ))}
+              //   </div>
+              // </div>
             )}
 
             {activeTab === 'history' && (
