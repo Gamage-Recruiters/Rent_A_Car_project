@@ -12,6 +12,7 @@ import PaymentModal from './PaymentModal';
 import ProfileTab from './User/ProfileTab';
 import BookingTab from './User/BookingTab';
 import FavoriteTab from './User/FavoriteTab';
+import RentalHistoryTab from './User/RentalHistoryTab';
 
 const UserDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -435,33 +436,34 @@ const UserDashboard: React.FC = () => {
             )}
 
             {activeTab === 'history' && (
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-xl font-semibold mb-6">Rental History</h3>
-                <div className="space-y-4">
-                  {userBookings.filter(b => b.status === 'completed').map((booking) => (
-                    <div key={booking.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <img
-                          src={booking.vehicle.images[0]}
-                          alt={booking.vehicle.name}
-                          className="w-16 h-16 rounded-lg object-cover"
-                        />
-                        <div>
-                          <h4 className="font-semibold text-gray-900">{booking.vehicle.name}</h4>
-                          <p className="text-sm text-gray-600">{booking.startDate} - {booking.endDate}</p>
-                          <p className="text-sm text-gray-500">{booking.pickupLocation}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-gray-900">${booking.totalPrice}</p>
-                        <button className="text-blue-600 hover:text-blue-700 text-sm">
-                          Book Again
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <RentalHistoryTab />
+              // <div className="bg-white rounded-xl shadow-md p-6">
+              //   <h3 className="text-xl font-semibold mb-6">Rental History</h3>
+              //   <div className="space-y-4">
+              //     {userBookings.filter(b => b.status === 'completed').map((booking) => (
+              //       <div key={booking.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+              //         <div className="flex items-center space-x-4">
+              //           <img
+              //             src={booking.vehicle.images[0]}
+              //             alt={booking.vehicle.name}
+              //             className="w-16 h-16 rounded-lg object-cover"
+              //           />
+              //           <div>
+              //             <h4 className="font-semibold text-gray-900">{booking.vehicle.name}</h4>
+              //             <p className="text-sm text-gray-600">{booking.startDate} - {booking.endDate}</p>
+              //             <p className="text-sm text-gray-500">{booking.pickupLocation}</p>
+              //           </div>
+              //         </div>
+              //         <div className="text-right">
+              //           <p className="font-semibold text-gray-900">${booking.totalPrice}</p>
+              //           <button className="text-blue-600 hover:text-blue-700 text-sm">
+              //             Book Again
+              //           </button>
+              //         </div>
+              //       </div>
+              //     ))}
+              //   </div>
+              // </div>
             )}
 
             {activeTab === 'payments' && (
