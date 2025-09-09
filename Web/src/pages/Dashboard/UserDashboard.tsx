@@ -13,6 +13,7 @@ import ProfileTab from './User/ProfileTab';
 import BookingTab from './User/BookingTab';
 import FavoriteTab from './User/FavoriteTab';
 import RentalHistoryTab from './User/RentalHistoryTab';
+import RecentBookingsTab from './User/RecentBookingsTab';
 
 const UserDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -245,43 +246,7 @@ const UserDashboard: React.FC = () => {
                 </div>
 
                 {/* Recent Bookings */}
-                <div className="bg-white rounded-xl shadow-md p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-semibold">Recent Bookings</h3>
-                    <Link to="/search" className="text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1">
-                      <Plus className="w-4 h-4" />
-                      <span>Book New Car</span>
-                    </Link>
-                  </div>
-                  <div className="space-y-4">
-                    {userBookings.slice(0, 3).map((booking) => (
-                      <div key={booking.id} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
-                        <img
-                          src={booking.vehicle.images[0]}
-                          alt={booking.vehicle.name}
-                          className="w-16 h-16 rounded-lg object-cover"
-                        />
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">{booking.vehicle.name}</h4>
-                          <p className="text-sm text-gray-600 flex items-center">
-                            <MapPin className="w-4 h-4 mr-1" />
-                            {booking.pickupLocation}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {booking.startDate} to {booking.endDate}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-gray-900">${booking.totalPrice}</p>
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${getStatusColor(booking.status)}`}>
-                            {getStatusIcon(booking.status)}
-                            <span className="ml-1">{booking.status}</span>
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <RecentBookingsTab />
 
                 {/* Recent Searches */}
                 <div className="bg-white rounded-xl shadow-md p-6">
@@ -306,164 +271,14 @@ const UserDashboard: React.FC = () => {
 
             {activeTab === 'bookings' && (
               <BookingTab />
-              // <div className="space-y-6">
-              //   <div className="bg-white rounded-xl shadow-md p-6">
-              //     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
-              //       <h3 className="text-xl font-semibold">My Bookings</h3>
-              //       <div className="flex space-x-2">
-              //         <select
-              //           value={bookingFilter}
-              //           onChange={(e) => setBookingFilter(e.target.value)}
-              //           className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              //         >
-              //           <option value="all">All Bookings</option>
-              //           <option value="confirmed">Confirmed</option>
-              //           <option value="completed">Completed</option>
-              //           <option value="pending">Pending</option>
-              //           <option value="cancelled">Cancelled</option>
-              //         </select>
-              //       </div>
-              //     </div>
-                  
-              //     <div className="space-y-4">
-              //       {filteredBookings.map((booking) => (
-              //         <div key={booking.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-              //           <div className="flex items-start justify-between mb-4">
-              //             <div className="flex items-center space-x-4">
-              //               <img
-              //                 src={booking.vehicle.images[0]}
-              //                 alt={booking.vehicle.name}
-              //                 className="w-20 h-20 rounded-lg object-cover"
-              //               />
-              //               <div>
-              //                 <h4 className="text-lg font-semibold text-gray-900">{booking.vehicle.name}</h4>
-              //                 <p className="text-gray-600 flex items-center">
-              //                   <MapPin className="w-4 h-4 mr-1" />
-              //                   {booking.pickupLocation}
-              //                 </p>
-              //                 <p className="text-sm text-gray-500">Booking Code: {booking.bookingCode}</p>
-              //                 <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-              //                   <div className="flex items-center space-x-1">
-              //                     <Calendar className="w-4 h-4" />
-              //                     <span>{booking.startDate} to {booking.endDate}</span>
-              //                   </div>
-              //                 </div>
-              //               </div>
-              //             </div>
-              //             <div className="text-right">
-              //               <p className="text-xl font-bold text-gray-900">${booking.totalPrice}</p>
-              //               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm ${getStatusColor(booking.status)}`}>
-              //                 {getStatusIcon(booking.status)}
-              //                 <span className="ml-1">{booking.status}</span>
-              //               </span>
-              //               <p className="text-xs text-gray-500 mt-1">Payment: {booking.paymentStatus}</p>
-              //             </div>
-              //           </div>
-                        
-              //           <div className="flex flex-wrap gap-2">
-              //             <Link
-              //               to={`/vehicle/${booking.vehicleId}`}
-              //               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-              //             >
-              //               View Vehicle
-              //             </Link>
-              //             {booking.status === 'completed' && (
-              //               <Link
-              //                 to={`/write-review/${booking.vehicleId}`} // Navigate to the review page with vehicle ID
-              //                 className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors text-sm"
-              //               >
-              //                 Write Review
-              //               </Link>
-              //             )}
-              //             {booking.status === 'confirmed' && (
-              //               <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm">
-              //                 Contact Owner
-              //               </button>
-              //             )}
-              //             <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center space-x-1">
-              //               <Download className="w-4 h-4" />
-              //               <span>Receipt</span>
-              //             </button>
-              //           </div>
-              //         </div>
-              //       ))}
-              //     </div>
-              //   </div>
-              // </div>
             )}
 
             {activeTab === 'favorites' && (
               <FavoriteTab />
-              // <div className="bg-white rounded-xl shadow-md p-6">
-              //   <h3 className="text-xl font-semibold mb-6">Favorite Vehicles</h3>
-              //   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              //     {favoriteVehicles.map((vehicle) => (
-              //       <div key={vehicle.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-              //         <img
-              //           src={vehicle.images[0]}
-              //           alt={vehicle.name}
-              //           className="w-full h-40 rounded-lg object-cover mb-4"
-              //         />
-              //         <div className="flex items-center justify-between mb-2">
-              //           <h4 className="font-semibold text-gray-900">{vehicle.name}</h4>
-              //           <div className="flex items-center space-x-1">
-              //             <Star className="w-4 h-4 text-yellow-400 fill-current" />
-              //             <span className="text-sm">{vehicle.rating}</span>
-              //           </div>
-              //         </div>
-              //         <p className="text-gray-600 mb-2 flex items-center">
-              //           <MapPin className="w-4 h-4 mr-1" />
-              //           {vehicle.location}
-              //         </p>
-              //         <div className="flex items-center justify-between">
-              //           <span className="text-lg font-bold text-blue-600">${vehicle.pricePerDay}/day</span>
-              //           <div className="flex space-x-2">
-              //             <button className="text-red-600 hover:text-red-700">
-              //               <Heart className="w-5 h-5 fill-current" />
-              //             </button>
-              //             <Link
-              //               to={`/vehicle/${vehicle.id}`}
-              //               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-              //             >
-              //               Book Now
-              //             </Link>
-              //           </div>
-              //         </div>
-              //       </div>
-              //     ))}
-              //   </div>
-              // </div>
             )}
 
             {activeTab === 'history' && (
               <RentalHistoryTab />
-              // <div className="bg-white rounded-xl shadow-md p-6">
-              //   <h3 className="text-xl font-semibold mb-6">Rental History</h3>
-              //   <div className="space-y-4">
-              //     {userBookings.filter(b => b.status === 'completed').map((booking) => (
-              //       <div key={booking.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-              //         <div className="flex items-center space-x-4">
-              //           <img
-              //             src={booking.vehicle.images[0]}
-              //             alt={booking.vehicle.name}
-              //             className="w-16 h-16 rounded-lg object-cover"
-              //           />
-              //           <div>
-              //             <h4 className="font-semibold text-gray-900">{booking.vehicle.name}</h4>
-              //             <p className="text-sm text-gray-600">{booking.startDate} - {booking.endDate}</p>
-              //             <p className="text-sm text-gray-500">{booking.pickupLocation}</p>
-              //           </div>
-              //         </div>
-              //         <div className="text-right">
-              //           <p className="font-semibold text-gray-900">${booking.totalPrice}</p>
-              //           <button className="text-blue-600 hover:text-blue-700 text-sm">
-              //             Book Again
-              //           </button>
-              //         </div>
-              //       </div>
-              //     ))}
-              //   </div>
-              // </div>
             )}
 
             {activeTab === 'payments' && (
@@ -499,7 +314,7 @@ const UserDashboard: React.FC = () => {
                     {userBookings.filter(b => b.paymentStatus === 'paid').map((booking) => (
                       <div key={booking.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                         <div>
-                          <p className="font-medium">{booking.vehicle.name}</p>
+                          <p className="font-medium">{booking.vehicle.vehicleName}</p>
                           <p className="text-sm text-gray-500">{booking.startDate}</p>
                           <p className="text-xs text-gray-400">ID: {booking.bookingCode}</p>
                         </div>
@@ -516,117 +331,6 @@ const UserDashboard: React.FC = () => {
 
             {activeTab === 'profile' && (
               <ProfileTab />
-              // <div className="bg-white rounded-xl shadow-md p-6">
-              //   <h3 className="text-xl font-semibold mb-6">Profile Settings</h3>
-              //   <form className="space-y-6">
-              //     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              //       <div>
-              //         <label className="block text-sm font-medium text-gray-700 mb-2">
-              //           First Name
-              //         </label>
-              //         <input
-              //           type="text"
-              //           defaultValue={user?.firstName}
-              //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              //         />
-              //       </div>
-              //       <div>
-              //         <label className="block text-sm font-medium text-gray-700 mb-2">
-              //           Last Name
-              //         </label>
-              //         <input
-              //           type="text"
-              //           defaultValue={user?.lastName}
-              //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              //         />
-              //       </div>
-              //       <div>
-              //         <label className="block text-sm font-medium text-gray-700 mb-2">
-              //           Email
-              //         </label>
-              //         <input
-              //           type="email"
-              //           defaultValue={user?.email}
-              //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              //         />
-              //       </div>
-              //       <div>
-              //         <label className="block text-sm font-medium text-gray-700 mb-2">
-              //           Phone
-              //         </label>
-              //         <input
-              //           type="tel"
-              //           defaultValue={user?.phone}
-              //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              //         />
-              //       </div>
-              //       <div>
-              //         <label className="block text-sm font-medium text-gray-700 mb-2">
-              //           Date of Birth
-              //         </label>
-              //         <input
-              //           type="date"
-              //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              //         />
-              //       </div>
-              //       <div>
-              //         <label className="block text-sm font-medium text-gray-700 mb-2">
-              //           Driver's License
-              //         </label>
-              //         <input
-              //           type="text"
-              //           placeholder="License number"
-              //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              //         />
-              //       </div>
-              //       <div>
-              //         <label className="block text-sm font-medium text-gray-700 mb-2">
-              //           Emergency Contact
-              //         </label>
-              //         <input
-              //           type="tel"
-              //           placeholder="Emergency contact number"
-              //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              //         />
-              //       </div>
-              //     </div>
-              //     <div>
-              //       <label className="block text-sm font-medium text-gray-700 mb-2">
-              //         Address
-              //       </label>
-              //       <textarea
-              //         rows={3}
-              //         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              //         placeholder="Enter your address"
-              //       />
-              //     </div>
-                  
-              //     <div className="border-t pt-6">
-              //       <h4 className="text-lg font-medium mb-4">Preferences</h4>
-              //       <div className="space-y-4">
-              //         <label className="flex items-center">
-              //           <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-              //           <span className="ml-2 text-sm text-gray-700">Email notifications for booking updates</span>
-              //         </label>
-              //         <label className="flex items-center">
-              //           <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-              //           <span className="ml-2 text-sm text-gray-700">SMS notifications for important updates</span>
-              //         </label>
-              //         <label className="flex items-center">
-              //           <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-              //           <span className="ml-2 text-sm text-gray-700">Marketing emails and promotions</span>
-              //         </label>
-              //       </div>
-              //     </div>
-                  
-              //     <button
-              //       type="submit"
-              //       className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-              //     >
-              //       Save Changes
-              //     </button>
-              //   </form>
-              // </div>
             )}
           </div>
         </div>
