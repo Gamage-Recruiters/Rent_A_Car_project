@@ -38,6 +38,7 @@ const SearchPage: React.FC = () => {
 
   useEffect(() => {
     applyFiltersAndSort();
+    // eslint-disable-next-line
   }, [vehicles, filters, sortBy, sortOrder]);
 
   const fetchVehicles = async () => {
@@ -52,6 +53,36 @@ const SearchPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // --- VALIDATION FUNCTION ---
+  const validateFilters = (filters: SearchFilters): string | null => {
+    // Price validations
+    if (filters.priceRange[0] < 0 || filters.priceRange[1] < 0) {
+      return "Price cannot be negative.";
+    }
+    if (filters.priceRange[0] > filters.priceRange[1]) {
+      return "Minimum price cannot be greater than maximum price.";
+    }
+
+    // Date validations
+    if (filters.startDate && isNaN(Date.parse(filters.startDate))) {
+      return "Start date is invalid.";
+    }
+    if (filters.endDate && isNaN(Date.parse(filters.endDate))) {
+      return "End date is invalid.";
+    }
+    if (
+      filters.startDate &&
+      filters.endDate &&
+      new Date(filters.startDate) > new Date(filters.endDate)
+    ) {
+      return "Start date cannot be after end date.";
+    }
+
+    // Add more validations as needed
+
+    return null;
   };
 
   const isVehicleAvailableForDates = (
@@ -74,10 +105,17 @@ const SearchPage: React.FC = () => {
   };
 
   const applyFiltersAndSort = () => {
-    let filtered = [...(vehicles || [])];
+    // --- VALIDATION CHECK ---
+    const validationError = validateFilters(filters);
+    if (validationError) {
+      setError(validationError);
+      setFilteredVehicles([]);
+      return;
+    } else {
+      setError("");
+    }
 
-    console.log("Total vehicles:", vehicles.length);
-    console.log("Current filters:", filters);
+    let filtered = [...(vehicles || [])];
 
     // Location filter
     if (filters.location) {
@@ -86,7 +124,6 @@ const SearchPage: React.FC = () => {
           ?.toLowerCase()
           .includes(filters.location.toLowerCase())
       );
-      console.log("After location filter:", filtered.length);
     }
 
     // Vehicle Type
@@ -96,7 +133,6 @@ const SearchPage: React.FC = () => {
           vehicle.vehicleType?.toLowerCase() ===
           filters.vehicleType.toLowerCase()
       );
-      console.log("After vehicle type filter:", filtered.length);
     }
 
     // Fuel Type
@@ -105,7 +141,6 @@ const SearchPage: React.FC = () => {
         (vehicle) =>
           vehicle.fuelType?.toLowerCase() === filters.fuelType.toLowerCase()
       );
-      console.log("After fuel type filter:", filtered.length);
     }
 
     // Auto OR Manual
@@ -115,7 +150,6 @@ const SearchPage: React.FC = () => {
           vehicle.transmission?.toLowerCase() ===
           filters.transmission.toLowerCase()
       );
-      console.log("After transmission filter:", filtered.length);
     }
 
     // isDriverAvailable
@@ -123,7 +157,6 @@ const SearchPage: React.FC = () => {
       filtered = filtered.filter(
         (vehicle) => vehicle.isDriverAvailable === filters.hasDriver
       );
-      console.log("After driver filter:", filtered.length);
     }
 
     // Price Range
@@ -132,17 +165,15 @@ const SearchPage: React.FC = () => {
         vehicle.pricePerDay >= filters.priceRange[0] &&
         vehicle.pricePerDay <= filters.priceRange[1]
     );
-    console.log("After price filter:", filtered.length);
 
     // Date availability filter
     if (filters.startDate && filters.endDate) {
       filtered = filtered.filter((vehicle) =>
         isVehicleAvailableForDates(vehicle, filters.startDate, filters.endDate)
       );
-      console.log("After date filter:", filtered.length);
     }
 
-    // Sort ---> extended
+    // Sort
     filtered.sort((a, b) => {
       let aValue: number | string;
       let bValue: number | string;
@@ -176,7 +207,6 @@ const SearchPage: React.FC = () => {
       }
     });
 
-    console.log("Final filtered vehicles:", filtered);
     setFilteredVehicles(filtered);
   };
 
@@ -347,15 +377,18 @@ const SearchPage: React.FC = () => {
               </div>
             )}
 
+            {/* Show validation or fetch error */}
             {error && (
-              <div className="text-center py-12">
+              <div className="text-center py-4">
                 <p className="text-red-500">{error}</p>
-                <button
-                  onClick={fetchVehicles}
-                  className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                >
-                  Try Again
-                </button>
+                {!loading && error === "Failed to load vehicles" && (
+                  <button
+                    onClick={fetchVehicles}
+                    className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  >
+                    Try Again
+                  </button>
+                )}
               </div>
             )}
 
