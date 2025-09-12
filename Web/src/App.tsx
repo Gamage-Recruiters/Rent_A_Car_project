@@ -1,5 +1,6 @@
 import React from 'react';
 import { ToastContainer } from 'react-toastify';
+import { AdminProvider } from './context/AdminContext';
 import 'react-toastify/dist/ReactToastify.css';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
@@ -49,6 +50,7 @@ function App() {
   return (
     <AuthProvider>
       <VehicleProvider>
+        <AdminProvider>
       <Router>
         <ScrollToTop />
         <div className="min-h-screen bg-gray-50">
@@ -104,6 +106,7 @@ function App() {
         </div>
       </Router>
       <ToastContainer position="top-right" autoClose={3000} />
+      </AdminProvider>
       </VehicleProvider>
     </AuthProvider>
     
