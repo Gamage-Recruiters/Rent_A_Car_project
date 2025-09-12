@@ -35,7 +35,7 @@ const SearchPage: React.FC = () => {
 
   useEffect(() => {
     // fetchVehicles();
-    setVehicles(mockVehicles);
+    setVehicles(mockVehicles); // import mock vehciles to testing purposes
     setLoading(false);
   }, []);
 
@@ -82,9 +82,6 @@ const SearchPage: React.FC = () => {
     ) {
       return "Start date cannot be after end date.";
     }
-
-    // Add more validations as needed
-
     return null;
   };
 
