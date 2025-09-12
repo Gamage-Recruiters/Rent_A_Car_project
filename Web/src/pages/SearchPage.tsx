@@ -5,6 +5,7 @@ import SearchForm from "../components/SearchForm";
 import VehicleCard from "../components/VehicleCard";
 import { SearchFilters, Vehicle } from "../types";
 import { useVehicle } from "../context/VehicleContext";
+import { mockVehicles } from "../data/mockData";
 
 const SearchPage: React.FC = () => {
   const location = useLocation();
@@ -33,7 +34,9 @@ const SearchPage: React.FC = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetchVehicles();
+    // fetchVehicles();
+    setVehicles(mockVehicles);
+    setLoading(false);
   }, []);
 
   useEffect(() => {

@@ -39,6 +39,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
   const vehicleTypes = ["sedan", "suv", "hatchback", "luxury", "sports", "van"];
   const transmissions = ["manual", "automatic"];
   const fuelTypes = ["petrol", "diesel", "electric", "hybrid"];
+  const today = new Date().toISOString().split("T")[0];
 
   return (
     <form
@@ -76,6 +77,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
           </label>
           <input
             type="date"
+            min={today}
             value={filters.startDate}
             onChange={(e) =>
               setFilters((prev) => ({ ...prev, startDate: e.target.value }))
@@ -92,6 +94,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
           </label>
           <input
             type="date"
+            min={today}
             value={filters.endDate}
             onChange={(e) =>
               setFilters((prev) => ({ ...prev, endDate: e.target.value }))
