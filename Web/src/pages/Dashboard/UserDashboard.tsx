@@ -8,7 +8,6 @@ import {
   CheckCircle, XCircle, AlertCircle, TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { mockVehicles } from '../../data/mockData';
 import PaymentModal from './PaymentModal';
 import ProfileTab from './User/ProfileTab';
 import BookingTab from './User/BookingTab';
@@ -25,38 +24,102 @@ const UserDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [favoriteVehicles, setFavoriteVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userBookings, setUserBookings] = useState<any[]>([]);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
+  const [rentalHistory, setRentalHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
   const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
 
   useEffect(() => {
-  if (user) {
-    fetchFavorites();
-  } else {
-    setLoading(false);
-  }
-}, [user]);
-
-const fetchFavorites = async () => {
-  try {
-    setLoading(true);
-    
-    const response = await axios.get(`${API_URL}/customer/favorite/list`, {
-      withCredentials: true,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (response.data.success) {
-      setFavoriteVehicles(response.data.favorites || []);
+    if (user) {
+      fetchFavorites();
+    } else {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error fetching favorites:', error);
-    setFavoriteVehicles([]);
-  } finally {
-    setLoading(false);
-  }
-};
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchBookings();
+    } else {
+      setBookingsLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchRentalHistory();
+    } else {
+      setHistoryLoading(false);
+    }
+  }, [user]);
+
+  const fetchFavorites = async () => {
+    try {
+      setLoading(true);
+
+      const response = await axios.get(`${API_URL}/customer/favorite/list`, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.data.success) {
+        setFavoriteVehicles(response.data.favorites || []);
+      }
+    } catch (error) {
+      console.error('Error fetching favorites:', error);
+      setFavoriteVehicles([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchBookings = async () => {
+    try {
+      setBookingsLoading(true);
+
+      const response = await axios.get(`${API_URL}/customer/booking/my-bookings`, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.data.success) {
+        setUserBookings(response.data.bookings || []);
+      }
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      setUserBookings([]);
+    } finally {
+      setBookingsLoading(false);
+    }
+  };
+
+  const fetchRentalHistory = async () => {
+    try {
+      setHistoryLoading(true);
+
+      const response = await axios.get(`${API_URL}/customer/rental-history`, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.data?.success) {
+        setRentalHistory(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching rental history:', error);
+      setRentalHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
 
   const handleOpenModal = () => {
     setPaymentModalOpen(true);
@@ -68,56 +131,7 @@ const fetchFavorites = async () => {
 
 
   // Mock user data with more comprehensive information
-  const userBookings = [
-    {
-      id: '1',
-      vehicleId: '1',
-      startDate: '2024-01-15',
-      endDate: '2024-01-18',
-      status: 'confirmed',
-      totalPrice: 135,
-      vehicle: mockVehicles[0],
-      pickupLocation: 'Downtown Office',
-      bookingCode: 'RC-ABC123',
-      paymentStatus: 'paid'
-    },
-    {
-      id: '2',
-      vehicleId: '2',
-      startDate: '2024-01-10',
-      endDate: '2024-01-12',
-      status: 'completed',
-      totalPrice: 130,
-      vehicle: mockVehicles[1],
-      pickupLocation: 'Airport Terminal',
-      bookingCode: 'RC-DEF456',
-      paymentStatus: 'paid'
-    },
-    {
-      id: '3',
-      vehicleId: '3',
-      startDate: '2024-02-01',
-      endDate: '2024-02-03',
-      status: 'pending',
-      totalPrice: 240,
-      vehicle: mockVehicles[2],
-      pickupLocation: 'City Center',
-      bookingCode: 'RC-GHI789',
-      paymentStatus: 'pending'
-    },
-    {
-      id: '4',
-      vehicleId: '1',
-      startDate: '2024-01-05',
-      endDate: '2024-01-07',
-      status: 'cancelled',
-      totalPrice: 90,
-      vehicle: mockVehicles[0],
-      pickupLocation: 'Downtown Office',
-      bookingCode: 'RC-JKL012',
-      paymentStatus: 'refunded'
-    }
-  ];
+
 
   const recentSearches = [
     { location: 'Downtown', date: '2024-01-20', vehicleType: 'sedan' },
@@ -231,20 +245,33 @@ const fetchFavorites = async () => {
               <div className="space-y-6">
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  {/* Total Bookings */}
                   <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-gray-600">Total Bookings</p>
-                        <p className="text-2xl font-bold text-gray-900">{userBookings.length}</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {bookingsLoading ? (
+                            <div className="animate-pulse bg-gray-300 h-8 w-8 rounded"></div>
+                          ) : (
+                            userBookings.length
+                          )}
+                        </p>
                         <p className="text-xs text-green-600 flex items-center mt-1">
                           <TrendingUp className="w-3 h-3 mr-1" />
-                          +2 this month
+                          +{userBookings.filter(b => {
+                            const bookingDate = new Date(b.createdAt);
+                            const thisMonth = new Date();
+                            return bookingDate.getMonth() === thisMonth.getMonth() &&
+                              bookingDate.getFullYear() === thisMonth.getFullYear();
+                          }).length} this month
                         </p>
                       </div>
                       <Calendar className="w-8 h-8 text-blue-600" />
                     </div>
                   </div>
 
+                  {/* Total Spent */}
                   <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-center justify-between">
                       <div>
@@ -256,17 +283,36 @@ const fetchFavorites = async () => {
                     </div>
                   </div>
 
+                  {/* Upcoming Trips */}
                   <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-gray-600">Upcoming Trips</p>
-                        <p className="text-2xl font-bold text-gray-900">{upcomingBookings}</p>
-                        <p className="text-xs text-orange-600">Next: Jan 15</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {bookingsLoading ? (
+                            <div className="animate-pulse bg-gray-300 h-8 w-8 rounded"></div>
+                          ) : (
+                            userBookings.filter(b => b.bookingStatus === 'pending').length
+                          )}
+                        </p>
+                        <p className="text-xs text-orange-600">
+                          {bookingsLoading ? 'Loading...' : (() => {
+                            const pendingTrips = userBookings.filter(b => b.bookingStatus === 'pending');
+                            if (pendingTrips.length > 0) {
+                              const mostRecent = pendingTrips.sort((a, b) =>
+                                new Date(a.pickupDate).getTime() - new Date(b.pickupDate).getTime()
+                              )[0];
+                              return `Next: ${new Date(mostRecent.pickupDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                            }
+                            return 'No pending trips';
+                          })()}
+                        </p>
                       </div>
                       <Clock className="w-8 h-8 text-orange-600" />
                     </div>
                   </div>
 
+                  {/* Favorite Cars */}
                   <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-center justify-between">
                       <div>
