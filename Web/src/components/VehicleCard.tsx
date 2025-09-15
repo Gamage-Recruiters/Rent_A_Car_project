@@ -2,19 +2,44 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Star, Users, Fuel, Settings, MapPin } from 'lucide-react';
 
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '');
+
 interface VehicleCardProps {
   vehicle: any;
   showContactInfo?: boolean;
 }
 
 const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle, showContactInfo = false }) => {
+
+  const constructImageUrl = (imagePath?: string) => {
+    if (!imagePath) return '/placeholder-car.jpg';
+    
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    if (imagePath.startsWith('/uploads')) {
+      return `${BASE_URL}${imagePath}`;
+    }
+    
+    return `${BASE_URL}/uploads/vehicles/${imagePath}`;
+  };
+
+  // Get the first image with proper URL construction
+  const vehicleImage = vehicle.images && vehicle.images.length > 0 
+    ? constructImageUrl(vehicle.images[0]) 
+    : '/placeholder-car.jpg';
+    
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
       <div className="relative">
         <img
-          src={vehicle.images && vehicle.images.length > 0 ? vehicle.images[0] : '/placeholder.jpg'}
+          src={vehicleImage}
           alt={vehicle.vehicleName || 'Unnamed Vehicle'}
           className="w-full h-48 object-cover"
+          onError={(e) => {
+            e.currentTarget.src = '/placeholder-car.jpg';
+          }}
         />
         <div className="absolute top-4 right-4 bg-white rounded-full px-2 py-1 shadow-md">
           <div className="flex items-center space-x-1">
