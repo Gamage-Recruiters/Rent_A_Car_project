@@ -28,7 +28,8 @@ const UserDashboard: React.FC = () => {
   const [bookingsLoading, setBookingsLoading] = useState(true);
   const [rentalHistory, setRentalHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
-
+  const [recentSearches, setRecentSearches] = useState<any[]>([]);
+  const [searchesLoading, setSearchesLoading] = useState(true);
   const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
 
   useEffect(() => {
@@ -52,6 +53,14 @@ const UserDashboard: React.FC = () => {
       fetchRentalHistory();
     } else {
       setHistoryLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchRecentSearches();
+    } else {
+      setSearchesLoading(false);
     }
   }, [user]);
 
@@ -121,6 +130,20 @@ const UserDashboard: React.FC = () => {
     }
   };
 
+  // Add this function
+  const fetchRecentSearches = async () => {
+  try {
+    setSearchesLoading(true);
+    const searches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+    setRecentSearches(searches);
+  } catch (error) {
+    console.error('Error loading recent searches:', error);
+    setRecentSearches([]);
+  } finally {
+    setSearchesLoading(false);
+  }
+};
+
   const handleOpenModal = () => {
     setPaymentModalOpen(true);
   };
@@ -128,16 +151,6 @@ const UserDashboard: React.FC = () => {
   const handleCloseModal = () => {
     setPaymentModalOpen(false);
   };
-
-
-  // Mock user data with more comprehensive information
-
-
-  const recentSearches = [
-    { location: 'Downtown', date: '2024-01-20', vehicleType: 'sedan' },
-    { location: 'Airport', date: '2024-01-18', vehicleType: 'suv' },
-    { location: 'City Center', date: '2024-01-15', vehicleType: 'luxury' }
-  ];
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: User },
@@ -331,20 +344,41 @@ const UserDashboard: React.FC = () => {
                 {/* Recent Searches */}
                 <div className="bg-white rounded-xl shadow-md p-6">
                   <h3 className="text-xl font-semibold mb-4">Recent Searches</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {recentSearches.map((search, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-gray-900">{search.location}</h4>
-                          <span className="text-xs text-gray-500">{search.date}</span>
+                  {searchesLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="animate-pulse border border-gray-200 rounded-lg p-4">
+                          <div className="h-4 bg-gray-300 rounded mb-2"></div>
+                          <div className="h-3 bg-gray-300 rounded"></div>
                         </div>
-                        <p className="text-sm text-gray-600 capitalize">{search.vehicleType}</p>
-                        <button className="text-blue-600 text-sm hover:text-blue-700 mt-2">
-                          Search Again
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : recentSearches.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {recentSearches.slice(0, 6).map((search, index) => (
+                        <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-gray-900">{search.location || 'Any Location'}</h4>
+                            <span className="text-xs text-gray-500">
+                              {new Date(search.searchDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 capitalize">
+                            {search.vehicleType || 'Any Type'}
+                          </p>
+                          <Link
+                            to="/search"
+                            state={{ filters: search.filters }}
+                            className="text-blue-600 text-sm hover:text-blue-700 mt-2 inline-block"
+                          >
+                            Search Again
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">No recent searches found</p>
+                  )}
                 </div>
               </div>
             )}
