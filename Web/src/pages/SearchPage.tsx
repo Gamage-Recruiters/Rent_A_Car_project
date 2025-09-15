@@ -168,8 +168,21 @@ const SearchPage: React.FC = () => {
   };
 
   const handleSearch = (newFilters: SearchFilters) => {
-    setFilters(newFilters);
+  // Save search to localStorage
+  const searchData = {
+    filters: newFilters,
+    location: newFilters.location,
+    vehicleType: newFilters.vehicleType,
+    searchDate: new Date().toISOString(),
+    id: Date.now()
   };
+  
+  const existingSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+  const updatedSearches = [searchData, ...existingSearches.slice(0, 9)]; // Keep last 10
+  localStorage.setItem('recentSearches', JSON.stringify(updatedSearches));
+  
+  setFilters(newFilters);
+};
 
   const clearFilters = () => {
     setFilters({
