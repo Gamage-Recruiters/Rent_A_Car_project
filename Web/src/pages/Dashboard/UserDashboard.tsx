@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Link } from 'react-router-dom';
-import { 
-  User, Calendar, Car, Heart, Settings, CreditCard, 
-  MapPin, Clock, Star, Phone, Mail, Edit3, Plus, 
+import {
+  User, Calendar, Car, Heart, Settings, CreditCard,
+  MapPin, Clock, Star, Phone, Mail, Edit3, Plus,
   Download, Eye, MessageCircle, Filter, Search,
   CheckCircle, XCircle, AlertCircle, TrendingUp
 } from 'lucide-react';
@@ -15,13 +16,47 @@ import FavoriteTab from './User/FavoriteTab';
 import RentalHistoryTab from './User/RentalHistoryTab';
 import RecentBookingsTab from './User/RecentBookingsTab';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
 const UserDashboard: React.FC = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [bookingFilter, setBookingFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [favoriteVehicles, setFavoriteVehicles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
+
+  useEffect(() => {
+  if (user) {
+    fetchFavorites();
+  } else {
+    setLoading(false);
+  }
+}, [user]);
+
+const fetchFavorites = async () => {
+  try {
+    setLoading(true);
+    
+    const response = await axios.get(`${API_URL}/customer/favorite/list`, {
+      withCredentials: true,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.data.success) {
+      setFavoriteVehicles(response.data.favorites || []);
+    }
+  } catch (error) {
+    console.error('Error fetching favorites:', error);
+    setFavoriteVehicles([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleOpenModal = () => {
     setPaymentModalOpen(true);
@@ -30,6 +65,7 @@ const UserDashboard: React.FC = () => {
   const handleCloseModal = () => {
     setPaymentModalOpen(false);
   };
+
 
   // Mock user data with more comprehensive information
   const userBookings = [
@@ -83,7 +119,6 @@ const UserDashboard: React.FC = () => {
     }
   ];
 
-  const favoriteVehicles = mockVehicles.slice(0, 3);
   const recentSearches = [
     { location: 'Downtown', date: '2024-01-20', vehicleType: 'sedan' },
     { location: 'Airport', date: '2024-01-18', vehicleType: 'suv' },
@@ -119,15 +154,15 @@ const UserDashboard: React.FC = () => {
     }
   };
 
-  const filteredBookings = bookingFilter === 'all' 
-    ? userBookings 
+  const filteredBookings = bookingFilter === 'all'
+    ? userBookings
     : userBookings.filter(booking => booking.status === bookingFilter);
 
   const totalSpent = userBookings
     .filter(b => b.status === 'completed')
     .reduce((sum, booking) => sum + booking.totalPrice, 0);
 
-  const upcomingBookings = userBookings.filter(b => 
+  const upcomingBookings = userBookings.filter(b =>
     b.status === 'confirmed' && new Date(b.startDate) > new Date()
   ).length;
 
@@ -159,11 +194,10 @@ const UserDashboard: React.FC = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                      activeTab === tab.id
-                        ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-sm'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600'
-                    }`}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${activeTab === tab.id
+                      ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-sm'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600'
+                      }`}
                   >
                     <tab.icon className="w-5 h-5" />
                     <span>{tab.label}</span>
@@ -210,7 +244,7 @@ const UserDashboard: React.FC = () => {
                       <Calendar className="w-8 h-8 text-blue-600" />
                     </div>
                   </div>
-                  
+
                   <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-center justify-between">
                       <div>
@@ -221,7 +255,7 @@ const UserDashboard: React.FC = () => {
                       <CreditCard className="w-8 h-8 text-green-600" />
                     </div>
                   </div>
-                  
+
                   <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-center justify-between">
                       <div>
@@ -232,7 +266,7 @@ const UserDashboard: React.FC = () => {
                       <Clock className="w-8 h-8 text-orange-600" />
                     </div>
                   </div>
-                  
+
                   <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-center justify-between">
                       <div>
@@ -300,7 +334,7 @@ const UserDashboard: React.FC = () => {
                     </div>
                     <button className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 
                     text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors"
-                    onClick={handleOpenModal}>
+                      onClick={handleOpenModal}>
                       + Add New Payment Method
                     </button>
 
