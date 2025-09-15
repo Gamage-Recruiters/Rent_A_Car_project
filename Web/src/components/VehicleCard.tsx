@@ -44,7 +44,12 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle, showContactInfo = fa
         <div className="absolute top-4 right-4 bg-white rounded-full px-2 py-1 shadow-md">
           <div className="flex items-center space-x-1">
             <Star className="w-4 h-4 text-yellow-400 fill-current" />
-            <span className="text-sm font-medium">{vehicle.rating || 0}</span>
+            <span className="text-sm font-medium">
+              {vehicle.rating ? vehicle.rating.toFixed(1) : '0.0'}
+              {vehicle.reviewCount > 0 && (
+                <span className="text-xs text-gray-500 ml-1">({vehicle.reviewCount})</span>
+              )}
+            </span>
           </div>
         </div>
         {vehicle.isDriverAvailable && (

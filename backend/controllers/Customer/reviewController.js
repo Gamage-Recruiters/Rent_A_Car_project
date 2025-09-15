@@ -167,4 +167,40 @@ async function getAllReviews(req, res) {
     }
 };
 
-module.exports = { createReview, getVehicleReviews, deleteReview, getCustomerReviews, updateReview, getAllReviews };
+async function getVehicleRating(req, res) {
+    try {
+        const { vehicleId } = req.params;
+        
+        const reviews = await Review.find({ vehicle: vehicleId });
+        
+        if (!reviews || reviews.length === 0) {
+            return res.status(200).json({
+                success: true,
+                data: {
+                    rating: 0,
+                    reviewCount: 0
+                }
+            });
+        }
+        
+        const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+        const averageRating = (totalRating / reviews.length).toFixed(1);
+        
+        return res.status(200).json({
+            success: true,
+            data: {
+                rating: parseFloat(averageRating),
+                reviewCount: reviews.length
+            }
+        });
+    } catch (error) {
+        console.error('Get vehicle rating error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Server Error',
+            error: error.message
+        });
+    }
+}
+
+module.exports = { createReview, getVehicleReviews, deleteReview, getCustomerReviews, updateReview, getAllReviews, getVehicleRating };
