@@ -74,9 +74,12 @@ async function deleteReview(req, res) {
 async function getCustomerReviews(req, res) {
     try {
         const reviews = await Review.find({ customer: req.user.id })
-            .populate('vehicle', 'brand model year')
+            .populate('customer', 'firstName lastName email photo') 
+            .populate('vehicle', 'vehicleName vehicleLicenseNumber brand model year images vehicleType') 
             .sort({ createdAt: -1 });
 
+        console.log(`Found ${reviews.length} reviews for customer ${req.user.id}`);
+        
         return res.status(200).json({
             success: true,
             count: reviews.length,
@@ -142,4 +145,26 @@ async function updateReview(req, res) {
     }
 };
 
-module.exports = { createReview, getVehicleReviews, deleteReview, getCustomerReviews, updateReview };
+async function getAllReviews(req, res) {
+    try {
+        const reviews = await Review.find()
+            .populate('customer', 'firstName lastName email photo')
+            .populate('vehicle', 'vehicleName vehicleLicenseNumber brand model year images vehicleType')
+            .sort({ createdAt: -1 });
+
+        return res.status(200).json({
+            success: true,
+            count: reviews.length,
+            data: reviews
+        });
+    } catch (error) {
+        console.error('Get all reviews error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Server Error',
+            error: error.message
+        });
+    }
+};
+
+module.exports = { createReview, getVehicleReviews, deleteReview, getCustomerReviews, updateReview, getAllReviews };
