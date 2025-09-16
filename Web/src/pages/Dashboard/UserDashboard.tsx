@@ -132,17 +132,17 @@ const UserDashboard: React.FC = () => {
 
   // Add this function
   const fetchRecentSearches = async () => {
-  try {
-    setSearchesLoading(true);
-    const searches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
-    setRecentSearches(searches);
-  } catch (error) {
-    console.error('Error loading recent searches:', error);
-    setRecentSearches([]);
-  } finally {
-    setSearchesLoading(false);
-  }
-};
+    try {
+      setSearchesLoading(true);
+      const searches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+      setRecentSearches(searches);
+    } catch (error) {
+      console.error('Error loading recent searches:', error);
+      setRecentSearches([]);
+    } finally {
+      setSearchesLoading(false);
+    }
+  };
 
   const handleOpenModal = () => {
     setPaymentModalOpen(true);
@@ -206,13 +206,29 @@ const UserDashboard: React.FC = () => {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-md p-6 mb-6">
               <div className="flex items-center space-x-3 mb-6">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                  <User className="w-8 h-8 text-white" />
+                <div className="relative w-16 h-16 rounded-full overflow-hidden border border-gray-300 bg-gray-100 flex items-center justify-center">
+                  {user?.photo ? (
+                    <img
+                      src={
+                        user.photo.startsWith('http')
+                          ? user.photo
+                          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'}${user.photo}`
+                      }
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <User className="w-8 h-8 text-gray-400" />
+                  )}
                 </div>
+
                 <div>
                   <h3 className="font-semibold text-gray-900">{user?.name}</h3>
                   <p className="text-sm text-gray-500">{user?.email}</p>
-                  <p className="text-xs text-blue-600 font-medium">Premium Member</p>
+                  <p className="text-xs text-gray-500 font-medium">{user?.phone}</p>
                 </div>
               </div>
 
@@ -244,10 +260,13 @@ const UserDashboard: React.FC = () => {
                   <Search className="w-5 h-5" />
                   <span>Find a Car</span>
                 </Link>
-                <button className="w-full border border-gray-300 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2">
+                <Link
+                  to="/contact"
+                  className="w-full border border-gray-300 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
+                >
                   <MessageCircle className="w-5 h-5" />
                   <span>Support</span>
-                </button>
+                </Link>
               </div>
             </div>
           </div>
