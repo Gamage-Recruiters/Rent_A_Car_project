@@ -206,25 +206,32 @@ const UserDashboard: React.FC = () => {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-md p-6 mb-6">
               <div className="flex items-center space-x-3 mb-6">
-                <div className="relative w-16 h-16 rounded-full overflow-hidden border border-gray-300 bg-gray-100 flex items-center justify-center">
+
+                <div className="relative w-16 h-16 rounded-full overflow-hidden border border-gray-300 bg-gray-100">
                   {user?.photo ? (
                     <img
                       src={
                         user.photo.startsWith('http')
                           ? user.photo
-                          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'}${user.photo}`
+                          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'}${user.photo.startsWith('/uploads')
+                            ? user.photo
+                            : `/uploads/customerProfiles/${user.photo}`
+                          }`
                       }
                       alt="Profile"
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = 'none';
+                        e.currentTarget.style.display = 'none';
                       }}
                     />
-                  ) : (
-                    <User className="w-8 h-8 text-gray-400" />
+                  ) : null}
+
+                  {(!user?.photo || document.querySelector('img[style*="display: none"]')) && (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                      <User className="w-8 h-8 text-gray-400" />
+                    </div>
                   )}
                 </div>
-
                 <div>
                   <h3 className="font-semibold text-gray-900">{user?.name}</h3>
                   <p className="text-sm text-gray-500">{user?.email}</p>
