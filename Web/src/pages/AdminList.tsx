@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import { Trash2, Plus, User, Mail, Phone, Calendar, Key } from "lucide-react"
+import { Trash2, Plus, User, Mail, Phone, Calendar, Key, Eye, EyeOff } from "lucide-react"
 
 interface Admin {
   id: number
@@ -46,6 +46,20 @@ const AdminList: React.FC = () => {
     password: "",
     phone: "",
   })
+
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(new Set())
+
+  const togglePasswordVisibility = (adminId: number) => {
+    setVisiblePasswords((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(adminId)) {
+        newSet.delete(adminId)
+      } else {
+        newSet.add(adminId)
+      }
+      return newSet
+    })
+  }
 
   // Add admin modal controls
   const handleOpenModal = () => setShowModal(true)
@@ -150,8 +164,22 @@ const AdminList: React.FC = () => {
                   </td>
                   <td className="py-4 px-6 border-b border-slate-100">
                     <div className="flex items-center gap-2 text-slate-600">
-                      <Key size={14} />
-                      <span className="font-mono bg-slate-100 px-2 py-1 rounded text-sm">••••••••</span>
+                        <button
+                        onClick={() => togglePasswordVisibility(admin.id)}
+                        className="ml-1 p-1 hover:bg-slate-200 rounded transition-colors duration-200"
+                        title={visiblePasswords.has(admin.id) ? "Hide password" : "Show password"}
+                      >
+                        {visiblePasswords.has(admin.id) ? (
+                          <EyeOff size={14} className="text-slate-500" />
+                        ) : (
+                          <Eye size={14} className="text-slate-500" />
+                        )}
+                      </button>
+                      
+                      <span className="font-mono bg-slate-100 px-2 py-1 rounded text-sm">
+                        {visiblePasswords.has(admin.id) ? admin.password : "••••••••"}
+                      </span>
+                      
                     </div>
                   </td>
                   <td className="py-4 px-6 border-b border-slate-100">
