@@ -7,13 +7,18 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { Vehicle } from '../types';
 import { useVehicle } from '../context/VehicleContext';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL;
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '');
 
 const VehicleDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getVehicleById } = useVehicle();
-  
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -27,6 +32,7 @@ const VehicleDetailsPage: React.FC = () => {
 
   useEffect(() => {
     fetchVehicle();
+    fetchVehicleReviews();
   }, [id]);
 
   const fetchVehicle = async () => {
@@ -42,6 +48,22 @@ const VehicleDetailsPage: React.FC = () => {
       console.error('Error fetching vehicle:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchVehicleReviews = async () => {
+    if (!id) return;
+
+    setReviewsLoading(true);
+    try {
+      const response = await axios.get(`${API_URL}/customer/review/vehicle/${id}`);
+      if (response.data.success) {
+        setReviews(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching vehicle reviews:', error);
+    } finally {
+      setReviewsLoading(false);
     }
   };
 
@@ -115,10 +137,27 @@ const VehicleDetailsPage: React.FC = () => {
     verified: true,
   };
 
-  // Placeholder ---> if none exist
-  const images = vehicle.images && vehicle.images.length > 0 
-    ? vehicle.images 
-    : ['https://via.placeholder.com/600x400?text=No+Image+Available'];
+  const constructImageUrl = (imagePath?: string) => {
+  if (!imagePath) return '/placeholder-car.jpg';
+  
+  // If it's already a full URL, return it as is
+  if (imagePath.startsWith('http')) {
+    return imagePath;
+  }
+  
+  // If it starts with /uploads, just add the base URL
+  if (imagePath.startsWith('/uploads')) {
+    return `${BASE_URL}${imagePath}`;
+  }
+  
+  // Otherwise, construct the path to the vehicles folder
+  return `${BASE_URL}/uploads/vehicles/${imagePath}`;
+};
+
+// images variable definition
+const images = vehicle.images && vehicle.images.length > 0 
+  ? vehicle.images.map(img => constructImageUrl(img))
+  : ['https://via.placeholder.com/600x400?text=No+Image+Available'];
 
   
   const vehicleName = vehicle.vehicleName || 'Vehicle';
@@ -334,7 +373,49 @@ const VehicleDetailsPage: React.FC = () => {
         {/* Reviews Section */}
         <div className="mt-8 bg-white rounded-lg p-6 shadow-md">
           <h3 className="text-xl font-semibold mb-6">Customer Reviews</h3>
-          <p className="text-gray-500">No reviews yet. Be the first to review this vehicle!</p>
+          {reviewsLoading ? (
+            <div className="text-center py-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-gray-500">Loading reviews...</p>
+            </div>
+          ) : reviews.length === 0 ? (
+            <p className="text-gray-500">No reviews yet. Be the first to review this vehicle!</p>
+          ) : (
+            <div className="space-y-6">
+              {reviews.map((review) => (
+                <div key={review._id} className="border-b border-gray-200 pb-6 last:border-0 last:pb-0">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold">
+                        {review.customer?.firstName ? review.customer.firstName.charAt(0) : '?'}
+                      </div>
+                      <div>
+                        <div className="font-medium">
+                          {review.customer?.firstName || 'Anonymous'} {review.customer?.lastName || ''}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(review.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-gray-600">{review.comment}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

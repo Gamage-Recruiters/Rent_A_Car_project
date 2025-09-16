@@ -29,8 +29,8 @@ async function createReview(req, res) {
 async function getVehicleReviews(req, res) {
     try {
         const reviews = await Review.find({ vehicle: req.params.vehicleId })
-            .populate('customer', 'firstName email')
-            .populate('vehicle', 'vehicleName vehicleLicenseNumber')
+            .populate('customer', 'firstName lastName email photo')
+            .populate('vehicle', 'vehicleName vehicleLicenseNumber brand model year images vehicleType')
             .sort({ createdAt: -1 });
 
         return res.status(200).json({
