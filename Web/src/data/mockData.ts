@@ -338,7 +338,7 @@ export const mockReviews: Review[] = [
 export const inquiries: Inquiry[] = [
   {
     id: 1,
-    profileImage: "/images/user1.jpg",
+    profileImage: "",  //"/images/user1.jpg"
     fullName: "John Doe",
     email: "john@example.com",
     phone: "+1 234 567 890",
@@ -347,7 +347,7 @@ export const inquiries: Inquiry[] = [
   },
   {
     id: 2,
-    profileImage: "/images/user2.jpg",
+    profileImage: "", //"/images/user2.jpg",
     fullName: "Jane Smith",
     email: "jane@example.com",
     phone: "+1 987 654 321",
@@ -356,7 +356,7 @@ export const inquiries: Inquiry[] = [
   },
   {
     id: 3,
-    profileImage: "/images/user2.jpg",
+    profileImage: "",//"/images/user2.jpg",
     fullName: "Jane Smith",
     email: "jane@example.com",
     phone: "+1 987 654 321",
@@ -365,7 +365,7 @@ export const inquiries: Inquiry[] = [
   },
   {
     id: 4,
-    profileImage: "/images/user2.jpg",
+    profileImage: "",//"/images/user2.jpg",
     fullName: "Jane Smith",
     email: "jane@example.com",
     phone: "+1 987 654 321",
@@ -374,7 +374,7 @@ export const inquiries: Inquiry[] = [
   },
   {
     id: 4,
-    profileImage: "/images/user2.jpg",
+    profileImage: "",//"/images/user2.jpg",
     fullName: "Jane Smith",
     email: "jane@example.com",
     phone: "+1 987 654 321",
