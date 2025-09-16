@@ -29,7 +29,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 
 import ManageAccounts from './pages/ManageAccounts';
 
-import AdminTestPage from './pages/AdminTestPage';
+import AdminTestPage from './pages/AdminLayout';
 import PlatformSettingsPage from './pages/AdminPlatformSettings';
 
 import AdminVehicleListingsPage from './pages/AdminVehicleListingsPage';
@@ -42,8 +42,10 @@ import AdminProfile from './pages/AdminProfile';
 
 import AdminCustomerInquiry from './pages/AdminCustomerInquiry';
 import AdminResetPasswordPage from './pages/Auth/AdminResetPasswordPage';
+import AdminSidebar from './components/AdminSideBar';
+import AdminLayout from './pages/AdminLayout';
 
-
+import AdminList from './pages/AdminList';
 
 
 function App() {
@@ -56,11 +58,8 @@ function App() {
         <div className="min-h-screen bg-gray-50">
           <Navbar />
           <Routes>
-            <Route path="/admin-test" element={<AdminTestPage />} /> {/* Admin sidebar test page */}
+            {/* <Route path="/admin-test" element={<AdminTestPage />} /> Admin sidebar test page */}
             
-          
-
-          
           
             <Route path="/" element={<HomePage />} />
             <Route path="/search" element={<SearchPage />} />
@@ -81,21 +80,22 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-            <Route path='/manage-accounts' element={<ManageAccounts />} />
+            
 
             {/* admin pages */}
             <Route path="/admin-login" element={<AdminLogin />} />
-            <Route path="/admin-dashboard" element={<AdminDashboard />} />
-            <Route path="/admin-vehicle-listings" element={<AdminVehicleListingsPage />} />
+            <Route path="/admin-dashboard" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
+            <Route path="/admin-vehicle-listings" element={<AdminLayout><AdminVehicleListingsPage /></AdminLayout>} />
             <Route path="/admin/vehicles/:id" element={<AdminVehicleDetailsPage />} />
             <Route path="/admin/settings" element={<PlatformSettingsPage />} />
 
             <Route path="/admin/profile" element={<AdminProfile />} />
-
+            <Route path='/manage-accounts' element={<AdminLayout><ManageAccounts /></AdminLayout>} />
             <Route path="/admin/reset-password/:token" element={<AdminResetPasswordPage/>}/>
+            <Route path="/adminlist" element={<AdminLayout><AdminList /></AdminLayout>} />
+            <Route path="/admininquiries" element={<AdminLayout><AdminCustomerInquiry /></AdminLayout>} />
+            <Route path="/adminsidebar" element={<AdminSidebar />} />
             
-
-            <Route path="/admininquiries" element={<AdminCustomerInquiry />} />
 
             
             {/* Fallback route */}
@@ -105,6 +105,8 @@ function App() {
           <Footer />
         </div>
       </Router>
+
+      
       <ToastContainer position="top-right" autoClose={3000} />
       </AdminProvider>
       </VehicleProvider>

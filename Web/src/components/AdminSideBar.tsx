@@ -1,225 +1,57 @@
-import { useState } from 'react';
-import {
-  LayoutDashboard,
-  Users,
-  Car,
-  AlertTriangle,
-  FileText,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  UserCheck,
-  ShieldAlert,
-  BarChart3,
-  MessageSquare,
-  Bell,
-  LogOut
-} from 'lucide-react';
+import type React from "react"
+import { Link, useLocation } from "react-router-dom"
+import { LayoutDashboard, Users, Car, Shield, MessageSquare } from "lucide-react" // optional icons
 
-interface SidebarItem {
-  id: string;
-  label: string;
-  icon: React.ComponentType<any>;
-  path: string;
-  badge?: number;
+interface MenuItem {
+  label: string
+  to: string
+  icon: React.ReactNode
 }
 
-interface SidebarSection {
-  title: string;
-  items: SidebarItem[];
-}
+const AdminSidebar: React.FC = () => {
+  const location = useLocation()
 
-interface AdminSidebarProps {
-  currentRoute?: string;
-  onNavigate?: (path: string) => void;
-}
+  const menuItems: MenuItem[] = [
+    { label: "Dashboard", to: "/admin-dashboard", icon: <LayoutDashboard size={18} /> },
+    { label: "Account management", to: "/manage-accounts", icon: <Users size={18} /> },
 
-const AdminSidebar = ({ currentRoute = '/admin/dashboard', onNavigate }: AdminSidebarProps) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+    { label: "Vehicles", to: "/admin-vehicle-listings", icon: <Car size={18} /> },
+    { label: "Admins", to: "/adminlist", icon: <Shield size={18} /> },
 
-  const sidebarSections: SidebarSection[] = [
-    {
-      title: "Overview",
-      items: [
-        {
-          id: 'dashboard',
-          label: 'Dashboard',
-          icon: LayoutDashboard,
-          path: '/admin/dashboard'
-        },
-       
-      ]
-    },
-    {
-      title: "",
-      items: [
-        {
-          id: 'account-management',
-          label: 'Account Management',
-          icon: Users,
-          path: '/admin/account-management'
-        },
-       
-      ]
-    },
-    {
-      title: "",
-      items: [
-        {
-          id: 'vehicle-listings',
-          label: 'Vehicle Listings',
-          icon: Car,
-          path: '/admin/vehicle-listings'
-        },
-        
-      ]
-    },
-    {
-      title: "Support & Monitoring",
-      items: [
-        {
-          id: 'disputes',
-          label: 'Disputes',
-          icon: MessageSquare,
-          path: '/admin-disputes',
-          // badge: 0
-        },
-        {
-          id: 'complaints',
-          label: 'Complaints',
-          icon: Bell,
-          path: '/admin-complaints',
-          // badge: ''
-        }
-      ]
-    },
-    {
-      title: "",
-      items: [
-        // {
-        //   id: 'reports',
-        //   label: 'Reports',
-        //   icon: FileText,
-        //   path: '/admin/reports'
-        // },
-        {
-          id: 'settings',
-          label: 'Platform Settings',
-          icon: Settings,
-          path: '/admin/settings'
-        }
-      ]
-    }
-  ];
-
-  const isActiveRoute = (path: string) => {
-    return currentRoute === path;
-  };
-
-  const handleNavigation = (path: string) => {
-    if (onNavigate) {
-      onNavigate(path);
-    }
-  };
-
-  const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
-  };
+    { label: "Customer Inquiries", to: "/admininquiries", icon: <MessageSquare size={18} /> },
+  ]
 
   return (
-    <div className={`bg-gray-900 text-white transition-all duration-300 ease-in-out ${
-      isCollapsed ? 'w-16' : 'w-64'
-    } min-h-screen flex flex-col`}>
-      {/* Header */}
-      <div className="p-4 border-b border-gray-700">
-        <div className="flex items-center justify-between">
-          {!isCollapsed && (
-            <div>
-              <h1 className="text-xl font-bold text-blue-400">RentACar</h1>
-              <p className="text-xs text-gray-400">Admin Panel</p>
-            </div>
-          )}
-          <button
-            onClick={toggleSidebar}
-            className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+    <div className="w-64 bg-gradient-to-b from-slate-900 to-slate-800 border-r border-slate-700 shadow-2xl min-h-screen">
+      <div className="p-6 border-b border-slate-700">
+        <h2 className="text-xl font-bold text-white tracking-wide">Admin Panel</h2>
+        <div className="w-12 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mt-2"></div>
+      </div>
+      <nav className="space-y-2 px-3 py-4">
+        {menuItems.map((item) => (
+          <Link
+            key={item.to}
+            to={item.to}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden ${
+              location.pathname === item.to
+                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg transform scale-105"
+                : "text-slate-300 hover:text-white hover:bg-slate-700/50 hover:transform hover:scale-105"
+            }`}
           >
-            {isCollapsed ? (
-              <ChevronRight className="w-4 h-4" />
-            ) : (
-              <ChevronLeft className="w-4 h-4" />
+            <div
+              className={`transition-transform duration-200 ${location.pathname === item.to ? "scale-110" : "group-hover:scale-110"}`}
+            >
+              {item.icon}
+            </div>
+            <span className="font-medium">{item.label}</span>
+            {location.pathname === item.to && (
+              <div className="absolute right-2 w-2 h-2 bg-white rounded-full animate-pulse"></div>
             )}
-          </button>
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <div className="flex-1 overflow-y-auto py-4">
-        {sidebarSections.map((section, sectionIndex) => (
-          <div key={section.title} className="mb-6">
-            {!isCollapsed && (
-              <h3 className="px-4 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                {section.title}
-              </h3>
-            )}
-            
-            <nav className="space-y-1 px-2">
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                const isActive = isActiveRoute(item.path);
-                
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleNavigation(item.path)}
-                    className={`group flex items-center w-full px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                    }`}
-                    title={isCollapsed ? item.label : ''}
-                  >
-                    <Icon className={`flex-shrink-0 w-5 h-5 ${
-                      isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'
-                    }`} />
-                    
-                    {!isCollapsed && (
-                      <>
-                        <span className="ml-3 flex-1">{item.label}</span>
-                        {item.badge && (
-                          <span className="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
-                            {item.badge}
-                          </span>
-                        )}
-                      </>
-                    )}
-                    
-                    {isCollapsed && item.badge && (
-                      <span className="absolute left-8 top-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
+          </Link>
         ))}
-      </div>
-
-      {/* Footer */}
-      <div className="border-t border-gray-700 p-4">
-        <button
-          className={`group flex items-center w-full px-3 py-2 text-sm font-medium text-gray-300 rounded-lg hover:bg-gray-800 hover:text-white transition-colors ${
-            isCollapsed ? 'justify-center' : ''
-          }`}
-          title={isCollapsed ? 'Logout' : ''}
-        >
-          <LogOut className="flex-shrink-0 w-5 h-5 text-gray-400 group-hover:text-white" />
-          {!isCollapsed && <span className="ml-3">Logout</span>}
-        </button>
-      </div>
+      </nav>
     </div>
-  );
-};
+  )
+}
 
-export default AdminSidebar;
+export default AdminSidebar
