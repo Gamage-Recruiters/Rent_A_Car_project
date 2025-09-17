@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Star, Users, Fuel, Settings, MapPin, Phone, Mail, Calendar, 
-  Shield, Award, Clock, ArrowLeft, Heart, Share2 
+  Shield, ArrowLeft, Heart, Share2 
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Vehicle } from '../types';
+import { Vehicle, Review } from '../types';
 import { useVehicle } from '../context/VehicleContext';
 import axios from 'axios';
+import BookingModal from './BookingModal';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '');
@@ -17,7 +18,7 @@ const VehicleDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getVehicleById } = useVehicle();
-  const [reviews, setReviews] = useState([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,15 +76,15 @@ const VehicleDetailsPage: React.FC = () => {
     setShowBookingModal(true);
   };
 
-  const calculateTotalPrice = () => {
-    if (!vehicle || !bookingDates.startDate || !bookingDates.endDate) return 0;
+  // const calculateTotalPrice = () => {
+  //   if (!vehicle || !bookingDates.startDate || !bookingDates.endDate) return 0;
     
-    const start = new Date(bookingDates.startDate);
-    const end = new Date(bookingDates.endDate);
-    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  //   const start = new Date(bookingDates.startDate);
+  //   const end = new Date(bookingDates.endDate);
+  //   const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     
-    return days * vehicle.pricePerDay;
-  };
+  //   return days * vehicle.pricePerDay;
+  // };
 
   const maskPhone = (p?: string | number) => {
     if (!p) return 'N/A';
@@ -131,7 +132,9 @@ const VehicleDetailsPage: React.FC = () => {
     name: vehicle.owner?.firstName && vehicle.owner?.lastName 
       ? `${vehicle.owner.firstName} ${vehicle.owner.lastName}`
       : 'Owner',
-    phone: vehicle.phoneNumber?.toString(),
+    phone: vehicle.contactInfo?.phone || 
+         vehicle.phoneNumber?.toString() || 
+         vehicle.owner?.phoneNumber?.toString(),
     email: vehicle.owner?.email,
     address: vehicle.pickupAddress,
     verified: true,
@@ -232,7 +235,10 @@ const images = vehicle.images && vehicle.images.length > 0
                   <span>{vehicle.pickupAddress}</span>
                 </div>
                 <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                  {vehicle.vehicleType?.charAt(0).toUpperCase() + vehicle.vehicleType?.slice(1)}
+                  {(vehicle.vehicleType || vehicle.type) 
+                  ? (vehicle.vehicleType || vehicle.type).charAt(0).toUpperCase() + 
+                    (vehicle.vehicleType || vehicle.type).slice(1) 
+                  : 'Unspecified Type'}
                 </span>
                 {vehicle.isDriverAvailable && (
                   <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
@@ -323,10 +329,12 @@ const images = vehicle.images && vehicle.images.length > 0
                   <span className="text-gray-600">Per Day</span>
                   <span className="text-2xl font-bold text-blue-600">${vehicle.pricePerDay}</span>
                 </div>
-                {vehicle.pricePerDistance && (
+                {(vehicle.pricePerKm || vehicle.pricePerDistance) && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Per Kilometer</span>
-                    <span className="text-lg font-semibold text-blue-600">${vehicle.pricePerDistance}</span>
+                    <span className="text-lg font-semibold text-blue-600">
+                      ${vehicle.pricePerKm || vehicle.pricePerDistance || 0}
+                    </span>
                   </div>
                 )}
               </div>
@@ -382,23 +390,25 @@ const images = vehicle.images && vehicle.images.length > 0
             <p className="text-gray-500">No reviews yet. Be the first to review this vehicle!</p>
           ) : (
             <div className="space-y-6">
-              {reviews.map((review) => (
-                <div key={review._id} className="border-b border-gray-200 pb-6 last:border-0 last:pb-0">
+              {reviews.map((review, index) => (
+                <div key={review._id || `review-${index}`} className="border-b border-gray-200 pb-6 last:border-0 last:pb-0">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold">
-                        {review.customer?.firstName ? review.customer.firstName.charAt(0) : '?'}
+                        {review?.customer?.firstName ? review.customer.firstName.charAt(0).toUpperCase() : '?'}
                       </div>
                       <div>
                         <div className="font-medium">
-                          {review.customer?.firstName || 'Anonymous'} {review.customer?.lastName || ''}
+                           {review?.customer?.firstName || 'Anonymous'} {review?.customer?.lastName || ''}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {new Date(review.createdAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
+                          {review?.createdAt && !isNaN(new Date(review.createdAt).getTime()) 
+                          ? new Date(review.createdAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })
+                          : 'Date unavailable'}
                         </div>
                       </div>
                     </div>
@@ -406,12 +416,12 @@ const images = vehicle.images && vehicle.images.length > 0
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
-                          className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                          className={`w-4 h-4 ${i < (review?.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
                         />
                       ))}
                     </div>
                   </div>
-                  <p className="text-gray-600">{review.comment}</p>
+                  <p className="text-gray-600">{review?.comment || 'No comment provided'}</p>
                 </div>
               ))}
             </div>
@@ -420,80 +430,11 @@ const images = vehicle.images && vehicle.images.length > 0
       </div>
 
       {/* Booking Modal */}
-      {showBookingModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-semibold mb-4">Book {vehicleName}</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  value={bookingDates.startDate}
-                  onChange={(e) => setBookingDates(prev => ({ ...prev, startDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  End Date
-                </label>
-                <input
-                  type="date"
-                  value={bookingDates.endDate}
-                  onChange={(e) => setBookingDates(prev => ({ ...prev, endDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes (Optional)
-                </label>
-                <textarea
-                  value={bookingDates.notes}
-                  onChange={(e) => setBookingDates(prev => ({ ...prev, notes: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                  placeholder="Any special requests or notes..."
-                />
-              </div>
-              
-              {bookingDates.startDate && bookingDates.endDate && (
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">Total Cost:</span>
-                    <span className="text-xl font-bold text-blue-600">
-                      ${calculateTotalPrice()}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex space-x-4 mt-6">
-              <button
-                onClick={() => setShowBookingModal(false)}
-                className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  alert('Booking submitted successfully!');
-                  setShowBookingModal(false);
-                }}
-                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Confirm Booking
-              </button>
-            </div>
-          </div>
-        </div>
+      {showBookingModal && vehicle && (
+        <BookingModal 
+          vehicle={vehicle} 
+          onClose={() => setShowBookingModal(false)} 
+        />
       )}
     </div>
   );
