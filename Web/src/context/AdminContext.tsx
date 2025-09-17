@@ -38,6 +38,12 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const fetchAdmin = async () => {
     try {
       setLoading(true)
+      // Check if we have admin data in localStorage before making request
+      const storedAdmin = localStorage.getItem('admin');
+      if (!storedAdmin) {
+        // No stored admin, no need to fetch
+        return null;
+      }
       const res = await fetch(`${API_URL}/profile`, {
         credentials: "include",
       })
