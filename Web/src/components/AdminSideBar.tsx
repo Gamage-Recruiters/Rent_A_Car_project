@@ -1,5 +1,5 @@
-import type React from "react"
-import { Link, useLocation } from "react-router-dom"
+import React from "react";
+import { NavLink } from "react-router-dom";
 import { LayoutDashboard, Users, Car, Shield, MessageSquare } from "lucide-react" // optional icons
 
 interface MenuItem {
@@ -9,7 +9,7 @@ interface MenuItem {
 }
 
 const AdminSidebar: React.FC = () => {
-  const location = useLocation()
+  
 
   const menuItems: MenuItem[] = [
     { label: "Dashboard", to: "/admin-dashboard", icon: <LayoutDashboard size={18} /> },
@@ -29,29 +29,23 @@ const AdminSidebar: React.FC = () => {
       </div>
       <nav className="space-y-2 px-3 py-4">
         {menuItems.map((item) => (
-          <Link
+          <NavLink
             key={item.to}
             to={item.to}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden ${
-              location.pathname === item.to
-                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg transform scale-105"
-                : "text-slate-300 hover:text-white hover:bg-slate-700/50 hover:transform hover:scale-105"
-            }`}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium ${
+                isActive ? 'bg-slate-700 text-white' : 'text-slate-200 hover:bg-slate-800'
+              }`
+            }
           >
-            <div
-              className={`transition-transform duration-200 ${location.pathname === item.to ? "scale-110" : "group-hover:scale-110"}`}
-            >
-              {item.icon}
-            </div>
-            <span className="font-medium">{item.label}</span>
-            {location.pathname === item.to && (
-              <div className="absolute right-2 w-2 h-2 bg-white rounded-full animate-pulse"></div>
-            )}
-          </Link>
+            
+              <span className="text-slate-300">{item.icon}</span>
+            <span>{item.label}</span>
+          </NavLink>
         ))}
-      </nav>
-    </div>
-  )
-}
+       </nav>
+     </div>
+   )
+ }
 
 export default AdminSidebar

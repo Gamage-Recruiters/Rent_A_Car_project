@@ -28,7 +28,8 @@ interface AdminContextType {
 const AdminContext = createContext<AdminContextType | undefined>(undefined)
 
 // ✅ API Base URL (change according to your backend)
-const API_URL = "http://localhost:8000/api/superAdmin"
+const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const API_URL = `${BASE.replace(/\/$/, "")}/superadmin`;
 
 export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const [admin, setAdmin] = useState<Admin | null>(null)
@@ -36,20 +37,39 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
 
   // Fetch admin data from backend
   const fetchAdmin = async () => {
+    setLoading(true);
     try {
-      setLoading(true)
-      const res = await fetch(`${API_URL}/profile`, {
-        credentials: "include",
-      })
-      if (!res.ok) throw new Error("Failed to fetch admin data")
-      const data = await res.json()
-      setAdmin(data)
-    } catch (error) {
-      console.error("Error fetching admin:", error)
+      const res = await fetch(`${API_URL}/profile`, { credentials: 'include' });
+      // unauthenticated: clear admin and return (don't throw)
+      if (res.status === 401) {
+        console.warn('fetchAdmin: unauthenticated (401)');
+        setAdmin(null);
+        return;
+      }
+      if (!res.ok) {
+        console.error('fetchAdmin failed:', res.status, res.statusText);
+        setAdmin(null);
+        return;
+      }
+      const data = await res.json();
+      setAdmin({
+        id: data._id ?? '',
+        firstName: data.firstName ?? '',
+        lastName: data.lastName ?? '',
+        email: data.email ?? '',
+        phone: data.phone ?? '',
+        address: data.address ?? '',
+        joinDate: data.createdAt ?? '',
+        role: data.role ?? 'admin',
+        avatar: data.avatar ?? undefined,
+      });
+    } catch (err) {
+      console.error('Error fetching admin:', err);
+      setAdmin(null);
     } finally {
-      setLoading(false)
+    setLoading(false);
     }
-  }
+  };
 
   // Update profile
   const updateAdmin = async (data: Partial<Admin>) => {
