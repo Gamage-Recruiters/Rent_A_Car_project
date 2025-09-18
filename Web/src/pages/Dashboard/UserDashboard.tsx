@@ -186,8 +186,8 @@ const UserDashboard: React.FC = () => {
     : userBookings.filter(booking => booking.status === bookingFilter);
 
   const totalSpent = userBookings
-    .filter(b => b.status === 'completed')
-    .reduce((sum, booking) => sum + booking.totalPrice, 0);
+    .filter(booking => booking.paymentStatus === 'paid')
+    .reduce((sum, booking) => sum + (booking.totalAmount || 0), 0);
 
   const upcomingBookings = userBookings.filter(b =>
     b.status === 'confirmed' && new Date(b.startDate) > new Date()

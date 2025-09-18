@@ -9,6 +9,7 @@ export interface User {
   type: 'user' | 'owner' | 'admin';
   createdAt: string;
   profileImage?: string;
+  photo?: string;
   googleId?: string;
   dateOfBirth?: string;
   driversLicense?: string;

@@ -9,6 +9,7 @@ import { Vehicle, Review } from '../types';
 import { useVehicle } from '../context/VehicleContext';
 import axios from 'axios';
 import BookingModal from './BookingModal';
+import { toast } from 'react-toastify';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '');
@@ -65,6 +66,29 @@ const VehicleDetailsPage: React.FC = () => {
       console.error('Error fetching vehicle reviews:', error);
     } finally {
       setReviewsLoading(false);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!window.confirm('Are you sure you want to delete this review?')) {
+      return;
+    }
+
+    try {
+      const response = await axios.delete(`${API_URL}/customer/review/${reviewId}`, {
+        withCredentials: true
+      });
+
+      if (response.data?.success) {
+        toast.success('Review deleted successfully');
+        // Refresh reviews
+        fetchVehicleReviews();
+      } else {
+        toast.error(response.data?.message || 'Failed to delete review');
+      }
+    } catch (error) {
+      console.error('Error deleting review:', error);
+      toast.error('Failed to delete review. Please try again.');
     }
   };
 
@@ -380,14 +404,50 @@ const images = vehicle.images && vehicle.images.length > 0
 
         {/* Reviews Section */}
         <div className="mt-8 bg-white rounded-lg p-6 shadow-md">
-          <h3 className="text-xl font-semibold mb-6">Customer Reviews</h3>
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-semibold">Customer Reviews</h3>
+            {user && (
+              <button
+                onClick={() => navigate(`/write-review/${id}`, { 
+                  state: { returnTo: `/vehicle/${id}` } 
+                })}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Star className="w-4 h-4" />
+                <span>Write a Review</span>
+              </button>
+            )}
+          </div>
+          
           {reviewsLoading ? (
             <div className="text-center py-6">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
               <p className="text-gray-500">Loading reviews...</p>
             </div>
           ) : reviews.length === 0 ? (
-            <p className="text-gray-500">No reviews yet. Be the first to review this vehicle!</p>
+            <div className="text-center py-10">
+              <p className="text-gray-500 mb-4">No reviews yet. Be the first to review this vehicle!</p>
+              {user ? (
+                <button
+                  onClick={() => navigate(`/write-review/${id}`, { 
+                    state: { returnTo: `/vehicle/${id}` } 
+                  })}
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors"
+                >
+                  <Star className="w-4 h-4" />
+                  <span>Write a Review</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate('/login', { 
+                    state: { from: `/vehicle/${id}` } 
+                  })}
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors"
+                >
+                  <span>Login to Write a Review</span>
+                </button>
+              )}
+            </div>
           ) : (
             <div className="space-y-6">
               {reviews.map((review, index) => (
@@ -399,16 +459,16 @@ const images = vehicle.images && vehicle.images.length > 0
                       </div>
                       <div>
                         <div className="font-medium">
-                           {review?.customer?.firstName || 'Anonymous'} {review?.customer?.lastName || ''}
+                          {review?.customer?.firstName || 'Anonymous'} {review?.customer?.lastName || ''}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {review?.createdAt && !isNaN(new Date(review.createdAt).getTime()) 
-                          ? new Date(review.createdAt).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })
-                          : 'Date unavailable'}
+                          {review?.createdAt && !isNaN(new Date(review.createdAt).getTime())
+                            ? new Date(review.createdAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })
+                            : 'Unknown date'}
                         </div>
                       </div>
                     </div>
@@ -421,7 +481,32 @@ const images = vehicle.images && vehicle.images.length > 0
                       ))}
                     </div>
                   </div>
-                  <p className="text-gray-600">{review?.comment || 'No comment provided'}</p>
+                  <p className="text-gray-600">{review?.comment || ''}</p>
+                  
+                  {/* Edit/delete buttons for own reviews */}
+                  {user && review?.customer && 
+                  (user.id === review.customer._id || user.id === review.customer.id) && (
+                    <div className="flex items-center space-x-3 mt-3">
+                      <button
+                        onClick={() => navigate(`/write-review/${id}`, { 
+                          state: { 
+                            isEdit: true, 
+                            reviewId: review._id, 
+                            returnTo: `/vehicle/${id}` 
+                          } 
+                        })}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteReview(review._id!)}
+                        className="text-sm text-red-600 hover:text-red-800"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -439,7 +439,12 @@ const ReviewsPage: React.FC = () => {
                         {user && user.id === review.customer?._id && (
                           <div className="flex items-center space-x-2">
                             <Link
-                              to={`/dashboard?tab=reviews&edit=${review._id}`}
+                              to={`/write-review/${review.vehicle?._id}`}
+                              state={{ 
+                                isEdit: true, 
+                                reviewId: review._id, 
+                                returnTo: '/reviews' 
+                              }}
                               className="text-blue-600 hover:text-blue-800"
                             >
                               Edit
