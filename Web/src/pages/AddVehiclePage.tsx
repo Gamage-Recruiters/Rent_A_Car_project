@@ -5,40 +5,44 @@ import {
   Upload,
   MapPin,
   DollarSign,
-  Calendar,
   Settings,
   Users,
   Fuel,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useVehicle } from "../context/VehicleContext";
 
 const AddVehiclePage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { registerVehicle } = useVehicle();
   const [currentStep, setCurrentStep] = useState(1);
+  
   const [vehicleData, setVehicleData] = useState({
-    name: "",
+    vehicleName: "",
+    vehicleLicenseNumber: '',
     brand: "",
     model: "",
     year: new Date().getFullYear(),
-    type: "",
-    location: "",
+    vehicleType: "",
     description: "",
-    pricePerDay: "",
-    pricePerKm: "",
-    seats: 5,
+    noSeats: "",
     fuelType: "",
     transmission: "",
     mileage: "",
-    hasDriver: false,
-    features: [] as string[],
-    images: [] as string[],
+    isDriverAvailable: false,
+    pricePerDay: "",
+    pricePerDistance: "",
+    location: "",
     contactInfo: {
-      phone: user?.phone || "",
-      email: user?.email || "",
-      address: "",
-    },
+        phone: user?.phone || "",
+        email: user?.email || "",
+        address: "",
+      },
+    features: [] as string[],
+    images: [] as File[], 
   });
+
 
   const vehicleTypes = ["sedan", "suv", "hatchback", "luxury", "sports", "van"];
   const fuelTypes = ["petrol", "diesel", "electric", "hybrid"];
@@ -106,19 +110,46 @@ const AddVehiclePage: React.FC = () => {
         : [...prev.features, feature],
     }));
   };
-
-  const handleSubmit = (e: React.FormEvent) => {
+ 
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (currentStep !== 4) return; // only submit at final step
     console.log("handleSubmit called, currentStep:", currentStep);
+    
+    try {
+      const formData = new FormData();
 
-    if (currentStep === 4) {
-      console.log("Vehicle data:", vehicleData);
-      alert("Vehicle added successfully!");
+      // append normal fields
+      Object.entries(vehicleData).forEach(([key, value]) => {
+        if (key === "images" || key === "contactInfo") return; // skip special cases
+        formData.append(key, value as string);
+      });
+
+      // append contactInfo fields
+      formData.append("phoneNumber", vehicleData.contactInfo.phone);
+      formData.append("email", vehicleData.contactInfo.email);
+      formData.append("pickupAddress", vehicleData.contactInfo.address);
+
+      // append images
+      vehicleData.images.forEach((file) => {
+        formData.append("files", file); // backend expects req.files
+      });
+
+      try{
+      const response = await registerVehicle(formData);
+      alert(response.data.message);
       navigate("/owner-dashboard");
-    }
+      }catch(e){
+        console.log("error")
+      }
+      
 
-    // Here you would typically send the data to your backend
+      
+    } catch (error: any) {
+      console.error("Register Vehicle Error:", error.response?.data || error.message);
+      alert(error.response?.data?.message || "Failed to register vehicle");
+    }
   };
 
   const nextStep = () => {
@@ -140,15 +171,12 @@ const AddVehiclePage: React.FC = () => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    // preview URLs for frontend
-    const filePreviews = files.map((file) => URL.createObjectURL(file));
-
-    // update the vehicleData images array
     setVehicleData((prev) => ({
       ...prev,
-      images: [...prev.images, ...filePreviews],
+      images: [...prev.images, ...files], // store actual files
     }));
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -231,9 +259,9 @@ const AddVehiclePage: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      name="name"
+                      name="vehicleName"
                       required
-                      value={vehicleData.name}
+                      value={vehicleData.vehicleName}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., Toyota Camry 2023"
@@ -291,9 +319,9 @@ const AddVehiclePage: React.FC = () => {
                       Vehicle Type *
                     </label>
                     <select
-                      name="type"
+                      name="vehicleType"
                       required
-                      value={vehicleData.type}
+                      value={vehicleData.vehicleType}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
@@ -304,6 +332,20 @@ const AddVehiclePage: React.FC = () => {
                         </option>
                       ))}
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Vehicle License Number *
+                    </label>
+                    <input
+                      type="text"
+                      name="vehicleLicenseNumber"
+                      required
+                      value={vehicleData.vehicleLicenseNumber}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="CAR2220"
+                    />
                   </div>
                 </div>
 
@@ -338,11 +380,11 @@ const AddVehiclePage: React.FC = () => {
                     </label>
                     <input
                       type="number"
-                      name="seats"
+                      name="noSeats"
                       required
                       min="2"
                       max="15"
-                      value={vehicleData.seats}
+                      value={vehicleData.noSeats}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
@@ -410,8 +452,8 @@ const AddVehiclePage: React.FC = () => {
                   <label className="flex items-center space-x-2">
                     <input
                       type="checkbox"
-                      name="hasDriver"
-                      checked={vehicleData.hasDriver}
+                      name="isDriverAvailable"
+                      checked={vehicleData.isDriverAvailable}
                       onChange={handleInputChange}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
@@ -455,10 +497,10 @@ const AddVehiclePage: React.FC = () => {
                     </label>
                     <input
                       type="number"
-                      name="pricePerKm"
+                      name="pricePerDistance"
                       min="0"
                       step="0.01"
-                      value={vehicleData.pricePerKm}
+                      value={vehicleData.pricePerDistance}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., 0.50"
@@ -595,11 +637,13 @@ const AddVehiclePage: React.FC = () => {
                     <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
                       {vehicleData.images.map((img, idx) => (
                         <div key={idx} className="relative">
-                          <img
-                            src={img}
-                            alt={`Vehicle ${idx + 1}`}
-                            className="w-full h-32 object-cover rounded-lg"
-                          />
+
+                        <img
+                          src={URL.createObjectURL(img)}
+                          alt={`Vehicle ${idx + 1}`}
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+
                           <button
                             type="button"
                             onClick={() =>
@@ -642,7 +686,7 @@ const AddVehiclePage: React.FC = () => {
               </button>
             ) : (
               <button
-                type="button"
+                type="submit"
                 onClick={handleSubmit}
                 className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
