@@ -1,5 +1,13 @@
-import React, { useState } from "react";
-import { User, Car, Calendar, DollarSign, BarChart3, MessageCircle, Settings } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import {
+  User,
+  Car,
+  Calendar,
+  DollarSign,
+  BarChart3,
+  MessageCircle,
+  Settings,
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 interface SlidebarProps {
@@ -7,9 +15,19 @@ interface SlidebarProps {
   setActiveTab: (tab: string) => void;
 }
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const BASE_URL =
+  import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:8000";
+
 const Slidebar: React.FC<SlidebarProps> = ({ activeTab, setActiveTab }) => {
   const { user } = useAuth();
-  const [profileImage, setProfileImage] = useState(user?.profileImage || null);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.profileImage) {
+      setProfileImage(`${BASE_URL}/${user.profileImage}`);
+    }
+  }, [user]);
 
   const tabs = [
     { id: "overview", label: "Overview", icon: Car },
@@ -42,31 +60,29 @@ const Slidebar: React.FC<SlidebarProps> = ({ activeTab, setActiveTab }) => {
     { id: "4", status: "cancelled" },
   ];
 
-  const pendingRequests = bookingRequests.filter((b) => b.status === "pending").length;
-  const activeBookings = bookingRequests.filter((b) => b.status === "confirmed").length;
+  const pendingRequests = bookingRequests.filter(
+    (b) => b.status === "pending"
+  ).length;
+  const activeBookings = bookingRequests.filter(
+    (b) => b.status === "confirmed"
+  ).length;
 
   return (
     <div className="lg:col-span-1">
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
         {/* Profile section */}
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-green-500">
-            {profileImage ? (
-              <img
-                src={profileImage}
-                alt="Profile"
-                className="w-full h-full object-cover"
+          <img
+              src={typeof preview === "string" && preview.startsWith("blob:") ? preview : `${BASE_URL}${user?.image ?? ""}`}
+              alt="Profile"
+              className="w-28 h-28 rounded-full object-cover border-2 border-green-500"
               />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center">
-                <User className="w-8 h-8 text-white" />
-              </div>
-            )}
-          </div>
           <div>
             <h3 className="font-semibold text-gray-900">{user?.name}</h3>
             <p className="text-sm text-gray-500">Car Owner</p>
-            <p className="text-xs text-green-600 font-medium">Verified Partner</p>
+            <p className="text-xs text-green-600 font-medium">
+              Verified Partner
+            </p>
           </div>
         </div>
 
@@ -100,15 +116,21 @@ const Slidebar: React.FC<SlidebarProps> = ({ activeTab, setActiveTab }) => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-gray-600">This Month</span>
-            <span className="font-semibold text-green-600">${earnings.thisMonth}</span>
+            <span className="font-semibold text-green-600">
+              ${earnings.thisMonth}
+            </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-600">Active Bookings</span>
-            <span className="font-semibold text-blue-600">{activeBookings}</span>
+            <span className="font-semibold text-blue-600">
+              {activeBookings}
+            </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-600">Avg Rating</span>
-            <span className="font-semibold text-yellow-600">{analytics.averageRating}</span>
+            <span className="font-semibold text-yellow-600">
+              {analytics.averageRating}
+            </span>
           </div>
         </div>
       </div>
