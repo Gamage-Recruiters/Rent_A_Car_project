@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-//const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '');
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '');
 
 const WriteReview: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -148,19 +148,19 @@ const WriteReview: React.FC = () => {
     }
   };
 
-  // const constructImageUrl = (imagePath?: string) => {
-  //   if (!imagePath) return '/placeholder-car.jpg';
+  const constructImageUrl = (imagePath?: string) => {
+    if (!imagePath) return '/placeholder-car.jpg';
     
-  //   if (imagePath.startsWith('http')) {
-  //     return imagePath;
-  //   }
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
     
-  //   if (imagePath.startsWith('/uploads')) {
-  //     return `${BASE_URL}${imagePath}`;
-  //   }
+    if (imagePath.startsWith('/uploads')) {
+      return `${BASE_URL}${imagePath}`;
+    }
     
-  //   return `${BASE_URL}/uploads/vehicles/${imagePath}`;
-  // };
+    return `${BASE_URL}/uploads/vehicles/${imagePath}`;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -205,11 +205,13 @@ const WriteReview: React.FC = () => {
                   <div className="flex items-center space-x-3 mb-6 p-3 bg-gray-50 rounded-lg">
                     {vehicleDetails.images && vehicleDetails.images.length > 0 ? (
                       <img 
-                        src={vehicleDetails.images[0].startsWith('http') 
-                          ? vehicleDetails.images[0] 
-                          : `${API_URL.replace('/api', '')}/uploads/vehicles/${vehicleDetails.images[0]}`}
-                        alt={vehicleDetails.vehicleName}
-                        className="w-16 h-16 object-cover rounded-lg"
+                        src={constructImageUrl(vehicleDetails.images[0])}
+                        alt={vehicleDetails.vehicleName || 'Vehicle'}
+                        className="w-26 h-16 object-cover rounded-lg"
+                        onError={(e) => {
+                          console.error('Image failed to load:', e.currentTarget.src);
+                          e.currentTarget.src = '/placeholder-car.jpg';
+                        }}
                       />
                     ) : (
                       <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
