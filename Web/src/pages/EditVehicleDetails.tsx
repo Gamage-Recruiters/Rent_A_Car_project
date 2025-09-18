@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Car,
@@ -75,6 +75,22 @@ const EditVehicleDetails: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [vehicleData, setVehicleData] = useState(vehicle);
 
+  // file input ref for opening file picker
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      vehicleData.images.forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {}
+      });
+    };
+    // intentionally ignoring vehicleData in deps to run only on unmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -108,19 +124,45 @@ const EditVehicleDetails: React.FC = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // make handleSubmit optional event so we can call it from outside the form
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e && typeof e.preventDefault === "function") e.preventDefault();
     // Here you would typically send the updated data to your backend
     alert("Vehicle details updated!");
     navigate("/owner-dashboard");
   };
 
   const nextStep = () => {
-    if (currentStep < 4) setCurrentStep(currentStep + 1);
+    if (currentStep < 4) setCurrentStep((s) => s + 1);
   };
 
   const prevStep = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1);
+    if (currentStep > 1) setCurrentStep((s) => s - 1);
+  };
+
+  // handle files selected from the picker; store object URLs for preview
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const previews = files.map((f) => URL.createObjectURL(f));
+    setVehicleData((prev) => ({
+      ...prev,
+      images: [...prev.images, ...previews],
+    }));
+
+    // reset input so same file can be picked again
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeImageAt = (idx: number) => {
+    setVehicleData((prev) => {
+      const url = prev.images[idx];
+      try {
+        URL.revokeObjectURL(url);
+      } catch {}
+      return { ...prev, images: prev.images.filter((_, i) => i !== idx) };
+    });
   };
 
   return (
@@ -520,45 +562,80 @@ const EditVehicleDetails: React.FC = () => {
                     <p className="text-sm text-gray-500">
                       Add at least 3 high-quality photos of your vehicle
                     </p>
+
+                    {/* hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+
                     <button
                       type="button"
+                      onClick={() => fileInputRef.current?.click()}
                       className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       Choose Files
                     </button>
                   </div>
+
+                  {/* Show previews */}
+                  {vehicleData.images.length > 0 && (
+                    <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {vehicleData.images.map((img, idx) => (
+                        <div key={idx} className="relative">
+                          <img
+                            src={img}
+                            alt={`Vehicle ${idx + 1}`}
+                            className="w-full h-32 object-cover rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImageAt(idx)}
+                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
+          </form>
 
-            {/* Navigation Buttons */}
-            <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
+          {/* Navigation Buttons (moved outside form) */}
+          <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={prevStep}
+              disabled={currentStep === 1}
+              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            {currentStep < 4 ? (
               <button
                 type="button"
-                onClick={prevStep}
-                disabled={currentStep === 1}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={nextStep}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Previous
+                Next
               </button>
-              {currentStep < 4 ? (
-                <button
-                  type="button"
-                  onClick={nextStep}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Next
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Save Changes
-                </button>
-              )}
-            </div>
-          </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleSubmit()}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Save Changes
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
