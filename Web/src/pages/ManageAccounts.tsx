@@ -12,8 +12,8 @@ interface User {
   name: string;
   email: string;
   phone: string;
-  
   type: 'owner' | 'customer';
+  isApproved?: boolean;
   registeredDate: string;
 }
 
@@ -44,6 +44,35 @@ const ManageAccounts: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [customers, setCustomers] = useState<User[]>(dummyCustomers);
 
+// Fetch all registered customers (superadmin protected)
+ const fetchCustomers = async () => {
+    try {
+      setLoading(true);
+     setFetchError(null);
+      const res = await fetch(`${API_URL}/superadmin/customers`, { credentials: "include" });
+      if (!res.ok) throw new Error(`Failed to fetch customers (${res.status})`);
+      const data = await res.json();
+     console.log('fetchCustomers raw=', data);
+      const mapped = (data || []).map((c: any, i: number) => ({
+        id: i + 1,
+        _id: c._id,
+        name: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || (c.email ?? 'No name'),
+       email: c.email,
+        phone: c.phoneNumber ?? c.phone ?? '',
+        type: 'customer' as const,
+        registeredDate: c.createdAt ?? new Date().toISOString(),
+      }));
+      console.log('fetchCustomers mapped=', mapped);
+      setCustomers(mapped);
+    } catch (err: any) {
+      console.error('fetchCustomers error', err);
+      setFetchError(err?.message || 'Failed to load customers');
+    } finally {
+      setLoading(false);
+    }
+};
+
+
 // Fetch pending owners from backend
   const fetchPendingOwners = async () => {
     try {
@@ -65,6 +94,7 @@ const ManageAccounts: React.FC = () => {
         email: o.email,
         phone: o.phoneNumber ?? '',
         type: 'owner' as const,
+        isApproved: false,
         registeredDate: o.createdAt ?? new Date().toISOString(),
       }));
       console.log('fetchPendingOwners: mapped=', mapped);
@@ -76,8 +106,37 @@ const ManageAccounts: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Fetch approved owners
+const fetchApprovedOwners = async () => {
+ try {
+    setLoading(true);
+    setFetchError(null);
+    const res = await fetch(`${API_URL}/superadmin/owners/approved`, { credentials: "include" });
+    if (!res.ok) throw new Error(`Failed to fetch approved owners (${res.status})`);
+    const data = await res.json();
+   const mapped = (data || []).map((o: any, i: number) => ({
+      id: i + 1,
+      _id: o._id,
+      name: `${o.firstName ?? ''} ${o.lastName ?? ''}`.trim() || (o.email ?? 'No name'),
+      email: o.email,
+     phone: o.phoneNumber ?? '',
+      type: 'owner' as const,
+      isApproved: true, // approved
+      registeredDate: o.createdAt ?? new Date().toISOString(),
+   }));
+    setOwners(mapped);
+  } catch (err: any) {
+   console.error('fetchApprovedOwners error', err);
+    setFetchError(err?.message || 'Failed to load approved owners');
+  } finally {
+    setLoading(false);
+  }
+};
+
     // auto-load when switching to owner view
   useEffect(() => {
+    if (view === 'customer') fetchCustomers();
     if (view === 'owner') fetchPendingOwners();
   }, [view]);
 
@@ -145,13 +204,14 @@ const ManageAccounts: React.FC = () => {
               <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Phone</th>
               <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Type</th>
               <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Registered Date</th>
-              
-              {type === 'owner' && <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Actions</th>}
+              {type === 'owner' && data.some(u => u.isApproved === false) && (
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Actions</th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {data.map((user, index) => (
-              <tr key={user.id} className={`hover:bg-gray-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+              <tr key={user._id ?? user.id} className={`hover:bg-gray-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
                     {user.id}
@@ -182,14 +242,14 @@ const ManageAccounts: React.FC = () => {
                     day: 'numeric' 
                   })}</div>
                 </td>
-                
-                {type === 'owner' && (
+                {/* Show actions only for pending owners (isApproved === false) */}
+                {type === 'owner' && user.isApproved === false && (
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex gap-2">
                       <button
                         onClick={() => approveOwner(user._id)}
                         disabled={!!actionLoading}
-                       className="px-3 py-1 bg-green-600 text-white rounded disabled:opacity-50"
+                        className="px-3 py-1 bg-green-600 text-white rounded disabled:opacity-50"
                       >
                         {actionLoading === user._id ? 'Processing...' : 'Approve'}
                       </button>
@@ -203,6 +263,7 @@ const ManageAccounts: React.FC = () => {
                     </div>
                   </td>
                 )}
+                
               </tr>
             ))}
           </tbody>
@@ -231,8 +292,20 @@ const ManageAccounts: React.FC = () => {
                     : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
-                Owner Details
+                Pending Owner Requests
               </button>
+
+              <button
+                onClick={async () => { setView('owner'); await fetchApprovedOwners(); }}
+                className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                  view === 'owner'
+                    ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Approved Owners
+              </button>    
+
               <button
                 onClick={() => setView('customer')}
                 className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
@@ -246,6 +319,8 @@ const ManageAccounts: React.FC = () => {
             </div>
           </div>
         </div>
+
+      
 
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
