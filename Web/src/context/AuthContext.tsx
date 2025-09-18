@@ -42,46 +42,85 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const checkAuthStatus = async (): Promise<boolean> => {
     try {
       setIsLoading(true);
-      // Try to get user profile to verify authentication
-      const response = await axios.get(`${API_URL}/customer/profile`, {
-        withCredentials: true,
-      });
       
-      if (response.data.success) {
-        const userData = response.data.data;
-        const updatedUser: User = {
-          id: userData._id,
-          email: userData.email,
-          name: `${userData.firstName} ${userData.lastName || ''}`.trim(),
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          phone: userData.phoneNumber || userData.phone,
-          phoneNumber: userData.phoneNumber,
-          photo: userData.photo,
-          type: 'user', 
-          createdAt: userData.createdAt,
-          dateOfBirth: userData.dateOfBirth,
-          driversLicense: userData.driversLicense,
-          emergencyContact: userData.emergencyContact,
-          address: userData.address,
-          isNewsletterSubscribed: userData.isNewsletterSubscribed,
-          googleId: userData.googleId,
-          userRole: userData.userRole,
-          // Add image object if it exists
-          image: userData.image
-        };
-        
-        setUser(updatedUser);
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        return true;
+      // Get user type from local storage if available
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) {
+        // No stored user, don't attempt to fetch profile
+        return false;
       }
-      return false;
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      // Clear invalid user data
-      setUser(null);
-      localStorage.removeItem('user');
-      return false;
+      
+      let userType = 'user'; // Default
+      
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser.type) {
+          userType = parsedUser.type;
+        }
+      } catch (error) {
+        console.error('Error parsing stored user type:', error);
+        localStorage.removeItem('user');
+        return false;
+      }
+
+      // Use the appropriate endpoint based on user type
+      let endpoint = '';
+      if (userType === 'admin') {
+        endpoint = `${API_URL}/admin/profile`;
+      } else if (userType === 'owner') {
+        endpoint = `${API_URL}/owner/profile`;
+      } else {
+        endpoint = `${API_URL}/customer/profile`;
+      }
+
+      try {
+        const response = await axios.get(endpoint, {
+          withCredentials: true,
+        });
+        
+        if (response.data.success || response.data.data) {
+          const userData = response.data.data;
+          
+          const updatedUser: User = {
+            id: userData._id,
+            email: userData.email,
+            name: `${userData.firstName} ${userData.lastName || ''}`.trim(),
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            phone: userData.phoneNumber || userData.phone,
+            phoneNumber: userData.phoneNumber,
+            photo: userData.photo,
+            type: userType as 'user' | 'owner' | 'admin',
+            createdAt: userData.createdAt,
+            dateOfBirth: userData.dateOfBirth,
+            driversLicense: userData.driversLicense,
+            emergencyContact: userData.emergencyContact,
+            address: userData.address,
+            isNewsletterSubscribed: userData.isNewsletterSubscribed,
+            googleId: userData.googleId,
+            userRole: userData.userRole,
+            image: userData.image
+          };
+          
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          return true;
+        }
+        return false;
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          // This is an expected case for unauthenticated users - handle silently
+          localStorage.removeItem('user');
+          setUser(null);
+          return false;
+        }
+        
+        // Log other unexpected errors
+        console.error('Auth check failed with unexpected error:', error);
+        setUser(null);
+        localStorage.removeItem('user');
+        return false;
+      }
     } finally {
       setIsLoading(false);
     }
@@ -166,7 +205,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       if (response.data) {
-        // After successful login, fetch complete profile data
+        // Store the user type in localStorage before checking auth status
+        // This ensures checkAuthStatus knows which profile endpoint to use
+        const baseUser = { type: userType };
+        localStorage.setItem('user', JSON.stringify(baseUser));
+        
+        // Now fetch complete profile data
         await checkAuthStatus();
         return true;
       }

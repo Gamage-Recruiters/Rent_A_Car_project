@@ -40,10 +40,20 @@ export interface Vehicle {
   transmission: string;
   isDriverAvailable: boolean;
   availability: boolean;
+  pickupAddress?: string;
   pricePerDay: number;
-  pricePerKm: number; // Changed from pricePerDistance
+  pricePerDistance?: number;
+  pricePerKm?: number; // Changed from pricePerDistance
   location: string;
-  ownerId: string; // Changed from owner object
+  phoneNumber?: string | number;
+  ownerId?: string;
+  owner?: {
+    _id?: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    phoneNumber?: string | number;
+  };
   contactInfo: {
     phone: string;
     email: string;
@@ -81,13 +91,31 @@ export interface Booking {
 }
 
 export interface Review {
-  id: string;
-  userId: string;
-  vehicleId: string;
-  rating: number;
-  comment: string;
-  createdAt: string;
-  userName: string;
+   _id?: string;
+  id?: string;  // Support both formats
+  customer?: {
+    _id?: string;
+    id?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    photo?: string;
+  };
+  vehicle?: {
+    _id?: string;
+    id?: string;
+    vehicleName?: string;
+    vehicleLicenseNumber?: string;
+    brand?: string;
+    model?: string;
+    year?: string;
+    images?: string[];
+    vehicleType?: string;
+  };
+  rating?: number;
+  comment?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SearchFilters {

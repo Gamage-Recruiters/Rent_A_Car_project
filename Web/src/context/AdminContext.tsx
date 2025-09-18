@@ -37,10 +37,9 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
 
   // Fetch admin data from backend
   const fetchAdmin = async () => {
-    setLoading(true);
+    setLoading(true)
     try {
       const res = await fetch(`${API_URL}/profile`, { credentials: 'include' });
-      // unauthenticated: clear admin and return (don't throw)
       if (res.status === 401) {
         console.warn('fetchAdmin: unauthenticated (401)');
         setAdmin(null);
@@ -67,7 +66,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error fetching admin:', err);
       setAdmin(null);
     } finally {
-    setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -90,33 +89,31 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-
   // Change password
-const changePassword = async (currentPassword: string, newPassword: string) => {
-  try {
-    const res = await fetch(`${API_URL}/profile/change-password`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ currentPassword, newPassword }),
-      credentials: "include",
-    })
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    try {
+      const res = await fetch(`${API_URL}/profile/change-password`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+        credentials: "include",
+      })
 
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}))
-      throw new Error(errorData.message || "Failed to change password")
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.message || "Failed to change password")
+      }
+
+      const data = await res.json()
+      console.log(data.message || "Password updated successfully")
+      return data
+    } catch (error: any) {
+      console.error("Error changing password:", error.message)
+      throw error
     }
-
-    const data = await res.json()
-    console.log(data.message || "Password updated successfully")
-    return data
-  } catch (error: any) {
-    console.error("Error changing password:", error.message)
-    throw error
   }
-}
-
 
   useEffect(() => {
     fetchAdmin()
