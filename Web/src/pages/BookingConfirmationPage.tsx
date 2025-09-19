@@ -3,6 +3,16 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { CheckCircle, Calendar, MapPin, Car, Phone, Mail, Download, Share2, Loader, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { toast } from 'react-toastify';
+
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => any;
+    previousAutoTable: { finalY: number };
+  }
+}
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000';
@@ -14,6 +24,7 @@ const BookingConfirmationPage: React.FC = () => {
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingReceipt, setDownloadingReceipt] = useState(false);
   
   useEffect(() => {
     if (!user) {
@@ -111,6 +122,168 @@ const BookingConfirmationPage: React.FC = () => {
   const vehicle = booking.vehicle;
   const owner = booking.owner;
   const confirmationCode = `RC-${booking._id.substring(0, 8).toUpperCase()}`;
+  
+  const getCustomerName = () => {
+  // Check if customer is a populated object with firstName
+  if (booking.customer && typeof booking.customer === 'object' && booking.customer.firstName) {
+    return `${booking.customer.firstName || ''} ${booking.customer.lastName || ''}`;
+  }
+  
+  // Check if customer info is directly on booking
+  if (booking.customerName) {
+    return booking.customerName;
+  }
+  
+  // Check if customer is an ID and use logged-in user as fallback
+  if (user) {
+    return `${user.firstName || ''} ${user.lastName || ''}`;
+  }
+  
+  return 'N/A';
+};
+
+// Get customer email with fallbacks
+const getCustomerEmail = () => {
+  // Check if customer is a populated object with email
+  if (booking.customer && typeof booking.customer === 'object' && booking.customer.email) {
+    return booking.customer.email;
+  }
+  
+  // Check if email is directly on booking
+  if (booking.customerEmail) {
+    return booking.customerEmail;
+  }
+  
+  // Use logged-in user as fallback
+  if (user && user.email) {
+    return user.email;
+  }
+  
+  return 'N/A';
+};
+
+  // Function to generate and download PDF receipt
+  const downloadReceipt = () => {
+    if (!booking || !vehicle || !owner) {
+      console.error('Cannot generate receipt: booking data is missing');
+      return;
+    }
+    
+    try {
+      setDownloadingReceipt(true);
+      // Create new PDF document
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      // Add title
+      doc.setFontSize(20);
+      doc.setTextColor(40, 40, 40);
+      doc.text('BOOKING RECEIPT', pageWidth / 2, 20, { align: 'center' });
+      
+      // Add confirmation code and date
+      doc.setFontSize(12);
+      doc.text(`Confirmation: ${confirmationCode}`, pageWidth / 2, 30, { align: 'center' });
+      doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth / 2, 36, { align: 'center' });
+      
+      // Add line
+      doc.setDrawColor(220, 220, 220);
+      doc.line(20, 40, pageWidth - 20, 40);
+      
+      // Customer information
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      doc.text('Customer Information', 20, 50);
+      
+      doc.setFontSize(10);
+      doc.text(`Name: ${getCustomerName()}`, 20, 58);
+      doc.text(`Email: ${getCustomerEmail()}`, 20, 65);
+
+      // Vehicle Information
+      doc.setFontSize(14);
+      doc.text('Vehicle Details', 20, 80);
+      
+      doc.setFontSize(10);
+      doc.text(`Vehicle: ${vehicle.vehicleName || `${vehicle.brand} ${vehicle.model}`}`, 20, 88);
+      doc.text(`Type: ${vehicle.vehicleType || ''}`, 20, 95);
+      doc.text(`License: ${vehicle.vehicleLicenseNumber || ''}`, 20, 102);
+      
+      // Booking Details
+      doc.setFontSize(14);
+      doc.text('Booking Details', 20, 117);
+      
+      // Use autoTable for booking details
+      autoTable(doc, {
+        startY: 125,
+        head: [['Description', 'Details']],
+        body: [
+          ['Booking ID', booking._id],
+          ['Pickup Date', formatDate(booking.pickupDate)],
+          ['Dropoff Date', formatDate(booking.dropoffDate)],
+          ['Pickup Location', booking.pickupLocation],
+          ['Dropoff Location', booking.dropoffLocation],
+          ['Duration', `${calculateDays()} days`],
+          ['Status', booking.bookingStatus.toUpperCase()],
+          ['Payment Status', booking.paymentStatus.toUpperCase()]
+        ],
+        theme: 'grid',
+        headStyles: {
+          fillColor: [59, 130, 246], // Blue color
+          textColor: 255,
+          fontStyle: 'bold'
+        }
+      });
+      
+      // Calculate current Y position after the table
+      const finalY = (doc as any).lastAutoTable.finalY + 20;
+      
+      // Payment Summary
+      doc.setFontSize(14);
+      doc.text('Payment Summary', 20, finalY);
+      
+      autoTable(doc, {
+        startY: finalY + 8,
+        head: [['Item', 'Amount']],
+        body: [
+          ['Daily Rate', `$${vehicle.pricePerDay || 0}`],
+          ['Number of Days', `${calculateDays()}`],
+          ['Subtotal', `$${(vehicle.pricePerDay || 0) * calculateDays()}`],
+          ['Taxes & Fees', `$${booking.totalAmount - ((vehicle.pricePerDay || 0) * calculateDays())}`],
+          ['Total Amount', `$${booking.totalAmount}`]
+        ],
+        theme: 'grid',
+        headStyles: {
+          fillColor: [59, 130, 246], // Blue color
+          textColor: 255,
+          fontStyle: 'bold'
+        },
+        bodyStyles: {
+          fontSize: 10
+        },
+        foot: [['Total Paid', `$${booking.totalAmount}`]],
+        footStyles: {
+          fillColor: [243, 244, 246], // Light gray
+          textColor: 0,
+          fontStyle: 'bold'
+        }
+      });
+      
+      // Footer
+      const pageHeight = doc.internal.pageSize.getHeight();
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text('This is an electronic receipt. No signature required.', pageWidth / 2, pageHeight - 20, { align: 'center' });
+      doc.text(`Generated on ${new Date().toLocaleString()}`, pageWidth / 2, pageHeight - 15, { align: 'center' });
+      
+      // Save the PDF
+      doc.save(`Receipt-${confirmationCode}.pdf`);
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate receipt. Please try again.');
+    } finally {
+      setDownloadingReceipt(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -250,9 +423,24 @@ const BookingConfirmationPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
                 
                 <div className="space-y-3">
-                  <button className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2">
-                    <Download className="w-5 h-5" />
-                    <span>Download Receipt</span>
+                  <button 
+                    onClick={downloadReceipt}
+                    disabled={downloadingReceipt}
+                    className={`w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 ${
+                      downloadingReceipt ? 'opacity-70 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {downloadingReceipt ? (
+                      <>
+                        <Loader className="w-5 h-5 animate-spin" />
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-5 h-5" />
+                        <span>Download Receipt</span>
+                      </>
+                    )}
                   </button>
                   
                   <button className="w-full border border-gray-300 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2">
@@ -261,7 +449,7 @@ const BookingConfirmationPage: React.FC = () => {
                   </button>
                   
                   <Link
-                    to="/dashboard"
+                    to="/booking-tab"
                     className="w-full border border-gray-300 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
                   >
                     View All Bookings
