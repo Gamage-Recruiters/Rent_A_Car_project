@@ -175,4 +175,28 @@ async function searchVehicles(req, res) {
     }
 };
 
-module.exports = { getAllVehicles, getVehicleById, searchVehicles };
+// Public function to get vehicle locations (no authentication required)
+async function getPublicVehicleLocations(req, res) {
+  try {
+    // Only fetch approved vehicles for public display
+    const vehicles = await Vehicle.find({ isApproved: true }, "pickupAddress");
+
+    // Extract unique non-empty pickup addresses
+    const uniqueLocations = [...new Set(
+      vehicles
+        .map(v => v.pickupAddress)
+        .filter(addr => addr && addr.trim() !== "")
+    )].sort();
+
+    return res.status(200).json(uniqueLocations); // <-- return array of strings
+  } catch (error) {
+    console.error("Error fetching public vehicle locations:", error);
+    return res.status(500).json({
+      message: "Failed to fetch vehicle locations",
+      error: error.message,
+    });
+  }
+}
+
+
+module.exports = { getAllVehicles, getVehicleById, searchVehicles, getPublicVehicleLocations };
