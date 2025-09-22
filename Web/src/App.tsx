@@ -46,6 +46,7 @@ import AdminSidebar from './components/AdminSideBar';
 import AdminLayout from './pages/AdminLayout';
 
 import AdminList from './pages/AdminList';
+import BookingTab from './pages/Dashboard/User/BookingTab';
 
 
 function App() {
@@ -79,7 +80,7 @@ function App() {
             <Route path="/write-review/:id" element={<WriteReview />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
-
+            <Route path="/booking-tab" element={<BookingTab />} />
             
 
             {/* admin pages */}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Star, Users, Fuel, Settings, MapPin, Phone, Mail, Calendar, 
-  Shield, ArrowLeft, Heart, Share2 
+  Shield, ArrowLeft, Heart, Share2, Copy, Facebook, Twitter, Check, MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Vehicle, Review } from '../types';
@@ -26,17 +26,168 @@ const VehicleDetailsPage: React.FC = () => {
   const [error, setError] = useState('');
   const [selectedImage, setSelectedImage] = useState(0);
   const [showBookingModal, setShowBookingModal] = useState(false);
-  const [bookingDates, setBookingDates] = useState({
-    startDate: '',
-    endDate: '',
-    notes: ''
-  });
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [favoriteId, setFavoriteId] = useState<string | null>(null);
+  const [showSharePopup, setShowSharePopup] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+  // const [bookingDates, setBookingDates] = useState({
+  //   startDate: '',
+  //   endDate: '',
+  //   notes: ''
+  // });
 
   useEffect(() => {
     fetchVehicle();
     fetchVehicleReviews();
   }, [id]);
 
+  useEffect(() => {
+    if (user && vehicle) {
+      checkIfFavorited();
+    }
+  }, [user, vehicle]);
+
+  // Add this useEffect to handle clicking outside the share popup
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showSharePopup) {
+        const target = event.target as HTMLElement;
+        if (target.classList.contains('bg-black')) {
+          setShowSharePopup(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSharePopup]);
+
+  const checkIfFavorited = async () => {
+    if (!user || !id) return;
+  
+    try {
+      const response = await axios.get(`${API_URL}/customer/favorite/check/${id}`, {
+        withCredentials: true
+      });
+      if (response.data?.success) {
+        setIsFavorite(response.data.isFavorited || false); 
+        setFavoriteId(response.data.favoriteId); 
+      }
+    } catch (error) {
+      console.error('Error checking favorite status:', error);
+    }
+  };
+
+  const handleFavoriteToggle = async () => {
+    if (!user) {
+    toast.error('Please login to add favorites');
+    navigate('/login', { state: { from: `/vehicle/${id}` } });
+    return;
+  }
+
+  if (!id) return;
+
+  setFavoriteLoading(true);
+  try {
+    if (isFavorite) {
+      // Use favoriteId for removal if available, otherwise use vehicle id
+      const idToRemove = favoriteId || id;
+      
+      // Adjust the endpoint based on your backend route setup
+      const response = await axios.delete(`${API_URL}/customer/favorite/remove/${idToRemove}`, {
+        withCredentials: true
+      });
+      
+      if (response.data?.success) {
+        setIsFavorite(false);
+        setFavoriteId(null);
+        toast.success('Removed from favorites');
+      }
+    } else {
+      // Change payload to match controller expectations
+      const response = await axios.post(`${API_URL}/customer/favorite/add`, {
+        vehicleId: id  // Changed from 'vehicle' to 'vehicleId'
+      }, {
+        withCredentials: true
+      });
+      
+      if (response.data?.success) {
+        setIsFavorite(true);
+        // Store the new favorite ID if available in the response
+        if (response.data.favorite && response.data.favorite._id) {
+          setFavoriteId(response.data.favorite._id);
+        }
+        toast.success('Added to favorites');
+      }
+    }
+  } catch (error) {
+    console.error('Error toggling favorite:', error);
+    if (axios.isAxiosError(error)) {
+      toast.error(error.response?.data?.message || 'Failed to update favorites');
+    } else {
+      toast.error('An error occurred while updating favorites');
+    }
+  } finally {
+    setFavoriteLoading(false);
+  }
+  };
+
+  const handleShare = () => {
+    setShowSharePopup(true);
+  };
+
+  // Function to copy link to clipboard
+  const copyToClipboard = async () => {
+    try {
+      const url = window.location.href;
+      await navigator.clipboard.writeText(url);
+      setCopySuccess(true);
+      toast.success('Link copied to clipboard!');
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy link:', error);
+      toast.error('Failed to copy link');
+    }
+  };
+
+  // Social sharing functions
+  // Wrap social sharing functions with try-catch
+  const shareToFacebook = () => {
+    try {
+      const url = encodeURIComponent(window.location.href);
+      const text = encodeURIComponent(`Check out this ${vehicleName} for rent!`);
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${text}`, '_blank');
+    } catch (error) {
+      console.error('Error sharing to Facebook:', error);
+      toast.error('Failed to open Facebook share');
+    }
+  };
+
+  const shareToTwitter = () => {
+    try {
+      const url = encodeURIComponent(window.location.href);
+      const text = encodeURIComponent(`Check out this ${vehicleName} for rent! ${vehicle?.pricePerDay ? `$${vehicle.pricePerDay}/day` : ''}`);
+      window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank');
+    } catch (error) {
+      console.error('Error sharing to Twitter:', error);
+      toast.error('Failed to open Twitter share');
+    }
+  };
+
+  const shareToWhatsApp = () => {
+    try {
+      const url = encodeURIComponent(window.location.href);
+      const text = encodeURIComponent(`Check out this ${vehicleName} for rent! ${vehicle?.pricePerDay ? `$${vehicle.pricePerDay}/day` : ''} - ${url}`);
+      window.open(`https://wa.me/?text=${text}`, '_blank');
+    } catch (error) {
+      console.error('Error sharing to WhatsApp:', error);
+      toast.error('Failed to open WhatsApp share');
+    }
+  };
+  
   const fetchVehicle = async () => {
     if (!id) return;
     
@@ -211,14 +362,122 @@ const images = vehicle.images && vehicle.images.length > 0
                 className="w-full h-96 object-cover rounded-xl"
               />
               <div className="absolute top-4 right-4 flex space-x-2">
-                <button className="bg-white p-2 rounded-full shadow-md hover:bg-gray-50">
-                  <Heart className="w-5 h-5 text-gray-600" />
+                <button 
+                  onClick={handleFavoriteToggle}
+                  disabled={favoriteLoading}
+                  className={`p-2 rounded-full shadow-md transition-all duration-200 ${
+                    isFavorite 
+                      ? 'bg-red-500 text-white hover:bg-red-600' 
+                      : 'bg-white text-gray-600 hover:bg-gray-50'
+                  } ${favoriteLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  {favoriteLoading ? (
+                    <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+                  )}
                 </button>
-                <button className="bg-white p-2 rounded-full shadow-md hover:bg-gray-50">
+
+                {/* Share Button */}
+                <button 
+                  onClick={handleShare}
+                  className="bg-white p-2 rounded-full shadow-md hover:bg-gray-50 transition-colors"
+                  title="Share this vehicle"
+                >
                   <Share2 className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
             </div>
+
+            {showSharePopup && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Share this vehicle</h3>
+                    <button
+                      onClick={() => setShowSharePopup(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+              
+                  {/* Copy Link */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Copy Link
+                    </label>
+                    <div className="flex">
+                      <input
+                        type="text"
+                        value={window.location.href}
+                        readOnly
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                      />
+                      <button
+                        onClick={copyToClipboard}
+                        className={`px-4 py-2 rounded-r-lg border border-l-0 border-gray-300 transition-colors ${
+                          copySuccess 
+                            ? 'bg-green-500 text-white' 
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                      >
+                        {copySuccess ? (
+                          <Check className="w-5 h-5" />
+                        ) : (
+                          <Copy className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Social Media Buttons */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Share on Social Media
+                    </label>
+                    <div className="grid grid-cols-3 gap-3">
+                      <button
+                        onClick={shareToFacebook}
+                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <Facebook className="w-5 h-5" />
+                        <span className="text-sm">Facebook</span>
+                      </button>
+                      
+                      <button
+                        onClick={shareToTwitter}
+                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors"
+                      >
+                        <Twitter className="w-5 h-5" />
+                        <span className="text-sm">Twitter</span>
+                      </button>
+                      
+                      <button
+                        onClick={shareToWhatsApp}
+                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                      >
+                        <MessageSquare className="w-5 h-5" />
+                        <span className="text-sm">WhatsApp</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Close Button */}
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      onClick={() => setShowSharePopup(false)}
+                      className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <div className="flex space-x-2">
               {images.map((image, index) => (
@@ -524,5 +783,7 @@ const images = vehicle.images && vehicle.images.length > 0
     </div>
   );
 };
+
+
 
 export default VehicleDetailsPage;
