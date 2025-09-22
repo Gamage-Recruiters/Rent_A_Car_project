@@ -8,12 +8,24 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { mockVehicles } from '../../data/mockData';
+import PaymentModal from './PaymentModal';
+
 
 const UserDashboard: React.FC = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [bookingFilter, setBookingFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+
+  const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
+
+  const handleOpenModal = () => {
+    setPaymentModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setPaymentModalOpen(false);
+  };
 
   // Mock user data with more comprehensive information
   const userBookings = [
@@ -352,9 +364,12 @@ const UserDashboard: React.FC = () => {
                             View Vehicle
                           </Link>
                           {booking.status === 'completed' && (
-                            <button className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors text-sm">
+                            <Link
+                              to={`/write-review/${booking.vehicleId}`} // Navigate to the review page with vehicle ID
+                              className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors text-sm"
+                            >
                               Write Review
-                            </button>
+                            </Link>
                           )}
                           {booking.status === 'confirmed' && (
                             <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm">
@@ -462,9 +477,13 @@ const UserDashboard: React.FC = () => {
                       </div>
                       <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">Primary</span>
                     </div>
-                    <button className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors">
+                    <button className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 
+                    text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors"
+                    onClick={handleOpenModal}>
                       + Add New Payment Method
                     </button>
+
+                    <PaymentModal open={isPaymentModalOpen} onClose={handleCloseModal} />
                   </div>
                 </div>
 
