@@ -15,6 +15,7 @@ interface AuthContextType {
   resetPassword: (token: string, newPassword: string, userType?: 'user' | 'admin') => Promise<boolean>;
   updateUserData: (userData: any) => void;
   checkAuthStatus: () => Promise<boolean>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -123,6 +124,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // ✅ Add refreshUser here
+  const refreshUser = async () => {
+    try {
+      await checkAuthStatus();
+    } catch (err) {
+      console.error("Failed to refresh user:", err);
     }
   };
 
@@ -377,7 +387,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       forgotPassword,
       updateUserData,
       resetPassword,
-      checkAuthStatus
+      checkAuthStatus,
+      refreshUser,
     }}>
       {children}
     </AuthContext.Provider>
