@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { mockVehicles } from "../../data/mockData";
 import { Eye, Edit3, Trash2, MapPin, Star } from "lucide-react";
 
@@ -121,10 +122,16 @@ const Vehicle_component: React.FC = () => {
                   <Eye className="w-4 h-4" />
                   <span>View</span>
                 </button>
-                <button className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center space-x-1">
+                <Link
+                  to={`/owner/vehicles/${vehicle._id}/edit`}
+                  state={{ vehicle }}
+                  className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center space-x-1"
+                >
                   <Edit3 className="w-4 h-4" />
                   <span>Edit</span>
-                </button>
+                </Link>
+                {/* <button className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center space-x-1"> */}
+                {/* </button> */}
                 <button className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors">
                   <Trash2 className="w-4 h-4" />
                 </button>
