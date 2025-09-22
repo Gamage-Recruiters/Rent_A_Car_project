@@ -18,11 +18,12 @@ import AboutPage from './pages/AboutPage';
 import HelpPage from './pages/HelpPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
-
+import WriteReview from './pages/WriteReview';
 
 import ManageAccounts from './pages/ManageAccounts';
 
 import AdminTestPage from './pages/AdminTestPage';
+import PlatformSettingsPage from './pages/AdminPlatformSettings';
 
 import AdminVehicleListingsPage from './pages/AdminVehicleListingsPage';
 import AdminVehicleDetailsPage from './pages/AdminVehicleDetailsPage';
@@ -37,8 +38,12 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="min-h-screen bg-gray-50">
+          
           <Routes>
             <Route path="/admin-test" element={<AdminTestPage />} /> {/* Admin sidebar test page */}
+            
+            
+          
           </Routes>
           <Navbar />
           <Routes>
@@ -57,6 +62,7 @@ function App() {
             <Route path="/help" element={<HelpPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/write-review/:id" element={<WriteReview />} />
 
             <Route path='/manage-accounts' element={<ManageAccounts />} />
 
@@ -65,6 +71,8 @@ function App() {
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/admin-vehicle-listings" element={<AdminVehicleListingsPage />} />
             <Route path="/admin/vehicles/:id" element={<AdminVehicleDetailsPage />} />
+            <Route path="/admin/settings" element={<PlatformSettingsPage />} />
+            
             
             {/* Fallback route */}
 

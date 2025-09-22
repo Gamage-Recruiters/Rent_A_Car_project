@@ -4,6 +4,9 @@ import { Vehicle } from '../types';
 import { mockVehicles } from '../data/mockData';
 import { useNavigate } from 'react-router-dom';
 import { Check, X, Eye } from 'lucide-react';
+import jsPDF from 'jspdf';
+import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
 
 const AdminVehicleListingsPage: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -14,12 +17,11 @@ const AdminVehicleListingsPage: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Simulate API call - add status to each vehicle
     const fetchPendingVehicles = () => {
       setTimeout(() => {
         const vehiclesWithStatus = mockVehicles.map(v => ({
           ...v,
-          status: 'pending' as 'pending' // Ensure the status is explicitly typed
+          status: 'pending' as 'pending'
         }));
         setVehicles(vehiclesWithStatus);
         setFilteredVehicles(vehiclesWithStatus);
@@ -80,6 +82,38 @@ const AdminVehicleListingsPage: React.FC = () => {
     }
   };
 
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(12);
+    doc.text("Vehicle Availability Report", 14, 20);
+    doc.text("Generated on: " + new Date().toLocaleString(), 14, 30);
+    
+    let y = 40;
+    filteredVehicles.forEach(vehicle => {
+      doc.text(`Name: ${vehicle.name}, Status: ${vehicle.status}`, 14, y);
+      y += 10;
+    });
+
+    doc.save("vehicle_availability_report.pdf");
+  };
+
+  const generateExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(filteredVehicles.map(vehicle => ({
+      Name: vehicle.name,
+      Owner: vehicle.ownerId,
+      Status: vehicle.status,
+      PricePerDay: vehicle.pricePerDay,
+      Location: vehicle.location,
+    })));
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Vehicles");
+
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(blob, "vehicle_availability_report.xlsx");
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -96,7 +130,6 @@ const AdminVehicleListingsPage: React.FC = () => {
       <div className="container mx-auto px-4">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Vehicle Approval</h1>
-          {/* <p className="text-gray-600">Review and approve new vehicle listings</p> */}
         </div>
 
         {/* Search and Filter Section */}
@@ -118,6 +151,20 @@ const AdminVehicleListingsPage: React.FC = () => {
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </select>
+          <div className="ml-4">
+            <button
+              onClick={generatePDF}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Generate PDF
+            </button>
+            <button
+              onClick={generateExcel}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 ml-2"
+            >
+              Generate Excel
+            </button>
+          </div>
         </div>
 
         <div className="bg-white shadow rounded-lg overflow-hidden">
