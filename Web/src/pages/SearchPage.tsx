@@ -5,7 +5,6 @@ import SearchForm from "../components/SearchForm";
 import VehicleCard from "../components/VehicleCard";
 import { SearchFilters, Vehicle } from "../types";
 import { useVehicle } from "../context/VehicleContext";
-import { mockVehicles } from "../data/mockData";
 
 const SearchPage: React.FC = () => {
   const location = useLocation();
@@ -34,9 +33,7 @@ const SearchPage: React.FC = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // fetchVehicles();
-    setVehicles(mockVehicles); // import mock vehciles to testing purposes
-    setLoading(false);
+    fetchVehicles();
   }, []);
 
   useEffect(() => {
@@ -48,10 +45,29 @@ const SearchPage: React.FC = () => {
     setLoading(true);
     setError("");
     try {
-      const data = await getAllVehicles();
+      // Pass current filters to the backend for server-side filtering if supported
+      const backendFilters = {
+        location: filters.location || undefined,
+        vehicleType: filters.vehicleType || undefined,
+        fuelType: filters.fuelType || undefined,
+        transmission: filters.transmission || undefined,
+        hasDriver: filters.hasDriver !== null ? filters.hasDriver : undefined,
+        minPrice: filters.priceRange[0] || undefined,
+        maxPrice: filters.priceRange[1] || undefined,
+        startDate: filters.startDate || undefined,
+        endDate: filters.endDate || undefined,
+      };
+
+      // Remove undefined values
+      const cleanedFilters = Object.fromEntries(
+        Object.entries(backendFilters).filter(([_, value]) => value !== undefined)
+      );
+
+      const data = await getAllVehicles(cleanedFilters);
       setVehicles(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError("Failed to load vehicles");
+    } catch (err: any) {
+      console.error("Error fetching vehicles:", err);
+      setError(err.response?.data?.message || "Failed to load vehicles. Please try again.");
       setVehicles([]);
     } finally {
       setLoading(false);
@@ -82,6 +98,18 @@ const SearchPage: React.FC = () => {
     ) {
       return "Start date cannot be after end date.";
     }
+
+    // Prevent past dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (filters.startDate && new Date(filters.startDate) < today) {
+      return "Start date cannot be in the past.";
+    }
+    if (filters.endDate && new Date(filters.endDate) < today) {
+      return "End date cannot be in the past.";
+    }
+
     return null;
   };
 
@@ -117,6 +145,7 @@ const SearchPage: React.FC = () => {
 
     let filtered = [...(vehicles || [])];
 
+    // Client-side filtering (in case backend doesn't handle all filters)
     // Location filter
     if (filters.location) {
       filtered = filtered.filter((vehicle) =>
@@ -211,33 +240,42 @@ const SearchPage: React.FC = () => {
   };
 
   const handleSearch = (newFilters: SearchFilters) => {
-  // Save search to localStorage
-  const searchData = {
-    filters: newFilters,
-    location: newFilters.location,
-    vehicleType: newFilters.vehicleType,
-    searchDate: new Date().toISOString(),
-    id: Date.now()
+    // Save search to localStorage
+    const searchData = {
+      filters: newFilters,
+      location: newFilters.location,
+      vehicleType: newFilters.vehicleType,
+      searchDate: new Date().toISOString(),
+      id: Date.now()
+    };
+    
+    const existingSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+    const updatedSearches = [searchData, ...existingSearches.slice(0, 9)]; // Keep last 10
+    localStorage.setItem('recentSearches', JSON.stringify(updatedSearches));
+    
+    setFilters(newFilters);
+    // Re-fetch vehicles with new filters
+    fetchVehicles();
   };
-  
-  const existingSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
-  const updatedSearches = [searchData, ...existingSearches.slice(0, 9)]; // Keep last 10
-  localStorage.setItem('recentSearches', JSON.stringify(updatedSearches));
-  
-  setFilters(newFilters);
-};
 
   const clearFilters = () => {
-    setFilters({
+    const clearedFilters = {
       location: "",
       startDate: "",
       endDate: "",
       vehicleType: "",
-      priceRange: [0, 10000],
+      priceRange: [0, 10000] as [number, number],
       hasDriver: null,
       transmission: "",
       fuelType: "",
-    });
+    };
+    setFilters(clearedFilters);
+    // Re-fetch vehicles without filters
+    setError("");
+  };
+
+  const retryFetch = () => {
+    fetchVehicles();
   };
 
   return (
@@ -386,6 +424,7 @@ const SearchPage: React.FC = () => {
           <div className="flex-1">
             {loading && (
               <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                 <p className="text-gray-500">Loading vehicles...</p>
               </div>
             )}
@@ -393,15 +432,17 @@ const SearchPage: React.FC = () => {
             {/* Show validation or fetch error */}
             {error && (
               <div className="text-center py-4">
-                <p className="text-red-500">{error}</p>
-                {!loading && error === "Failed to load vehicles" && (
-                  <button
-                    onClick={fetchVehicles}
-                    className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                  >
-                    Try Again
-                  </button>
-                )}
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                  <p className="text-red-600">{error}</p>
+                  {!loading && error.includes("Failed to load vehicles") && (
+                    <button
+                      onClick={retryFetch}
+                      className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Try Again
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
