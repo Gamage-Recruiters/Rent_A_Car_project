@@ -1,9 +1,47 @@
 const Vehicle = require('../../Models/vehicleModel');
+const Review = require('../../Models/reviewModel');
 
+async function getVehicleRatings(vehicleId) {
+    try {
+        const reviews = await Review.find({ vehicle: vehicleId });
+        if (!reviews || reviews.length === 0) {
+            return { rating: 0, reviewCount: 0 };
+        }
+        
+        const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+        const averageRating = (totalRating / reviews.length).toFixed(1);
+        
+        return {
+            rating: parseFloat(averageRating),
+            reviewCount: reviews.length
+        };
+    } catch (error) {
+        console.error(`Error calculating rating for vehicle ${vehicleId}:`, error);
+        return { rating: 0, reviewCount: 0 };
+    }
+}
+
+async function addRatingsToVehicles(vehicles) {
+    // Convert to plain objects if they're Mongoose documents
+    const vehiclesArray = vehicles.map(v => v.toObject ? v.toObject() : v);
+    
+    // Add ratings for each vehicle
+    const vehiclesWithRatings = await Promise.all(
+        vehiclesArray.map(async (vehicle) => {
+            const { rating, reviewCount } = await getVehicleRatings(vehicle._id);
+            return {
+                ...vehicle,
+                rating,
+                reviewCount
+            };
+        })
+    );
+    
+    return vehiclesWithRatings;
+}
 
 async function getAllVehicles(req, res) {
     try {
-
         const { 
             vehicleType, 
             fuelType, 
@@ -34,12 +72,14 @@ async function getAllVehicles(req, res) {
 
         const skip = (Number(page) - 1) * Number(limit);
         
-
         const vehicles = await Vehicle.find(filter)
             .populate('owner', 'firstName lastName email')
             .sort({ [sort]: -1 })
             .skip(skip)
             .limit(Number(limit));
+
+        // Add ratings to vehicles
+        const vehiclesWithRatings = await addRatingsToVehicles(vehicles);
 
         const totalVehicles = await Vehicle.countDocuments(filter);
         const totalPages = Math.ceil(totalVehicles / Number(limit));
@@ -50,7 +90,7 @@ async function getAllVehicles(req, res) {
             totalVehicles,
             totalPages,
             currentPage: Number(page),
-            data: vehicles
+            data: vehiclesWithRatings
         });
     } catch (error) {
         console.error('Error fetching vehicles:', error);
@@ -75,9 +115,15 @@ async function getVehicleById(req, res) {
             });
         }
 
+        // Get rating for this specific vehicle
+        const vehicleObj = vehicle.toObject();
+        const { rating, reviewCount } = await getVehicleRatings(vehicle._id);
+        vehicleObj.rating = rating;
+        vehicleObj.reviewCount = reviewCount;
+
         return res.status(200).json({
             success: true,
-            data: vehicle
+            data: vehicleObj
         });
     } catch (error) {
         console.error('Error fetching vehicle:', error);
@@ -112,11 +158,13 @@ async function searchVehicles(req, res) {
         }).populate('owner', 'firstName lastName email')
           .sort({ createdAt: -1 });
 
+        // Add ratings to search results
+        const vehiclesWithRatings = await addRatingsToVehicles(vehicles);
 
         return res.status(200).json({
             success: true,
-            count: vehicles.length,
-            data: vehicles
+            count: vehiclesWithRatings.length,
+            data: vehiclesWithRatings
         });
     } catch (error) {
         console.error('Error searching vehicles:', error);
@@ -125,6 +173,30 @@ async function searchVehicles(req, res) {
             message: 'Internal server error'
         });
     }
+};
+
+// Public function to get vehicle locations (no authentication required)
+async function getPublicVehicleLocations(req, res) {
+  try {
+    // Only fetch approved vehicles for public display
+    const vehicles = await Vehicle.find({ isApproved: true }, "pickupAddress");
+
+    // Extract unique non-empty pickup addresses
+    const uniqueLocations = [...new Set(
+      vehicles
+        .map(v => v.pickupAddress)
+        .filter(addr => addr && addr.trim() !== "")
+    )].sort();
+
+    return res.status(200).json(uniqueLocations); // <-- return array of strings
+  } catch (error) {
+    console.error("Error fetching public vehicle locations:", error);
+    return res.status(500).json({
+      message: "Failed to fetch vehicle locations",
+      error: error.message,
+    });
+  }
 }
 
-module.exports = { getAllVehicles, getVehicleById, searchVehicles };
+
+module.exports = { getAllVehicles, getVehicleById, searchVehicles, getPublicVehicleLocations };

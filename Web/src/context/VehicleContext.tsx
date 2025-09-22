@@ -6,13 +6,23 @@ interface VehicleContextType {
   getAllVehicles: (filters?: any) => Promise<Vehicle[]>;
   searchVehicles: (query: string) => Promise<Vehicle[]>;
   getVehicleById: (id: string) => Promise<Vehicle | null>;
+
+  registerVehicle: (data: FormData) => Promise<any>;
 }
 
 const VehicleContext = createContext<VehicleContextType | undefined>(undefined);
 
 export const VehicleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+
+  const ownerBaseUrl = 'http://localhost:8000/api/owner/'
+
   const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL + '/customer/vehicle', 
+    withCredentials: true,
+  });
+
+    const ownerapi = axios.create({
+    baseURL: ownerBaseUrl + "vehicle",
     withCredentials: true,
   });
 
@@ -31,8 +41,14 @@ export const VehicleProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return res.data.data;
   };
 
+  const registerVehicle = async (data: FormData) => {
+    return await ownerapi.post("/register", data, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  };
+
   return (
-    <VehicleContext.Provider value={{ getAllVehicles, searchVehicles, getVehicleById }}>
+    <VehicleContext.Provider value={{ getAllVehicles, searchVehicles, getVehicleById,registerVehicle  }}>
       {children}
     </VehicleContext.Provider>
   );

@@ -29,8 +29,8 @@ async function createReview(req, res) {
 async function getVehicleReviews(req, res) {
     try {
         const reviews = await Review.find({ vehicle: req.params.vehicleId })
-            .populate('customer', 'firstName email')
-            .populate('vehicle', 'vehicleName vehicleLicenseNumber')
+            .populate('customer', 'firstName lastName email photo')
+            .populate('vehicle', 'vehicleName vehicleLicenseNumber brand model year images vehicleType')
             .sort({ createdAt: -1 });
 
         return res.status(200).json({
@@ -74,9 +74,12 @@ async function deleteReview(req, res) {
 async function getCustomerReviews(req, res) {
     try {
         const reviews = await Review.find({ customer: req.user.id })
-            .populate('vehicle', 'brand model year')
+            .populate('customer', 'firstName lastName email photo') 
+            .populate('vehicle', 'vehicleName vehicleLicenseNumber brand model year images vehicleType') 
             .sort({ createdAt: -1 });
 
+        console.log(`Found ${reviews.length} reviews for customer ${req.user.id}`);
+        
         return res.status(200).json({
             success: true,
             count: reviews.length,
@@ -142,4 +145,62 @@ async function updateReview(req, res) {
     }
 };
 
-module.exports = { createReview, getVehicleReviews, deleteReview, getCustomerReviews, updateReview };
+async function getAllReviews(req, res) {
+    try {
+        const reviews = await Review.find()
+            .populate('customer', 'firstName lastName email photo')
+            .populate('vehicle', 'vehicleName vehicleLicenseNumber brand model year images vehicleType')
+            .sort({ createdAt: -1 });
+
+        return res.status(200).json({
+            success: true,
+            count: reviews.length,
+            data: reviews
+        });
+    } catch (error) {
+        console.error('Get all reviews error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Server Error',
+            error: error.message
+        });
+    }
+};
+
+async function getVehicleRating(req, res) {
+    try {
+        const { vehicleId } = req.params;
+        
+        const reviews = await Review.find({ vehicle: vehicleId });
+        
+        if (!reviews || reviews.length === 0) {
+            return res.status(200).json({
+                success: true,
+                data: {
+                    rating: 0,
+                    reviewCount: 0
+                }
+            });
+        }
+        
+        const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+        const averageRating = (totalRating / reviews.length).toFixed(1);
+        
+        return res.status(200).json({
+            success: true,
+            data: {
+                rating: parseFloat(averageRating),
+                reviewCount: reviews.length
+            }
+        });
+    } catch (error) {
+        console.error('Get vehicle rating error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Server Error',
+            error: error.message
+        });
+    }
+}
+
+module.exports = { createReview, getVehicleReviews, deleteReview, getCustomerReviews, updateReview, getAllReviews, getVehicleRating };

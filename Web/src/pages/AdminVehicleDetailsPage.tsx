@@ -32,7 +32,8 @@ const AdminVehicleDetailsPage: React.FC = () => {
               phone: '',
               email: '',
               address: ''
-            }
+            },
+            features: foundVehicle.features || []
           });
         } else {
           setError('Vehicle not found');
@@ -179,7 +180,7 @@ const AdminVehicleDetailsPage: React.FC = () => {
               <div className="pt-6">
                 <h3 className="text-lg font-semibold mb-3">Features</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {vehicle.features.map((feature, index) => (
+                  {(vehicle?.features ?? []).map((feature, index) => (
                     <div key={index} className="flex items-center space-x-2 bg-gray-50 px-3 py-2 rounded-md">
                       <Check className="w-4 h-4 text-green-500" />
                       <span className="text-sm">{feature}</span>

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Search, MapPin, Calendar, Car } from 'lucide-react';
-import { SearchFilters } from '../types';
+import React, { useState, useEffect, useRef } from "react";
+import { Search, MapPin, Calendar, Car } from "lucide-react";
+import { SearchFilters } from "../types";
 
 interface SearchFormProps {
   onSearch: (filters: SearchFilters) => void;
@@ -8,47 +8,138 @@ interface SearchFormProps {
   className?: string;
 }
 
-const SearchForm: React.FC<SearchFormProps> = ({ onSearch, initialFilters, className = '' }) => {
+const SearchForm: React.FC<SearchFormProps> = ({
+  onSearch,
+  initialFilters,
+  className = "",
+}) => {
   const [filters, setFilters] = useState<SearchFilters>({
-    location: initialFilters?.location || '',
-    startDate: initialFilters?.startDate || '',
-    endDate: initialFilters?.endDate || '',
-    vehicleType: initialFilters?.vehicleType || '',
+    location: initialFilters?.location || "",
+    startDate: initialFilters?.startDate || "",
+    endDate: initialFilters?.endDate || "",
+    vehicleType: initialFilters?.vehicleType || "",
     priceRange: initialFilters?.priceRange || [0, 200],
     hasDriver: initialFilters?.hasDriver || null,
-    transmission: initialFilters?.transmission || '',
-    fuelType: initialFilters?.fuelType || '',
+    transmission: initialFilters?.transmission || "",
+    fuelType: initialFilters?.fuelType || "",
   });
+
+  const [locations, setLocations] = useState<string[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState(true);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        setLoadingLocations(true);
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/customer/vehicle/locations`
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          // API already returns an array of strings
+          setLocations(data);
+        } else {
+          console.error("Failed to fetch customer locations");
+          setLocations([]);
+        }
+      } catch (error) {
+        console.error("Error fetching locations:", error);
+        setLocations([]);
+      } finally {
+        setLoadingLocations(false);
+      }
+    };
+
+    fetchLocations();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(filters);
   };
 
-  const locations = ['Downtown', 'Airport', 'City Center', 'Tech District', 'Suburbs'];
-  const vehicleTypes = ['sedan', 'suv', 'hatchback', 'luxury', 'sports', 'van'];
-  const transmissions = ['manual', 'automatic'];
-  const fuelTypes = ['petrol', 'diesel', 'electric', 'hybrid'];
+  const handleLocationSelect = (location: string) => {
+    setFilters((prev) => ({ ...prev, location }));
+    setShowDropdown(false);
+  };
+
+  const handleLocationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFilters((prev) => ({ ...prev, location: e.target.value }));
+    setShowDropdown(true);
+  };
+
+  const handleLocationInputFocus = () => {
+    setShowDropdown(true);
+  };
+
+  const filteredLocations = locations.filter((loc) =>
+    filters.location
+      ? loc.toLowerCase().includes(filters.location.toLowerCase())
+      : true
+  );
+
+  const vehicleTypes = ["sedan", "suv", "hatchback", "luxury", "sports", "van"];
+  const transmissions = ["manual", "automatic"];
+  const fuelTypes = ["petrol", "diesel", "electric", "hybrid"];
+  const today = new Date().toISOString().split("T")[0];
 
   return (
-    <form onSubmit={handleSubmit} className={`bg-white rounded-xl shadow-lg p-6 ${className}`}>
+    <form
+      onSubmit={handleSubmit}
+      className={`bg-white rounded-xl shadow-lg p-6 ${className}`}
+    >
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Location */}
+        {/* Location with Searchable Dropdown */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">
             <MapPin className="w-4 h-4 inline mr-1" />
             Location
           </label>
-          <select
-            value={filters.location}
-            onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">All Locations</option>
-            {locations.map(location => (
-              <option key={location} value={location}>{location}</option>
-            ))}
-          </select>
+
+          <div className="relative" ref={dropdownRef}>
+            {/* Search Input */}
+            <input
+              type="text"
+              value={filters.location}
+              onChange={handleLocationInputChange}
+              onFocus={handleLocationInputFocus}
+              placeholder={loadingLocations ? "Loading locations..." : "Search location"}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={loadingLocations}
+            />
+
+            {/* Dropdown list */}
+            {showDropdown && locations.length > 0 && filteredLocations.length > 0 && (
+              <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-40 overflow-y-auto shadow-lg">
+                {filteredLocations.map((loc) => (
+                  <li
+                    key={loc}
+                    onClick={() => handleLocationSelect(loc)}
+                    className="px-3 py-2 cursor-pointer hover:bg-blue-100"
+                  >
+                    {loc}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         {/* Start Date */}
@@ -59,8 +150,11 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, initialFilters, class
           </label>
           <input
             type="date"
+            min={today}
             value={filters.startDate}
-            onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, startDate: e.target.value }))
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
@@ -73,8 +167,11 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, initialFilters, class
           </label>
           <input
             type="date"
+            min={today}
             value={filters.endDate}
-            onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, endDate: e.target.value }))
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
@@ -87,12 +184,16 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, initialFilters, class
           </label>
           <select
             value={filters.vehicleType}
-            onChange={(e) => setFilters(prev => ({ ...prev, vehicleType: e.target.value }))}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, vehicleType: e.target.value }))
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Types</option>
-            {vehicleTypes.map(type => (
-              <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
+            {vehicleTypes.map((type) => (
+              <option key={type} value={type}>
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </option>
             ))}
           </select>
         </div>
@@ -105,22 +206,34 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, initialFilters, class
           <div className="flex items-center space-x-2">
             <input
               type="number"
+              min={0}
               value={filters.priceRange[0]}
-              onChange={(e) => setFilters(prev => ({ 
-                ...prev, 
-                priceRange: [parseInt(e.target.value) || 0, prev.priceRange[1]]
-              }))}
+              onChange={(e) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  priceRange: [
+                    Math.max(0, parseInt(e.target.value) || 0),
+                    prev.priceRange[1],
+                  ],
+                }))
+              }
               className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
               placeholder="Min"
             />
             <span className="text-gray-500">-</span>
             <input
               type="number"
+              min={0}
               value={filters.priceRange[1]}
-              onChange={(e) => setFilters(prev => ({ 
-                ...prev, 
-                priceRange: [prev.priceRange[0], parseInt(e.target.value) || 200]
-              }))}
+              onChange={(e) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  priceRange: [
+                    prev.priceRange[0],
+                    Math.max(0, parseInt(e.target.value) || 200),
+                  ],
+                }))
+              }
               className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
               placeholder="Max"
             />
@@ -133,11 +246,16 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, initialFilters, class
             Driver
           </label>
           <select
-            value={filters.hasDriver === null ? '' : filters.hasDriver.toString()}
-            onChange={(e) => setFilters(prev => ({ 
-              ...prev, 
-              hasDriver: e.target.value === '' ? null : e.target.value === 'true'
-            }))}
+            value={
+              filters.hasDriver === null ? "" : filters.hasDriver.toString()
+            }
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                hasDriver:
+                  e.target.value === "" ? null : e.target.value === "true",
+              }))
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Any</option>
@@ -153,12 +271,16 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, initialFilters, class
           </label>
           <select
             value={filters.transmission}
-            onChange={(e) => setFilters(prev => ({ ...prev, transmission: e.target.value }))}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, transmission: e.target.value }))
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Any</option>
-            {transmissions.map(type => (
-              <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
+            {transmissions.map((type) => (
+              <option key={type} value={type}>
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </option>
             ))}
           </select>
         </div>
@@ -170,12 +292,16 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, initialFilters, class
           </label>
           <select
             value={filters.fuelType}
-            onChange={(e) => setFilters(prev => ({ ...prev, fuelType: e.target.value }))}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, fuelType: e.target.value }))
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Any</option>
-            {fuelTypes.map(type => (
-              <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
+            {fuelTypes.map((type) => (
+              <option key={type} value={type}>
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </option>
             ))}
           </select>
         </div>

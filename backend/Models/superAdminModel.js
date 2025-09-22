@@ -27,6 +27,18 @@ const superAdminSchema = new mongoose.Schema({
     enum: ['super-admin',  'owner', 'customer'],  // add all roles you want
     required: true,
   },
+  phone: {
+    type: String,
+    default: null,
+  },
+  address: {
+    type: String,
+    default: null,
+  },
+  avatar: {
+    type: String, // URL or base64
+    default: null,
+  },
   status: {
     type: String,
     enum: ['pending', 'approved', 'rejected'],

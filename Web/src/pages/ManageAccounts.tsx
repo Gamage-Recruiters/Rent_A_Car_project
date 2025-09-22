@@ -1,61 +1,196 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import AdminSidebar from "../components/AdminSideBar";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+
+
 
 interface User {
   id: number;
+  _id?: string; // <-- add backend id
   name: string;
   email: string;
   phone: string;
-  status: string;
   type: 'owner' | 'customer';
+  isApproved?: boolean;
   registeredDate: string;
 }
 
 const dummyOwners: User[] = [
-  { id: 1, name: 'John Smith', email: 'john.smith@example.com', phone: '0771234567', status: 'verify', type: 'owner', registeredDate: '2024-01-15' },
-  { id: 2, name: 'Sarah Johnson', email: 'sarah.j@example.com', phone: '0777654321', status: 'suspend', type: 'owner', registeredDate: '2024-02-08' },
-  { id: 3, name: 'Michael Brown', email: 'michael.brown@example.com', phone: '0773456789', status: 'verify', type: 'owner', registeredDate: '2024-03-12' },
-  { id: 4, name: 'Emily Davis', email: 'emily.davis@example.com', phone: '0778901234', status: 'delete', type: 'owner', registeredDate: '2024-01-28' },
-  { id: 5, name: 'David Wilson', email: 'david.wilson@example.com', phone: '0775678901', status: 'verify', type: 'owner', registeredDate: '2024-04-05' },
-  { id: 6, name: 'Eva Green', email: 'eva.green@example.com', phone: '0775678999', status: 'verify', type: 'owner', registeredDate: '2024-04-08' },
+  { id: 1, name: 'John Smith', email: 'john.smith@example.com', phone: '0771234567', type: 'owner', registeredDate: '2024-01-15' },
+  { id: 2, name: 'Sarah Johnson', email: 'sarah.j@example.com', phone: '0777654321', type: 'owner', registeredDate: '2024-02-08' },
+  { id: 3, name: 'Michael Brown', email: 'michael.brown@example.com', phone: '0773456789', type: 'owner', registeredDate: '2024-03-12' },
+  { id: 4, name: 'Emily Davis', email: 'emily.davis@example.com', phone: '0778901234', type: 'owner', registeredDate: '2024-01-28' },
+  { id: 5, name: 'David Wilson', email: 'david.wilson@example.com', phone: '0775678901', type: 'owner', registeredDate: '2024-04-05' },
+  { id: 6, name: 'Eva Green', email: 'eva.green@example.com', phone: '0775678999', type: 'owner', registeredDate: '2024-04-08' },
 ];
 
 const dummyCustomers: User[] = [
-  { id: 7, name: 'Alice Cooper', email: 'alice.cooper@example.com', phone: '0711111111', status: 'verify', type: 'customer', registeredDate: '2024-02-20' },
-  { id: 8, name: 'Bob Martinez', email: 'bob.martinez@example.com', phone: '0712222222', status: 'delete', type: 'customer', registeredDate: '2024-03-15' },
-  { id: 9, name: 'Clara Thompson', email: 'clara.t@example.com', phone: '0713333333', status: 'suspend', type: 'customer', registeredDate: '2024-01-10' },
-  { id: 10, name: 'Daniel Lee', email: 'daniel.lee@example.com', phone: '0714444444', status: 'verify', type: 'customer', registeredDate: '2024-04-02' },
-  { id: 11, name: 'Emma Garcia', email: 'emma.garcia@example.com', phone: '0715555555', status: 'verify', type: 'customer', registeredDate: '2024-03-28' },
-  { id: 12, name: 'neku kayomi', email: 'neku.kayomi@example.com', phone: '0716666666', status: 'verify', type: 'customer', registeredDate: '2024-03-31' },
+  { id: 7, name: 'Alice Cooper', email: 'alice.cooper@example.com', phone: '0711111111', type: 'customer', registeredDate: '2024-02-20' },
+  { id: 8, name: 'Bob Martinez', email: 'bob.martinez@example.com', phone: '0712222222', type: 'customer', registeredDate: '2024-03-15' },
+  { id: 9, name: 'Clara Thompson', email: 'clara.t@example.com', phone: '0713333333', type: 'customer', registeredDate: '2024-01-10' },
+  { id: 10, name: 'Daniel Lee', email: 'daniel.lee@example.com', phone: '0714444444', type: 'customer', registeredDate: '2024-04-02' },
+  { id: 11, name: 'Emma Garcia', email: 'emma.garcia@example.com', phone: '0715555555', type: 'customer', registeredDate: '2024-03-28' },
+  { id: 12, name: 'neku kayomi', email: 'neku.kayomi@example.com', phone: '0716666666', type: 'customer', registeredDate: '2024-03-31' },
 ];
 
 const ManageAccounts: React.FC = () => {
+  const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [view, setView] = useState<'owner' | 'customer'>('owner');
-  const [owners, setOwners] = useState<User[]>(dummyOwners);
+ // start owners as empty; we'll load real data from backend
+  const [owners, setOwners] = useState<User[]>([]);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [customers, setCustomers] = useState<User[]>(dummyCustomers);
 
-  const handleStatusChange = (userType: 'owner' | 'customer', id: number, newStatus: string) => {
-    const updater = userType === 'owner' ? setOwners : setCustomers;
-    const currentData = userType === 'owner' ? owners : customers;
+// Fetch all registered customers (superadmin protected)
+ const fetchCustomers = async () => {
+    try {
+      setLoading(true);
+     setFetchError(null);
+      const res = await fetch(`${API_URL}/superadmin/customers`, { credentials: "include" });
+      if (!res.ok) throw new Error(`Failed to fetch customers (${res.status})`);
+      const data = await res.json();
+     console.log('fetchCustomers raw=', data);
+      const mapped = (data || []).map((c: any, i: number) => ({
+        id: i + 1,
+        _id: c._id,
+        name: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || (c.email ?? 'No name'),
+       email: c.email,
+        phone: c.phoneNumber ?? c.phone ?? '',
+        type: 'customer' as const,
+        registeredDate: c.createdAt ?? new Date().toISOString(),
+      }));
+      console.log('fetchCustomers mapped=', mapped);
+      setCustomers(mapped);
+    } catch (err: any) {
+      console.error('fetchCustomers error', err);
+      setFetchError(err?.message || 'Failed to load customers');
+    } finally {
+      setLoading(false);
+    }
+};
 
-    const updated = currentData.map((user) =>
-      user.id === id ? { ...user, status: newStatus } : user
-    );
 
-    updater(updated);
-  };
+// Fetch pending owners from backend
+  const fetchPendingOwners = async () => {
+    try {
+      setLoading(true);
+      setFetchError(null);
+      
+    const res = await fetch(`${API_URL}/superadmin/owners/pending`, { credentials: "include" });
+     if (!res.ok) throw new Error(`Failed to fetch owners (${res.status})`);
+      const data = await res.json();
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'verify':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'suspend':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'delete':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+      console.log('fetchPendingOwners: raw data=', data);
+
+
+     // preserve backend _id so we can call approve/reject
+      const mapped = (data || []).map((o: any, i: number) => ({
+        id: i + 1,
+        _id: o._id, // important: real database id
+        name: `${o.firstName ?? ''} ${o.lastName ?? ''}`.trim(),
+        email: o.email,
+        phone: o.phoneNumber ?? '',
+        type: 'owner' as const,
+        isApproved: false,
+        registeredDate: o.createdAt ?? new Date().toISOString(),
+      }));
+      console.log('fetchPendingOwners: mapped=', mapped);
+      setOwners(mapped);
+    } catch (err: any) {
+      console.error('fetchPendingOwners error', err);
+      setFetchError(err?.message || 'Failed to load owners');
+    } finally {
+      setLoading(false);
     }
   };
+
+  // Fetch approved owners
+const fetchApprovedOwners = async () => {
+ try {
+    setLoading(true);
+    setFetchError(null);
+    const res = await fetch(`${API_URL}/superadmin/owners/approved`, { credentials: "include" });
+    if (!res.ok) throw new Error(`Failed to fetch approved owners (${res.status})`);
+    const data = await res.json();
+   const mapped = (data || []).map((o: any, i: number) => ({
+      id: i + 1,
+      _id: o._id,
+      name: `${o.firstName ?? ''} ${o.lastName ?? ''}`.trim() || (o.email ?? 'No name'),
+      email: o.email,
+     phone: o.phoneNumber ?? '',
+      type: 'owner' as const,
+      isApproved: true, // approved
+      registeredDate: o.createdAt ?? new Date().toISOString(),
+   }));
+    setOwners(mapped);
+  } catch (err: any) {
+   console.error('fetchApprovedOwners error', err);
+    setFetchError(err?.message || 'Failed to load approved owners');
+  } finally {
+    setLoading(false);
+  }
+};
+
+    // auto-load when switching to owner view
+  useEffect(() => {
+    if (view === 'customer') fetchCustomers();
+    if (view === 'owner') fetchPendingOwners();
+  }, [view]);
+
+    // Approve owner
+  const approveOwner = async (backendId?: string) => {
+  if (!backendId) return;
+  console.log('approveOwner backendId=', backendId);
+  setActionLoading(backendId);
+  try {
+    const res = await fetch(`${API_URL}/superadmin/owners/approve/${backendId}`, {
+      method: 'PATCH',
+      credentials: 'include'
+    });
+    if (!res.ok) {
+      // read server error body for debugging
+      const body = await res.json().catch(() => ({ message: 'No JSON body' }));
+      console.error('approveOwner failed response body:', body);
+      throw new Error(body?.message || `Approve failed (${res.status})`);
+    }
+    await fetchPendingOwners();
+  } catch (err: any) {
+    console.error('approveOwner error', err);
+    alert(`Approve failed: ${err?.message || 'Unknown error'}`);
+    setFetchError((err as any)?.message || 'Approve failed');
+  } finally {
+    setActionLoading(null);
+  }
+};
+
+
+  // Reject owner
+  const rejectOwner = async (backendId?: string) => {
+    if (!backendId) return;
+    if (!confirm('Reject and delete this owner?')) return;
+    setActionLoading(backendId);
+    try {
+      const res = await fetch(`${API_URL}/superadmin/owners/reject/${backendId}`, {
+        method: 'PATCH', // router uses PATCH -> controller deletes owner
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.message || `Reject failed (${res.status})`);
+      }
+      await fetchPendingOwners();
+    } catch (err) {
+      console.error('rejectOwner error', err);
+      setFetchError((err as any)?.message || 'Reject failed');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+
 
   const renderTable = (data: User[], type: 'owner' | 'customer') => (
     <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
@@ -69,12 +204,14 @@ const ManageAccounts: React.FC = () => {
               <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Phone</th>
               <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Type</th>
               <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Registered Date</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Status</th>
+              {type === 'owner' && data.some(u => u.isApproved === false) && (
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Actions</th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {data.map((user, index) => (
-              <tr key={user.id} className={`hover:bg-gray-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+              <tr key={user._id ?? user.id} className={`hover:bg-gray-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
                     {user.id}
@@ -105,17 +242,28 @@ const ManageAccounts: React.FC = () => {
                     day: 'numeric' 
                   })}</div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <select
-                    value={user.status}
-                    onChange={(e) => handleStatusChange(type, user.id, e.target.value)}
-                    className={`px-3 py-2 rounded-lg border text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${getStatusColor(user.status)}`}
-                  >
-                    <option value="verify">Verify</option>
-                    <option value="suspend">Suspend</option>
-                    <option value="delete">Delete</option>
-                  </select>
-                </td>
+                {/* Show actions only for pending owners (isApproved === false) */}
+                {type === 'owner' && user.isApproved === false && (
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => approveOwner(user._id)}
+                        disabled={!!actionLoading}
+                        className="px-3 py-1 bg-green-600 text-white rounded disabled:opacity-50"
+                      >
+                        {actionLoading === user._id ? 'Processing...' : 'Approve'}
+                      </button>
+                      <button
+                        onClick={() => rejectOwner(user._id)}
+                        disabled={!!actionLoading}
+                        className="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-50"
+                      >
+                        {actionLoading === user._id ? 'Processing...' : 'Reject'}
+                      </button>
+                    </div>
+                  </td>
+                )}
+                
               </tr>
             ))}
           </tbody>
@@ -136,16 +284,28 @@ const ManageAccounts: React.FC = () => {
         <div className="flex justify-center mb-8">
           <div className="bg-white rounded-2xl p-2 shadow-lg border border-gray-200">
             <div className="flex gap-2">
-              <button
-                onClick={() => setView('owner')}
+               <button
+               onClick={async () => { setView('owner'); await fetchPendingOwners(); }}
                 className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
                   view === 'owner'
                     ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
                     : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
-                Owner Details
+                Pending Owner Requests
               </button>
+
+              <button
+                onClick={async () => { setView('owner'); await fetchApprovedOwners(); }}
+                className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                  view === 'owner'
+                    ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Approved Owners
+              </button>    
+
               <button
                 onClick={() => setView('customer')}
                 className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
@@ -159,6 +319,8 @@ const ManageAccounts: React.FC = () => {
             </div>
           </div>
         </div>
+
+      
 
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">

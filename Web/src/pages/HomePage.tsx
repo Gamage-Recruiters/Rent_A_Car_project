@@ -1,16 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Car, Shield, Clock, ThumbsUp, Search, ArrowRight } from 'lucide-react';
+import { Car, Shield, Clock, ThumbsUp, Search, ArrowRight, Loader, AlertCircle } from 'lucide-react';
+import axios from 'axios';
 import SearchForm from '../components/SearchForm';
 import VehicleCard from '../components/VehicleCard';
-import { SearchFilters } from '../types';
-import { mockVehicles } from '../data/mockData';
+import { SearchFilters, Vehicle } from '../types';
 
-import { useAuth } from '../context/AuthContext';
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const [searchResults, setSearchResults] = useState(mockVehicles.slice(0, 3));
+  const [featuredVehicles, setFeaturedVehicles] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchFeaturedVehicles();
+  }, []);
+
+  const fetchFeaturedVehicles = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch featured vehicles - using limit=3 and sort by newest
+      const response = await axios.get(`${API_URL}/customer/vehicle`, {
+        params: {
+          limit: 3,
+          sort: 'createdAt', // Sort by newest
+        }
+      });
+
+      if (response.data?.success) {
+        setFeaturedVehicles(response.data.data);
+      } else {
+        console.error('Failed to fetch featured vehicles:', response.data);
+        setError('Failed to load featured vehicles');
+      }
+    } catch (error) {
+      console.error('Error fetching featured vehicles:', error);
+      setError('Error loading featured vehicles');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = (filters: SearchFilters) => {
     // Navigate to search page with filters
@@ -131,11 +165,40 @@ const HomePage: React.FC = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {searchResults.map((vehicle) => (
-              <VehicleCard key={vehicle.id} vehicle={vehicle} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader className="w-10 h-10 text-blue-600 animate-spin" />
+              <span className="ml-3 text-lg text-gray-600">Loading featured vehicles...</span>
+            </div>
+          ) : error ? (
+            <div className="text-center py-10 bg-red-50 rounded-lg">
+              <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+              <p className="text-red-600 mb-3">{error}</p>
+              <button 
+                onClick={fetchFeaturedVehicles}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : featuredVehicles.length === 0 ? (
+            <div className="text-center py-10 bg-gray-50 rounded-lg">
+              <Car className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-600 mb-3">No featured vehicles available at the moment.</p>
+              <Link 
+                to="/search"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Browse All Vehicles
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {featuredVehicles.map((vehicle) => (
+                <VehicleCard key={vehicle._id} vehicle={vehicle} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

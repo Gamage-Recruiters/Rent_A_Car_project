@@ -1,103 +1,194 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Car, Upload, MapPin, DollarSign, Calendar, Settings, Users, Fuel } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Car,
+  Upload,
+  MapPin,
+  DollarSign,
+  Settings,
+  Users,
+  Fuel,
+} from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { useVehicle } from "../context/VehicleContext";
 
 const AddVehiclePage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { registerVehicle } = useVehicle();
   const [currentStep, setCurrentStep] = useState(1);
+  
   const [vehicleData, setVehicleData] = useState({
-    name: '',
-    brand: '',
-    model: '',
+    vehicleName: "",
+    vehicleLicenseNumber: '',
+    brand: "",
+    model: "",
     year: new Date().getFullYear(),
-    type: '',
-    location: '',
-    description: '',
-    pricePerDay: '',
-    pricePerKm: '',
-    seats: 5,
-    fuelType: '',
-    transmission: '',
-    mileage: '',
-    hasDriver: false,
-    features: [] as string[],
-    images: [] as string[],
+    vehicleType: "",
+    description: "",
+    noSeats: "",
+    fuelType: "",
+    transmission: "",
+    mileage: "",
+    isDriverAvailable: false,
+    pricePerDay: "",
+    pricePerDistance: "",
+    location: "",
     contactInfo: {
-      phone: user?.phone || '',
-      email: user?.email || '',
-      address: ''
-    }
+        phone: user?.phone || "",
+        email: user?.email || "",
+        address: "",
+      },
+    features: [] as string[],
+    images: [] as File[], 
   });
 
-  const vehicleTypes = ['sedan', 'suv', 'hatchback', 'luxury', 'sports', 'van'];
-  const fuelTypes = ['petrol', 'diesel', 'electric', 'hybrid'];
-  const transmissionTypes = ['manual', 'automatic'];
-  const locations = ['Downtown', 'Airport', 'City Center', 'Tech District', 'Suburbs'];
+
+  const vehicleTypes = ["sedan", "suv", "hatchback", "luxury", "sports", "van"];
+  const fuelTypes = ["petrol", "diesel", "electric", "hybrid"];
+  const transmissionTypes = ["manual", "automatic"];
+  const locations = [
+    "Downtown",
+    "Airport",
+    "City Center",
+    "Tech District",
+    "Suburbs",
+  ];
   const availableFeatures = [
-    'AC', 'GPS', 'Bluetooth', 'Backup Camera', 'Sunroof', 'Heated Seats',
-    'Apple CarPlay', 'Android Auto', 'Premium Sound', 'Leather Interior',
-    'Panoramic Roof', 'Adaptive Cruise Control', 'Lane Assist', 'Parking Sensors'
+    "AC",
+    "GPS",
+    "Bluetooth",
+    "Backup Camera",
+    "Sunroof",
+    "Heated Seats",
+    "Apple CarPlay",
+    "Android Auto",
+    "Premium Sound",
+    "Leather Interior",
+    "Panoramic Roof",
+    "Adaptive Cruise Control",
+    "Lane Assist",
+    "Parking Sensors",
   ];
 
   const steps = [
-    { id: 1, title: 'Basic Information', icon: Car },
-    { id: 2, title: 'Specifications', icon: Settings },
-    { id: 3, title: 'Pricing & Location', icon: DollarSign },
-    { id: 4, title: 'Features & Images', icon: Upload },
+    { id: 1, title: "Basic Information", icon: Car },
+    { id: 2, title: "Specifications", icon: Settings },
+    { id: 3, title: "Pricing & Location", icon: DollarSign },
+    { id: 4, title: "Features & Images", icon: Upload },
   ];
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
     const { name, value, type } = e.target;
-    if (type === 'checkbox') {
+    if (type === "checkbox") {
       const checked = (e.target as HTMLInputElement).checked;
-      setVehicleData(prev => ({ ...prev, [name]: checked }));
+      setVehicleData((prev) => ({ ...prev, [name]: checked }));
     } else {
-      setVehicleData(prev => ({ ...prev, [name]: value }));
+      setVehicleData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  const handleContactChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleContactChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
-    setVehicleData(prev => ({
+    setVehicleData((prev) => ({
       ...prev,
-      contactInfo: { ...prev.contactInfo, [name]: value }
+      contactInfo: { ...prev.contactInfo, [name]: value },
     }));
   };
 
   const handleFeatureToggle = (feature: string) => {
-    setVehicleData(prev => ({
+    setVehicleData((prev) => ({
       ...prev,
       features: prev.features.includes(feature)
-        ? prev.features.filter(f => f !== feature)
-        : [...prev.features, feature]
+        ? prev.features.filter((f) => f !== feature)
+        : [...prev.features, feature],
     }));
   };
-
-  const handleSubmit = (e: React.FormEvent) => {
+ 
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically send the data to your backend
-    console.log('Vehicle data:', vehicleData);
-    alert('Vehicle added successfully!');
-    navigate('/owner-dashboard');
+
+    if (currentStep !== 4) return; // only submit at final step
+    console.log("handleSubmit called, currentStep:", currentStep);
+    
+    try {
+      const formData = new FormData();
+
+      // append normal fields
+      Object.entries(vehicleData).forEach(([key, value]) => {
+        if (key === "images" || key === "contactInfo") return; // skip special cases
+        formData.append(key, value as string);
+      });
+
+      // append contactInfo fields
+      formData.append("phoneNumber", vehicleData.contactInfo.phone);
+      formData.append("email", vehicleData.contactInfo.email);
+      formData.append("pickupAddress", vehicleData.contactInfo.address);
+
+      // append images
+      vehicleData.images.forEach((file) => {
+        formData.append("files", file); // backend expects req.files
+      });
+
+      try{
+      const response = await registerVehicle(formData);
+      alert(response.data.message);
+      navigate("/owner-dashboard");
+      }catch(e){
+        console.log("error")
+      }
+      
+
+      
+    } catch (error: any) {
+      console.error("Register Vehicle Error:", error.response?.data || error.message);
+      alert(error.response?.data?.message || "Failed to register vehicle");
+    }
   };
 
   const nextStep = () => {
-    if (currentStep < 4) setCurrentStep(currentStep + 1);
+    if (currentStep < 4) {
+      console.log("Moving to step:", currentStep + 1);
+      setCurrentStep((prev) => prev + 1);
+    }
   };
 
   const prevStep = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1);
+    if (currentStep > 1) {
+      setCurrentStep((prev) => prev - 1);
+    }
   };
+
+  // image upload part in frontend
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    setVehicleData((prev) => ({
+      ...prev,
+      images: [...prev.images, ...files], // store actual files
+    }));
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Add New Vehicle</h1>
-            <p className="text-gray-600">List your vehicle for rent and start earning</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Add New Vehicle
+            </h1>
+            <p className="text-gray-600">
+              List your vehicle for rent and start earning
+            </p>
           </div>
 
           {/* Progress Steps */}
@@ -105,41 +196,62 @@ const AddVehiclePage: React.FC = () => {
             <div className="flex items-center justify-between">
               {steps.map((step, index) => (
                 <div key={step.id} className="flex items-center">
-                  <div className={`flex items-center justify-center w-12 h-12 rounded-full border-2 ${
-                    currentStep >= step.id
-                      ? 'bg-blue-600 border-blue-600 text-white'
-                      : 'border-gray-300 text-gray-500'
-                  }`}>
+                  <div
+                    className={`flex items-center justify-center w-12 h-12 rounded-full border-2 ${
+                      currentStep >= step.id
+                        ? "bg-blue-600 border-blue-600 text-white"
+                        : "border-gray-300 text-gray-500"
+                    }`}
+                  >
                     <step.icon className="w-6 h-6" />
                   </div>
                   <div className="ml-3">
-                    <p className={`text-sm font-medium ${
-                      currentStep >= step.id ? 'text-blue-600' : 'text-gray-500'
-                    }`}>
+                    <p
+                      className={`text-sm font-medium ${
+                        currentStep >= step.id
+                          ? "text-blue-600"
+                          : "text-gray-500"
+                      }`}
+                    >
                       Step {step.id}
                     </p>
-                    <p className={`text-xs ${
-                      currentStep >= step.id ? 'text-blue-600' : 'text-gray-500'
-                    }`}>
+                    <p
+                      className={`text-xs ${
+                        currentStep >= step.id
+                          ? "text-blue-600"
+                          : "text-gray-500"
+                      }`}
+                    >
                       {step.title}
                     </p>
                   </div>
                   {index < steps.length - 1 && (
-                    <div className={`w-16 h-1 mx-4 ${
-                      currentStep > step.id ? 'bg-blue-600' : 'bg-gray-300'
-                    }`} />
+                    <div
+                      className={`w-16 h-1 mx-4 ${
+                        currentStep > step.id ? "bg-blue-600" : "bg-gray-300"
+                      }`}
+                    />
                   )}
                 </div>
               ))}
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-8">
+          <form
+            onSubmit={handleSubmit}
+            className="bg-white rounded-xl shadow-lg p-8"
+          >
+            <div className="mb-4 text-gray-700">
+              Current Step: {currentStep}
+            </div>
+
             {/* Step 1: Basic Information */}
             {currentStep === 1 && (
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold mb-6">Basic Information</h2>
-                
+                <h2 className="text-xl font-semibold mb-6">
+                  Basic Information
+                </h2>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -147,9 +259,9 @@ const AddVehiclePage: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      name="name"
+                      name="vehicleName"
                       required
-                      value={vehicleData.name}
+                      value={vehicleData.vehicleName}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., Toyota Camry 2023"
@@ -207,19 +319,33 @@ const AddVehiclePage: React.FC = () => {
                       Vehicle Type *
                     </label>
                     <select
-                      name="type"
+                      name="vehicleType"
                       required
-                      value={vehicleData.type}
+                      value={vehicleData.vehicleType}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Select type</option>
-                      {vehicleTypes.map(type => (
+                      {vehicleTypes.map((type) => (
                         <option key={type} value={type}>
                           {type.charAt(0).toUpperCase() + type.slice(1)}
                         </option>
                       ))}
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Vehicle License Number *
+                    </label>
+                    <input
+                      type="text"
+                      name="vehicleLicenseNumber"
+                      required
+                      value={vehicleData.vehicleLicenseNumber}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="CAR2220"
+                    />
                   </div>
                 </div>
 
@@ -242,8 +368,10 @@ const AddVehiclePage: React.FC = () => {
             {/* Step 2: Specifications */}
             {currentStep === 2 && (
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold mb-6">Vehicle Specifications</h2>
-                
+                <h2 className="text-xl font-semibold mb-6">
+                  Vehicle Specifications
+                </h2>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -252,11 +380,11 @@ const AddVehiclePage: React.FC = () => {
                     </label>
                     <input
                       type="number"
-                      name="seats"
+                      name="noSeats"
                       required
                       min="2"
                       max="15"
-                      value={vehicleData.seats}
+                      value={vehicleData.noSeats}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
@@ -275,7 +403,7 @@ const AddVehiclePage: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Select fuel type</option>
-                      {fuelTypes.map(type => (
+                      {fuelTypes.map((type) => (
                         <option key={type} value={type}>
                           {type.charAt(0).toUpperCase() + type.slice(1)}
                         </option>
@@ -296,7 +424,7 @@ const AddVehiclePage: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Select transmission</option>
-                      {transmissionTypes.map(type => (
+                      {transmissionTypes.map((type) => (
                         <option key={type} value={type}>
                           {type.charAt(0).toUpperCase() + type.slice(1)}
                         </option>
@@ -324,8 +452,8 @@ const AddVehiclePage: React.FC = () => {
                   <label className="flex items-center space-x-2">
                     <input
                       type="checkbox"
-                      name="hasDriver"
-                      checked={vehicleData.hasDriver}
+                      name="isDriverAvailable"
+                      checked={vehicleData.isDriverAvailable}
                       onChange={handleInputChange}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
@@ -340,8 +468,10 @@ const AddVehiclePage: React.FC = () => {
             {/* Step 3: Pricing & Location */}
             {currentStep === 3 && (
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold mb-6">Pricing & Location</h2>
-                
+                <h2 className="text-xl font-semibold mb-6">
+                  Pricing & Location
+                </h2>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -367,10 +497,10 @@ const AddVehiclePage: React.FC = () => {
                     </label>
                     <input
                       type="number"
-                      name="pricePerKm"
+                      name="pricePerDistance"
                       min="0"
                       step="0.01"
-                      value={vehicleData.pricePerKm}
+                      value={vehicleData.pricePerDistance}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., 0.50"
@@ -390,7 +520,7 @@ const AddVehiclePage: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Select location</option>
-                      {locations.map(location => (
+                      {locations.map((location) => (
                         <option key={location} value={location}>
                           {location}
                         </option>
@@ -452,13 +582,18 @@ const AddVehiclePage: React.FC = () => {
             {/* Step 4: Features & Images */}
             {currentStep === 4 && (
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold mb-6">Features & Images</h2>
-                
+                <h2 className="text-xl font-semibold mb-6">
+                  Features & Images
+                </h2>
+
                 <div>
                   <h3 className="text-lg font-medium mb-4">Vehicle Features</h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {availableFeatures.map(feature => (
-                      <label key={feature} className="flex items-center space-x-2 cursor-pointer">
+                    {availableFeatures.map((feature) => (
+                      <label
+                        key={feature}
+                        className="flex items-center space-x-2 cursor-pointer"
+                      >
                         <input
                           type="checkbox"
                           checked={vehicleData.features.includes(feature)}
@@ -479,46 +614,86 @@ const AddVehiclePage: React.FC = () => {
                     <p className="text-sm text-gray-500">
                       Add at least 3 high-quality photos of your vehicle
                     </p>
-                    <button
-                      type="button"
-                      className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    {/* Hidden file input */}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      id="vehicleImages"
+                      className="hidden"
+                    />
+
+                    <label
+                      htmlFor="vehicleImages"
+                      className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
                     >
                       Choose Files
-                    </button>
+                    </label>
                   </div>
+
+                  {/* Show previews */}
+                  {vehicleData.images.length > 0 && (
+                    <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {vehicleData.images.map((img, idx) => (
+                        <div key={idx} className="relative">
+
+                        <img
+                          src={URL.createObjectURL(img)}
+                          alt={`Vehicle ${idx + 1}`}
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setVehicleData((prev) => ({
+                                ...prev,
+                                images: prev.images.filter((_, i) => i !== idx),
+                              }))
+                            }
+                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
+          </form>
 
-            {/* Navigation Buttons */}
-            <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
+          {/* Navigation Buttons */}
+          <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={prevStep}
+              disabled={currentStep === 1}
+              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+
+            {currentStep < 4 ? (
               <button
                 type="button"
-                onClick={prevStep}
-                disabled={currentStep === 1}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={nextStep}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Previous
+                Next
               </button>
-
-              {currentStep < 4 ? (
-                <button
-                  type="button"
-                  onClick={nextStep}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Next
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Add Vehicle
-                </button>
-              )}
-            </div>
-          </form>
+            ) : (
+              <button
+                type="submit"
+                onClick={handleSubmit}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Add Vehicle
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
