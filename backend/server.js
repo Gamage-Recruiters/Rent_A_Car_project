@@ -2,128 +2,95 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const passport = require('passport');
 require('dotenv').config();
 require('./config/googlePassport');
 
-
-
-
-
-const passport = require('passport');
-
-
-const app = express();
 const DatabaseConfig = require('./config/dbConfig');
 
+const app = express();
+
+// ============================
+// ✅ Middleware
+// ============================
 const allowedOrigins = [
-  process.env.CLIENT_URL,   
-  process.env.ADMIN_URL     
+  process.env.CLIENT_URL,
+  process.env.ADMIN_URL,
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin) || !origin) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
 }));
 
 app.use(express.json());
 app.use(cookieParser());
 app.use(passport.initialize());
 
-// Serve static files for uploads route
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// ✅ Serve static files (profile images, etc.)
+app.use('/uploads/ownerProfileImages', express.static(path.join(__dirname, 'uploads/ownerProfileImages')));
 
-//Database Connection
-// uncomment this after defining the mongo uri in .env file
+// ============================
+// ✅ Database Connection
+// ============================
+DatabaseConfig(process.env.dbURI);
 
-DatabaseConfig(process.env.dbURI);   
+// ============================
+// ✅ Routes
+// ============================
 
-// Server Connection
+// 🔹 Auth
+app.use("/api/auth/customer", require("./Routers/Auth/customer/customer-authRouter"));
+app.use("/api/auth/owner", require("./Routers/Auth/owner/owner-authRouter"));
+app.use("/api/auth/superadmin", require("./Routers/Auth/admin/admin-authRouter"));
+
+// 🔹 Customer
+app.use("/api/customer/profile", require("./Routers/Customer/profileRouter"));
+app.use("/api/customer/booking", require("./Routers/Customer/bookingRouter"));
+app.use("/api/customer/favorite", require("./Routers/Customer/favoriteRouter"));
+app.use("/api/customer/review", require("./Routers/Customer/reviewRouter"));
+app.use("/api/customer/contact", require("./Routers/Customer/contactRouter"));
+app.use("/api/customer/rental-history", require("./Routers/Customer/rentalHistoryRouter"));
+app.use("/api/customer/vehicle", require("./Routers/Customer/vehicleRouter"));
+app.use("/api/customer/newsletter", require("./Routers/Customer/newsLetterRouter"));
+app.use("/api/customer/dashboard", require("./Routers/Customer/dashboardRouter"));
+
+// 🔹 Owner
+app.use("/api/owner/vehicle", require("./Routers/Owner/ownerVehicleRouter"));
+app.use("/api/owner/profile", require("./Routers/Owner/ownerProfileRouter"));
+app.use("/api/owner/bookings", require("./Routers/Owner/ownerBookingRouter"));
+
+// 🔹 Super Admin (Company Dashboard)
+app.use("/api/superadmin", require("./Routers/Admin/admin-ownerRouter"));
+app.use("/api/superadmin", require("./Routers/Admin/admin-vehicleRouter"));
+app.use("/api/superadmin", require("./Routers/Admin/admin-customerRoute"));
+app.use("/api/superadmin", require("./Routers/Admin/admin-profileRouter"));
+
+// ============================
+// ✅ Health Check
+// ============================
+app.get('/', (req, res) => {
+  res.send("🚀 API is Working");
+});
+
+// ============================
+// ✅ Error Handling Middleware
+// ============================
+app.use((err, req, res, next) => {
+  console.error("❌ Error:", err.message);
+  res.status(500).json({ error: err.message || "Internal Server Error" });
+});
+
+// ============================
+// ✅ Start Server
+// ============================
 const PORT = process.env.PORT || 5000;
-
-
-
-// auth 
-const customerAuth = require("./Routers/Auth/customer/customer-authRouter");
-app.use("/api/auth/customer", customerAuth);
-
-const ownerAuth = require("./Routers/Auth/owner/owner-authRouter");
-app.use("/api/auth/owner", ownerAuth);
-
-const superadminAuthRouter = require('./Routers/Auth/admin/admin-authRouter');
-app.use("/api/auth/superadmin", superadminAuthRouter);
-
-
-
-// Customer Routers
-const profile = require('./Routers/Customer/profileRouter');
-app.use('/api/customer/profile', profile);
-
-const customerBookingRouter = require('./Routers/Customer/bookingRouter');
-app.use('/api/customer/booking', customerBookingRouter);
-
-const favoriteRouter = require('./Routers/Customer/favoriteRouter');
-app.use('/api/customer/favorite', favoriteRouter);
-
-const reviewRouter = require('./Routers/Customer/reviewRouter');
-app.use('/api/customer/review', reviewRouter);
-
-const contactRouter = require('./Routers/Customer/contactRouter');
-app.use('/api/customer/contact', contactRouter);
-
-const rentalHistoryRouter = require('./Routers/Customer/rentalHistoryRouter');
-app.use('/api/customer/rental-history', rentalHistoryRouter);
-
-const vehicleRouter = require('./Routers/Customer/vehicleRouter');
-app.use('/api/customer/vehicle', vehicleRouter);
-
-const newsletter = require('./Routers/Customer/newsLetterRouter');
-app.use('/api/customer/newsletter', newsletter);
-
-const dashboard = require('./Routers/Customer/dashboardRouter');
-app.use('/api/customer/dashboard', dashboard);
-
-// Owner Routers
-const ownerVehicleRouter = require('./Routers/Owner/ownerVehicleRouter');
-app.use('/api/owner/vehicle', ownerVehicleRouter)
-
-const ownerProfileRouter = require('./Routers/Owner/ownerProfileRouter');
-app.use('/api/owner/profile', ownerProfileRouter); 
-
-const ownerBookingRouter = require('./Routers/Owner/ownerBookingRouter');
-app.use('/api/owner/bookings', ownerBookingRouter);
-
-
-// Super Admin Routers  ( Company Dashboard )
-
-const adminOwnerRoutes = require('./Routers/Admin/admin-ownerRouter');
-app.use('/api/superadmin', adminOwnerRoutes);
-
-const adminVehicleRouter = require('./Routers/Admin/admin-vehicleRouter');
-app.use('/api/superadmin', adminVehicleRouter);
-
-const adminCustomerRouter = require('./Routers/Admin/admin-customerRoute');
-app.use('/api/superadmin', adminCustomerRouter);
-
-const adminProfileRouter = require('./Routers/Admin/admin-profileRouter');
-app.use('/api/superadmin', adminProfileRouter);
-
-
-
-
-
-app.get('/',(req,res) => {
-        res.send("API is Working")
-})
-
-
-
-
 app.listen(PORT, () => {
-        console.log(`server is running on PORT ${PORT}`)
-})
+  console.log(`✅ Server is running on PORT ${PORT}`);
+});
