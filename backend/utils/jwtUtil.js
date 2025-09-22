@@ -1,9 +1,9 @@
 const jwt = require('jsonwebtoken');
 
-
+// access token
 function createToken(userData) {
 
-    const expTime = Math.floor(Date.now() / 1000) + 60 * 60; // 1 hour ...
+    const expTime = Math.floor(Date.now() / 1000) + 15 * 60; // 15 minutes ...
 
     try {
         // generate a new token ...
@@ -23,6 +23,34 @@ function createToken(userData) {
 
 }
 
+// refresh token
+function createRefreshToken(userData) {
+    const expTime = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60);
+
+    try {
+        const refreshToken = jwt.sign({
+            id: userData.id,
+            email: userData.email || 'no email',
+            userRole: userData.userRole || 'user',
+            type: 'refresh',
+            exp: expTime,
+        }, process.env.JWT_REFRESH_SECRET);
+        return refreshToken;
+    } catch (err) {
+        console.log(err);
+        return null;
+    }
+}
+
+function verifyRefreshToken(token) {
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+        return decoded;
+    } catch (err) {
+        console.log(err);
+        return null;
+    }
+}
 
 function verifyToken(req, res, next) {
     const token = req.cookies.token;
@@ -45,4 +73,31 @@ function verifyToken(req, res, next) {
 
 }
 
-module.exports = { createToken, verifyToken };
+// Create password reset token
+function createResetToken(userId) {
+    const expTime = Math.floor(Date.now() / 1000) + (60 * 60); // 1 hour
+
+    try {
+        const resetToken = jwt.sign({
+            id: userId,
+            type: 'password_reset',
+            exp: expTime,
+        }, process.env.RESET_TOKEN_SECRET);
+        return resetToken;
+    } catch (err) {
+        console.log(err);
+        return null;
+    }
+}
+
+function verifyResetToken(token) {
+    try {
+        const decoded = jwt.verify(token, process.env.RESET_TOKEN_SECRET);
+        return decoded;
+    } catch (err) {
+        console.log(err);
+        return null;
+    }
+}
+
+module.exports = { createToken, createRefreshToken, verifyRefreshToken, verifyToken, createResetToken, verifyResetToken };

@@ -1,80 +1,16 @@
-const User = require('../../../Models/userModel');
+const User = require('../../../Models/superAdminModel');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { hashPassword, checkPassword } = require('../../../utils/bcryptUtil');
-
-const { createToken } = require('../../../Utils/jwtUtil');
-
-
-//Note: this is for to understand and make neccessory changes in this
+const { createToken,createRefreshToken } = require('../../../utils/jwtUtil');
+const { isSuperAdmin ,isSuperAdminUser } = require('../../../middleware/auth/authorization');
 
 
-// Signup   Direct Regiter
-async function addUser(req, res) {
 
 
-    try {
-        const { email, password, firstName, lastName } = req.body;
 
-        // check if all fields are not empty
-        if (!email || !password || !firstName) {
-            return res.status(400).json({ message: 'All Fields Required' });
-        }
-
-
-        // check user already exsist with this email first
-        const isUserExsist = await User.findOne({ email });
-        if (isUserExsist) {
-            return res.status(409).json({ message: "User Email Already Exsist" });
-        }
-
-        //Hash Password
-        const hashedPassword = await hashPassword(password);
-
-        //Add new user to the database
-        const newUser = await User.create({ email, password: hashedPassword, firstName, lastName });
-        if (newUser) {
-
-            const payload = {
-                id: newUser._id.toString(),
-                email: newUser.email,
-                userRole: newUser.userRole
-
-            }
-
-            const token = createToken(payload);
-
-
-            if (!token) {
-                return res.status(500).json({ message: 'Token Not Generated' });
-
-            }
-
-            // sending success Response
-            return res.status(200).cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'Strict', maxAge: 1000 * 60 * 60 * 24 * 5 }).json({ message: "User Registration Successfull" });
-
-
-        }
-
-    } catch (error) {
-
-        if (error.code === 11000) {
-            console.warn("Duplicate slipped through:", email);
-            return res.status(409).json({ message: "User Email Already Exsist" });
-        }
-
-        // Email Validation
-        if (error.name === "ValidationError") {
-
-            return res.status(400).json({ message: "Invalid Email format" });
-        }
-
-        // Other Errors
-        return res.status(500).json({ message: 'Server Error', error: error.message });
-    }
-
-}
-
-
-async function loginUser(req, res) {
+// Login Super Admin
+async function loginSuperAdmin(req, res) {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -82,14 +18,12 @@ async function loginUser(req, res) {
     }
 
     try {
-        const existUser = await User.findOne({ email });
-
-        if (!existUser) {
-            return res.status(400).json({ message: "Invalid Email" });
+        const existUser = await User.findOne({ email});//, userRole: 'super-admin' });
+        if (!existUser || !isSuperAdminUser(existUser) ) {
+            return res.status(400).json({ message: "Invalid Email or Not a Super Admin" });
         }
 
         const isPassMatch = await checkPassword(password, existUser.password);
-
         if (!isPassMatch) {
             return res.status(400).json({ message: "Invalid Password" });
         }
@@ -100,111 +34,160 @@ async function loginUser(req, res) {
             userRole: existUser.userRole,
         };
 
-        const token = createToken(payload);
+        const accessToken = createToken(payload);
+        const refreshToken = createRefreshToken(payload);
 
-        // Choose cookie name based on role
-        const cookieName = (existUser.userRole === 'admin' || existUser.userRole === 'super admin')
-            ? 'adminToken'
-            : 'token';
-
-        res.cookie(cookieName, token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'Strict',
-            maxAge: 1000 * 60 * 60 * 24 * 5, // 5 days
-        });
-
-        return res.status(200).json({ message: "Login Successful", userRole: existUser.userRole });
+        res
+            .cookie(process.env.SUPERADMIN_COOKIE_NAME, accessToken, { httpOnly: true })
+            .cookie(process.env.SUPERADMIN_REFRESH_COOKIE_NAME, refreshToken, { httpOnly: true })
+            .status(200)
+            .json({
+                message: "Super Admin Login Successful",
+                userRole: existUser.userRole,
+                accessToken,
+                refreshToken
+            });
 
     } catch (error) {
-        if (error.name === "ValidationError") {
-            return res.status(400).json({ message: "Invalid Email format" });
-        }
         return res.status(500).json({ message: 'Server Error', error: error.message });
     }
 }
 
-async function logoutUser(req, res) {
-    res.clearCookie('token', {
+// Create admin (only logged-in superadmin)
+async function createAdminBySuperAdmin(req, res) {
+    try {
+        const { email, password, firstName, lastName } = req.body;
+        if (!email || !password || !firstName) return res.status(400).json({ message: 'Missing fields' });
+
+        const exist = await User.findOne({ email });
+        if (exist) return res.status(409).json({ message: 'Admin with this email already exists' });
+
+        const hashed = await hashPassword(password);
+        const newAdmin = await User.create({
+            email,
+            password: hashed,
+            firstName,
+            lastName,
+            userRole: 'super-admin',
+            status: 'approved'
+        });
+
+        res.status(201).json({ message: 'Admin created', adminId: newAdmin._id });
+    } catch (err) {
+        res.status(500).json({ message: 'Error creating admin', error: err.message });
+    }
+}
+
+async function getAllAdmins(req, res) {
+    try {
+        const admins = await User.find({ userRole: 'super-admin' }).select('-password -resetPasswordToken -resetPasswordExpires');
+        res.status(200).json(admins);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching admins', error: err.message });
+    }
+}
+
+async function getAdminById(req, res) {
+    try {
+        const admin = await User.findById(req.params.id).select('-password -resetPasswordToken -resetPasswordExpires');
+        if (!admin) return res.status(404).json({ message: 'Admin not found' });
+        res.status(200).json(admin);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching admin', error: err.message });
+    }
+}
+
+async function deleteAdmin(req, res) {
+    try {
+        const targetId = req.params.id;
+        if (req.user && req.user.id === targetId) {
+            return res.status(400).json({ message: 'Cannot delete currently logged-in admin' });
+        }
+        const admin = await User.findByIdAndDelete(targetId);
+        if (!admin) return res.status(404).json({ message: 'Admin not found' });
+        res.status(200).json({ message: 'Admin deleted' });
+    } catch (err) {
+        res.status(500).json({ message: 'Error deleting admin', error: err.message });
+    }
+}
+
+
+// Logout Super Admin
+async function logoutSuperAdmin(req, res) {
+    res.clearCookie(process.env.SUPERADMIN_COOKIE_NAME, {   // ✅ unified cookie name
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'Strict'
     });
-
-    return res.status(200).json({ message: 'Logout successful' });
+    return res.status(200).json({ message: 'Super Admin logout successful' });
 }
 
+//forgotten password
 
-async function findOrCreateGoogleUser(profile) {
+const requestPasswordReset = async (req, res) => {
     try {
-        const existingUser = await User.findOne({
-            $or: [
-                { googleId: profile.id },
-                { email: profile.emails?.[0]?.value }
-            ]
+        const { email } = req.body;
+
+        const admin = await User.findOne({ email });
+        if (!admin) {
+            return res.status(404).json({ message: 'Admin not found' });
+        }
+
+        // Generate reset token
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        admin.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+        admin.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // Token valid for 10 minutes
+        await admin.save();
+
+        // Send email
+        const resetUrl = `http://localhost:5000/api/superadmin/reset-password/${resetToken}`;
+        const message = `You requested a password reset. Click the link to reset your password: ${resetUrl}`;
+
+        const transporter = nodemailer.createTransport({
+            service: 'Gmail',
+            auth: {
+                user: process.env.APP_EMAIL,
+                pass: process.env.APP_PASSWORD
+            },
         });
 
-        if (existingUser) {
-            return existingUser;
-        }
-
-        const newUser = await User.create({
-            googleId: profile.id,
-            firstName: profile.name.givenName || '',
-            lastName: profile.name.familyName || '',
-            email: profile.emails?.[0]?.value || '',
-            photo: profile.photos[0]?.value || ''
+        await transporter.sendMail({
+            to: admin.email,
+            subject: 'Password Reset Request',
+            text: message,
         });
 
-        return newUser;
-
+        res.status(200).json({ message: 'Password reset email sent' });
     } catch (error) {
-        throw error;
+        res.status(500).json({ message: 'Error requesting password reset', error: error.message });
     }
-}
+};
 
-async function googleLoginUser(req, res) {
-
+const resetPassword = async (req, res) => {
     try {
+        const { token } = req.params;
+        const { newPassword } = req.body;
 
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+        const admin = await User.findOne({
+            resetPasswordToken: hashedToken,
+            resetPasswordExpires: { $gt: Date.now() }, // Check if token is still valid
+        });
 
-        const payload = {
-
-            id: req.user._id.toString(),
-
-            googleId: req.user.googleId,
-
-            email: req.user.email,
-
-            userRole: req.user.userRole
+        if (!admin) {
+            return res.status(400).json({ message: 'Invalid or expired token' });
         }
 
-        const token = createToken(payload);
+        // Reset password
+        admin.password = await hashPassword(newPassword);
+        admin.resetPasswordToken = undefined;
+        admin.resetPasswordExpires = undefined;
+        await admin.save();
 
-        res.status(200)
-            .cookie('token', token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'Strict', maxAge: 1000 * 60 * 60 * 24 * 5     // 5 days 
-            })
-
-        return res.redirect(process.env.CLIENT_URL);
-
-
-    
+        res.status(200).json({ message: 'Password reset successfully' });
     } catch (error) {
-
-        // Email Validation
-        if (error.name === "ValidationError") {
-
-            return res.status(400).json({ message: "Invalid Email format" });
-        }
-        // Other Errors
-        return res.status(500).json({ message: 'Server Error', error: error.message });
+        res.status(500).json({ message: 'Error resetting password', error: error.message });
     }
+};
 
-}
-
-
-
-module.exports = { addUser, loginUser, logoutUser, findOrCreateGoogleUser, googleLoginUser }
+module.exports = { loginSuperAdmin, logoutSuperAdmin, requestPasswordReset, resetPassword, createAdminBySuperAdmin, getAllAdmins, getAdminById, deleteAdmin };
