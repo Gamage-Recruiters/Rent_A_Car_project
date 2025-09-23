@@ -1,5 +1,10 @@
 // --- ImageWithFallback component ---
-function ImageWithFallback({ src, alt }) {
+type ImageWithFallbackProps = {
+  src?: string;
+  alt?: string;
+};
+
+function ImageWithFallback({ src, alt }: ImageWithFallbackProps) {
   const [imgError, setImgError] = React.useState(false);
   const showFallback = imgError || !src;
   return (
