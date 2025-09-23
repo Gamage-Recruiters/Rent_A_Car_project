@@ -54,7 +54,7 @@ const SignupPage: React.FC = () => {
       );
 
       if (success) {
-        navigate(formData.userType === 'owner' ? '/owner-dashboard' : '/');
+        navigate(formData.userType === 'owner' ? '/login' : '/login');
       } else {
         setError('Failed to create account. Please try again.');
       }
