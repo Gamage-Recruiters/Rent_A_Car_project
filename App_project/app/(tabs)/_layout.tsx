@@ -1,16 +1,19 @@
 import { Tabs } from 'expo-router';
-import { Chrome as Home, Search, User, Settings, Car, HomeIcon } from 'lucide-react-native';
+import { Home, Search, User, Settings, Car } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUserStore } from '../../stores/userStore';
 
 export default function TabLayout() {
   const [userType, setUserType] = useState<string | null>(null);
+  const storeUserType = useUserStore((state) => state.userType);
   
   useEffect(() => {
     // Check for user type in AsyncStorage
     const checkUserType = async () => {
       try {
         const storedUserType = await AsyncStorage.getItem('userType');
+        console.log('UserType from AsyncStorage:', storedUserType);
         setUserType(storedUserType);
       } catch (error) {
         console.error('Error reading user type from storage:', error);
@@ -19,6 +22,13 @@ export default function TabLayout() {
     
     checkUserType();
   }, []);
+
+  // Use either the AsyncStorage value or the store value
+  const effectiveUserType = userType || storeUserType;
+  console.log('Effective user type:', effectiveUserType);
+  
+  const isOwner = effectiveUserType === 'owner';
+  console.log('Is owner:', isOwner);
 
   return (
     <Tabs
@@ -48,7 +58,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ size, color }) => (
-            <HomeIcon size={size} color={color} />
+            <Home size={size} color={color} />
           ),
         }}
       />
@@ -61,17 +71,17 @@ export default function TabLayout() {
           ),
         }}
       />
-      {userType === 'owner' && (
-        <Tabs.Screen
-          name="dashboard"
-          options={{
-            title: 'Dashboard',
-            tabBarIcon: ({ size, color }) => (
-              <Car size={size} color={color} />
-            ),
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: ({ size, color }) => (
+            <Car size={size} color={color} />
+          ),
+          // Only show dashboard tab for owners
+          href: isOwner ? undefined : null,
+        }}
+      />
       <Tabs.Screen
         name="profile"
         options={{
