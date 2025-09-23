@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, Search, User, Settings, Car } from 'lucide-react-native';
+import { Home, Search, User, Settings, Car, Calendar } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '../../stores/userStore';
@@ -88,6 +88,16 @@ export default function TabLayout() {
           title: 'Profile',
           tabBarIcon: ({ size, color }) => (
             <User size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="rental_history"
+        options={{
+          title: 'History',
+          tabBarIcon: ({ size, color }) => (
+            <Calendar size={size} color={color} />
           ),
         }}
       />
