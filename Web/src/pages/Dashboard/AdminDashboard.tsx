@@ -1,10 +1,9 @@
 "use client";
 
 import type React from "react";
+import DashboardOverview from "../../components/DashboardOverview";
 import {
   Users,
-  Calendar,
-  DollarSign,
   Clock,
   TrendingUp,
   TrendingDown,
@@ -30,37 +29,59 @@ const AdminDashboard: React.FC = () => {
       borderColor: "border-l-blue-500",
     },
     {
-      title: "Total Bookings",
-      value: "3,429",
-      change: "+8.2%",
+      title: "Total Owners",
+      value: "435",
+      change: "+10.2%",
       changeType: "increase",
-      icon: Calendar,
-      description: "Bookings this month",
+      icon: Users, // Could be a different icon for owners
+      description: "Total registered owners",
       color: "text-green-600",
       bgColor: "bg-green-50",
       borderColor: "border-l-green-500",
     },
     {
-      title: "Revenue",
-      value: "$89,432",
-      change: "+15.3%",
+      title: "Approved Owners",
+      value: "320",
+      change: "+5.8%",
       changeType: "increase",
-      icon: DollarSign,
-      description: "Total revenue this month",
+      icon: Users, // Or a different icon for approved
+      description: "Approved owners this month",
       color: "text-purple-600",
       bgColor: "bg-purple-50",
       borderColor: "border-l-purple-500",
     },
     {
-      title: "Pending Verifications",
+      title: "Total Customers",
+      value: "10,234",
+      change: "+8.3%",
+      changeType: "increase",
+      icon: Users, // Could use a different icon for customers
+      description: "Total customers this month",
+      color: "text-teal-600",
+      bgColor: "bg-teal-50",
+      borderColor: "border-l-teal-500",
+    },
+    {
+      title: "Total Admins",
+      value: "5",
+      change: "+2.0%",
+      changeType: "increase",
+      icon: Users, // Could use a different icon for admins
+      description: "Total admins on the platform",
+      color: "text-yellow-600",
+      bgColor: "bg-yellow-50",
+      borderColor: "border-l-yellow-500",
+    },
+    {
+      title: "Total Pending Requests",
       value: "47",
       change: "-5.1%",
       changeType: "decrease",
       icon: Clock,
-      description: "Awaiting verification",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-l-orange-500",
+      description: "Requests awaiting approval",
+      color: "text-red-600",
+      bgColor: "bg-red-50",
+      borderColor: "border-l-red-500",
     },
   ];
 
@@ -88,6 +109,22 @@ const AdminDashboard: React.FC = () => {
       user: "mike.wilson@email.com",
       time: "18 minutes ago",
       type: "verification",
+    },
+    {
+      action: "Owner request received",
+      user: "emma.jones@email.com",
+      time: "30 minutes ago",
+      type: "owner-request",
+      buttons: (
+        <div className="flex space-x-2">
+          <button className="px-4 py-2 bg-green-500 text-white rounded-md">
+            Approve
+          </button>
+          <button className="px-4 py-2 bg-red-500 text-white rounded-md">
+            Reject
+          </button>
+        </div>
+      ),
     },
   ];
 
@@ -129,6 +166,7 @@ const AdminDashboard: React.FC = () => {
 
       {/* Main Content */}
       <div className="p-6">
+        <DashboardOverview />
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {metrics.map((metric, index) => {
@@ -202,7 +240,9 @@ const AdminDashboard: React.FC = () => {
                         ? "bg-green-500"
                         : activity.type === "payment"
                         ? "bg-purple-500"
-                        : "bg-orange-500"
+                        : activity.type === "owner-request"
+                        ? "bg-orange-500"
+                        : "bg-gray-500"
                     }`}
                   />
                   <div>
@@ -213,6 +253,7 @@ const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
                 <span className="text-xs text-gray-400">{activity.time}</span>
+                {activity.buttons && activity.buttons}
               </div>
             ))}
           </div>
