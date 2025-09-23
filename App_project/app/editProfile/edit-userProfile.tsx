@@ -101,8 +101,14 @@ export default function EditProfileScreen() {
   const getImageUrl = (photoPath) => {
     if (!photoPath) return null;
     if (photoPath.startsWith('http')) return photoPath;
-    return `${API_URL.replace('/api', '')}${photoPath}`;
-  };
+    
+    // Remove '/api' from API_URL when constructing image URLs
+    const baseUrl = API_URL?.includes('/api') 
+        ? API_URL.substring(0, API_URL.indexOf('/api'))
+        : API_URL;
+        
+    return `${baseUrl}${photoPath}`;
+    };
 
   const handleImageChange = async () => {
     try {
@@ -161,8 +167,13 @@ export default function EditProfileScreen() {
       
       // Add image if selected
       if (imageFile) {
-        formData.append('customerProfileImage', imageFile);
-      }
+        formData.append('customerProfileImage', {
+            uri: imageFile.uri,
+            type: 'image/jpeg',
+            name: imageFile.name || 'profile-image.jpg',
+        });
+        console.log('Adding image file to form data:', imageFile);
+    }
 
       console.log('Sending update with data:', formData);
 
@@ -215,7 +226,7 @@ export default function EditProfileScreen() {
       <View style={styles.imageContainer}>
         <TouchableOpacity onPress={handleImageChange}>
           {profileImage ? (
-            <Image source={{ uri: profileImage }} style={styles.profileImage} />
+            <Image source={{ uri: profileImage || 'https://via.placeholder.com/150?text=Profile' }} style={styles.profileImage} />
           ) : (
             <View style={[styles.profileImage, styles.profileImagePlaceholder]}>
               <Text style={styles.profileImagePlaceholderText}>
