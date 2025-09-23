@@ -89,6 +89,16 @@ export default function TabLayout() {
           tabBarIcon: ({ size, color }) => (
             <User size={size} color={color} />
           ),
+          // Redirect to appropriate profile screen
+          href: isOwner ? '/(tabs)/profile' : '/(tabs)/userProfile',
+        }}
+      />
+
+      <Tabs.Screen
+        name="userProfile"
+        options={{
+          // Hide this from tab bar
+          href: null,
         }}
       />
 
