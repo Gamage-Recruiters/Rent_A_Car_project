@@ -4,9 +4,27 @@ const nodemailer = require('nodemailer');
 const { hashPassword, checkPassword } = require('../../../utils/bcryptUtil');
 const { createToken,createRefreshToken } = require('../../../utils/jwtUtil');
 const { isSuperAdmin ,isSuperAdminUser } = require('../../../middleware/auth/authorization');
+const Activity = require('../../../Models/activityModel');
 
+// helper: non-blocking logger
+async function logActivity({ action, user = 'system', type = 'general', meta = {} } = {}) {
+  try {
+    await Activity.create({ action, user, type, meta });
+  } catch (err) {
+    console.error('logActivity error:', err && err.message);
+  }
+}
 
-
+// controller: fetch recent activities
+async function getRecentActivities(req, res) {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 10, 100);
+    const activities = await Activity.find().sort({ createdAt: -1 }).limit(limit).lean();
+    res.status(200).json(activities);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching activities', error: err.message });
+  }
+}
 
 
 // Login Super Admin
@@ -163,6 +181,28 @@ const requestPasswordReset = async (req, res) => {
     }
 };
 
+async function getProfile(req, res) {
+  try {
+    const id = req.user?.id || req.user?._id;
+    if (!id) return res.status(401).json({ message: 'Unauthenticated' });
+
+    const admin = await User.findById(id).select('-password -resetPasswordToken -resetPasswordExpires');
+    if (!admin) return res.status(404).json({ message: 'Admin not found' });
+
+    res.status(200).json({
+      _id: admin._id,
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      email: admin.email,
+      userRole: admin.userRole,
+      status: admin.status,
+      createdAt: admin.createdAt
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching profile', error: err.message });
+  }
+}
+
 const resetPassword = async (req, res) => {
     try {
         const { token } = req.params;
@@ -193,4 +233,33 @@ const resetPassword = async (req, res) => {
     }
 };
 
-module.exports = { loginSuperAdmin, logoutSuperAdmin, requestPasswordReset, resetPassword, createAdminBySuperAdmin, getAllAdmins, getAdminById, deleteAdmin };
+async function createInitialAdmin(req, res) {
+  try {
+    const { email, password, firstName, lastName } = req.body;
+    if (!email || !password || !firstName) {
+      return res.status(400).json({ message: 'Missing fields' });
+    }
+
+    // Only allow if no super-admin exists yet
+    const existingCount = await User.countDocuments({ userRole: 'super-admin' });
+    if (existingCount > 0) {
+      return res.status(403).json({ message: 'Initial super-admin already created' });
+    }
+
+    const hashed = await hashPassword(password);
+    const newAdmin = await User.create({
+      email,
+      password: hashed,
+      firstName,
+      lastName,
+      userRole: 'super-admin',
+      status: 'approved'
+    });
+
+    return res.status(201).json({ message: 'Initial super-admin created', adminId: newAdmin._id });
+  } catch (err) {
+    return res.status(500).json({ message: 'Error creating initial admin', error: err.message });
+  }
+}
+
+module.exports = { loginSuperAdmin, logoutSuperAdmin, requestPasswordReset, resetPassword, createAdminBySuperAdmin, getAllAdmins, getAdminById, deleteAdmin, createInitialAdmin,getProfile, getRecentActivities, logActivity };

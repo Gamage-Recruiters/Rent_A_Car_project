@@ -1,110 +1,132 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
-import { Trash2, Plus, User, Mail, Phone, Calendar, Key, Eye, EyeOff } from "lucide-react"
+import React from "react"
+import { useState, useEffect } from "react"
+import { Trash2, Plus, User, Mail, Phone, Calendar, Key, Eye } from "lucide-react"
 
 interface Admin {
-  id: number
-  name: string
+  _id: string
+  firstName?: string
+  lastName?: string
   email: string
-  password: string
-  registeredDate: string
-  phone: string
+  status?: string
+  createdAt?: string
 }
 
-const AdminList: React.FC = () => {
-  const [admins, setAdmins] = useState<Admin[]>([
-    {
-      id: 1,
-      name: "John Doe",
-      email: "john@example.com",
-      password: "abcd123",
-      registeredDate: "2025-09-10",
-      phone: "123-456-7890",
-    },
-    {
-      id: 2,
-      name: "Jane Smith",
-      email: "jane@example.com",
-      password: "abcd123",
-      registeredDate: "2025-09-11",
-      phone: "098-765-4321",
-    },
-  ])
+const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const API_URL = `${BASE.replace(/\/$/, "")}/auth/superadmin`;
 
-  // Modal for adding admin
+const AdminList: React.FC = () => {
+  const [admins, setAdmins] = useState<Admin[]>([])
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [activeAdmin, setActiveAdmin] = useState<Admin | null>(null)
+  const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [showModal, setShowModal] = useState(false)
 
-  // Modal for deleting admin
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
-  const [selectedAdminId, setSelectedAdminId] = useState<number | null>(null)
-
-  const [newAdmin, setNewAdmin] = useState<Omit<Admin, "id" | "registeredDate">>({
+  const [newAdmin, setNewAdmin] = useState<{ name: string; email: string; password: string; phone: string }>({
     name: "",
     email: "",
     password: "",
     phone: "",
   })
 
-  const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(new Set())
-
-  const togglePasswordVisibility = (adminId: number) => {
-    setVisiblePasswords((prev) => {
-      const newSet = new Set(prev)
-      if (newSet.has(adminId)) {
-        newSet.delete(adminId)
-      } else {
-        newSet.add(adminId)
+  const fetchAdmins = async () => {
+    setLoading(true)
+    setErr(null)
+    try {
+      const res = await fetch(`${API_URL}/admins`, { credentials: "include" })
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "")
+        throw new Error(txt || `Failed to load admins (${res.status})`)
       }
-      return newSet
-    })
+      const data = await res.json()
+      setAdmins(data || [])
+    } catch (e: any) {
+      setErr(e?.message || "Failed to load admins")
+      setAdmins([])
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // Add admin modal controls
-  const handleOpenModal = () => setShowModal(true)
-  const handleCloseModal = () => {
-    setShowModal(false)
-    setNewAdmin({ name: "", email: "", phone: "", password: "" })
-  }
+  useEffect(() => {
+    fetchAdmins()
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setNewAdmin((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleAddAdmin = (e: React.FormEvent) => {
+  const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault()
-    const newId = admins.length + 1
-    const today = new Date().toISOString().split("T")[0]
-
-    const admin: Admin = {
-      id: newId,
-      registeredDate: today,
-      ...newAdmin,
+    try {
+      const res = await fetch(`${API_URL}/admins`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: newAdmin.email,
+          password: newAdmin.password,
+          firstName: newAdmin.name.split(" ")[0] ?? "",
+          lastName: newAdmin.name.split(" ").slice(1).join(" ") ?? ""
+        })
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.message || `Create failed (${res.status})`)
+      await fetchAdmins()
+      setShowModal(false)
+      setNewAdmin({ name: "", email: "", password: "", phone: "" })
+    } catch (err: any) {
+      alert(err?.message || "Failed to create admin")
     }
-
-    setAdmins([...admins, admin])
-    handleCloseModal()
   }
 
-  // Handle delete modal open
-  const openDeleteModal = (id: number) => {
+  const handleView = async (id: string) => {
+    try {
+      const res = await fetch(`${API_URL}/admins/${id}`, { credentials: "include" })
+      if (!res.ok) throw new Error(`Failed (${res.status})`)
+      const data = await res.json()
+      setActiveAdmin(data)
+    } catch (e: any) {
+      alert(e?.message || "Failed to fetch admin details")
+    }
+  }
+
+  const openDeleteModal = (id: string) => {
     setSelectedAdminId(id)
     setDeleteModalOpen(true)
-  }
-
-  const handleDeleteConfirm = () => {
-    if (selectedAdminId !== null) {
-      setAdmins(admins.filter((admin) => admin.id !== selectedAdminId))
-    }
-    setDeleteModalOpen(false)
-    setSelectedAdminId(null)
   }
 
   const handleDeleteCancel = () => {
     setDeleteModalOpen(false)
     setSelectedAdminId(null)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (selectedAdminId === null) return
+    try {
+      const res = await fetch(`${API_URL}/admins/${selectedAdminId}`, {
+        method: "DELETE",
+        credentials: "include"
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.message || `Delete failed (${res.status})`)
+      await fetchAdmins()
+    } catch (err: any) {
+      alert(err?.message || "Failed to delete admin")
+    } finally {
+      setDeleteModalOpen(false)
+      setSelectedAdminId(null)
+    }
+  }
+
+  const handleOpenModal = () => setShowModal(true)
+  const handleCloseModal = () => {
+    setShowModal(false)
+    setNewAdmin({ name: "", email: "", phone: "", password: "" })
   }
 
   return (
@@ -131,21 +153,17 @@ const AdminList: React.FC = () => {
                 <th className="py-4 px-6 text-left font-semibold">ID</th>
                 <th className="py-4 px-6 text-left font-semibold">Name</th>
                 <th className="py-4 px-6 text-left font-semibold">Email</th>
-                <th className="py-4 px-6 text-left font-semibold">Password</th>
-                <th className="py-4 px-6 text-left font-semibold">Registered Date</th>
-                <th className="py-4 px-6 text-left font-semibold">Phone</th>
-                <th className="py-4 px-6 text-center font-semibold">Action</th>
+                <th className="py-4 px-6 text-left font-semibold">Status</th>
+                <th className="py-4 px-6 text-left font-semibold">Created</th>
+                <th className="py-4 px-6 text-center font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
               {admins.map((admin, index) => (
-                <tr
-                  key={admin.id}
-                  className={`hover:bg-slate-50 transition-colors duration-200 ${index % 2 === 0 ? "bg-white" : "bg-slate-25"}`}
-                >
+                <tr key={admin._id} className={`hover:bg-slate-50 transition-colors duration-200 ${index % 2 === 0 ? "bg-white" : "bg-slate-25"}`}>
                   <td className="py-4 px-6 border-b border-slate-100">
                     <span className="inline-flex items-center justify-center w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full text-sm font-semibold">
-                      {admin.id}
+                      {admin._id.slice(-6)}
                     </span>
                   </td>
                   <td className="py-4 px-6 border-b border-slate-100">
@@ -153,7 +171,7 @@ const AdminList: React.FC = () => {
                       <div className="w-10 h-10 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full flex items-center justify-center">
                         <User size={16} className="text-white" />
                       </div>
-                      <span className="font-medium text-slate-800">{admin.name}</span>
+                      <span className="font-medium text-slate-800">{(admin.firstName || "") + " " + (admin.lastName || "")}</span>
                     </div>
                   </td>
                   <td className="py-4 px-6 border-b border-slate-100">
@@ -162,49 +180,23 @@ const AdminList: React.FC = () => {
                       {admin.email}
                     </div>
                   </td>
-                  <td className="py-4 px-6 border-b border-slate-100">
-                    <div className="flex items-center gap-2 text-slate-600">
-                        <button
-                        onClick={() => togglePasswordVisibility(admin.id)}
-                        className="ml-1 p-1 hover:bg-slate-200 rounded transition-colors duration-200"
-                        title={visiblePasswords.has(admin.id) ? "Hide password" : "Show password"}
-                      >
-                        {visiblePasswords.has(admin.id) ? (
-                          <EyeOff size={14} className="text-slate-500" />
-                        ) : (
-                          <Eye size={14} className="text-slate-500" />
-                        )}
-                      </button>
-                      
-                      <span className="font-mono bg-slate-100 px-2 py-1 rounded text-sm">
-                        {visiblePasswords.has(admin.id) ? admin.password : "••••••••"}
-                      </span>
-                      
-                    </div>
-                  </td>
-                  <td className="py-4 px-6 border-b border-slate-100">
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <Calendar size={14} />
-                      {admin.registeredDate}
-                    </div>
-                  </td>
-                  <td className="py-4 px-6 border-b border-slate-100">
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <Phone size={14} />
-                      {admin.phone}
-                    </div>
-                  </td>
+                  <td className="py-4 px-6 border-b border-slate-100">{admin.status ?? "approved"}</td>
+                  <td className="py-4 px-6 border-b border-slate-100">{admin.createdAt ? new Date(admin.createdAt).toLocaleString() : "-"}</td>
                   <td className="py-4 px-6 border-b border-slate-100 text-center">
-                    <button
-                      onClick={() => openDeleteModal(admin.id)}
-                      className="inline-flex items-center justify-center w-10 h-10 text-red-500 hover:text-white hover:bg-red-500 rounded-full transition-all duration-200 hover:scale-110"
-                      title="Delete Admin"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div className="inline-flex gap-2 justify-center">
+                      <button onClick={() => handleView(admin._id)} className="px-2 py-1 bg-indigo-600 text-white rounded text-sm" title="View">
+                        <Eye size={14} />
+                      </button>
+                      <button onClick={() => openDeleteModal(admin._id)} className="px-2 py-1 bg-red-600 text-white rounded text-sm" title="Delete">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
+              {admins.length === 0 && (
+                <tr><td colSpan={6} className="py-6 text-center text-gray-500">No admins found</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -327,6 +319,23 @@ const AdminList: React.FC = () => {
                   Delete
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* View modal */}
+      {activeAdmin && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-3">Admin details</h3>
+            <div className="space-y-2">
+              <div><strong>Name:</strong> {(activeAdmin.firstName || "") + " " + (activeAdmin.lastName || "")}</div>
+              <div><strong>Email:</strong> {activeAdmin.email}</div>
+              <div><strong>Status:</strong> {activeAdmin.status}</div>
+              <div><strong>Created:</strong> {activeAdmin.createdAt ? new Date(activeAdmin.createdAt).toLocaleString() : "-"}</div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setActiveAdmin(null)} className="px-3 py-2 bg-gray-200 rounded">Close</button>
             </div>
           </div>
         </div>

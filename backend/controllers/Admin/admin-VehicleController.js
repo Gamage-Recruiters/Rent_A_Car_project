@@ -1,12 +1,30 @@
 const Vehicle = require('../../Models/vehicleModel');
 const { normalizePlate, deNormalizePlate } = require('../../utils/licensePlateUtil');
+const Stats = require('../../Models/statsModel');
 
 // Get all pending vehicles
+// const getPendingVehicles = async (req, res) => {
+//     try {
+//         const vehicles = await Vehicle.find({ isApproved: false });
+//         res.status(200).json(vehicles);
+//     } catch (error) {
+//         res.status(500).json({ message: 'Error fetching pending vehicles', error: error.message });
+//     }
+// };
+
 const getPendingVehicles = async (req, res) => {
     try {
-        const vehicles = await Vehicle.find({ isApproved: false });
+        // include docs with isApproved:false OR missing (helps find pending records)
+        const vehicles = await Vehicle.find({
+          $or: [
+            { isApproved: false },
+            { isApproved: { $exists: false } }
+          ]
+        }).lean();
+        console.log('getPendingVehicles -> found', vehicles.length);
         res.status(200).json(vehicles);
     } catch (error) {
+        console.error('getPendingVehicles error', error);
         res.status(500).json({ message: 'Error fetching pending vehicles', error: error.message });
     }
 };
@@ -32,6 +50,18 @@ const rejectVehicle = async (req, res) => {
         const vehicle = await Vehicle.findByIdAndDelete(req.params.id);
         if (!vehicle) return res.status(404).json({ message: 'Vehicle not found or already deleted' });
 
+        // increment deleted counter (vehicles rejected/deleted)
+        try {
+          await Stats.findOneAndUpdate(
+            { key: 'vehicles_deleted' },
+            { $inc: { count: 1 } },
+            { upsert: true, new: true }
+          );
+        } catch (statErr) {
+          console.error('Failed to increment vehicles_deleted stat', statErr);
+          // continue — deletion already happened
+        }
+
         res.status(200).json({ message: 'Vehicle rejected and deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Error rejecting vehicle', error: error.message });
@@ -56,6 +86,42 @@ const countApprovedVehicles = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: 'Error counting approved vehicles', error: error.message });
     }
+};
+
+// Count pending vehicles
+const countPendingVehicles = async (req, res) => {
+    try {
+        const total = await Vehicle.countDocuments({
+          $or: [{ isApproved: false }, { isApproved: { $exists: false } }]
+        });
+        res.status(200).json({ total });
+    } catch (error) {
+        res.status(500).json({ message: 'Error counting pending vehicles', error: error.message });
+    }
+};
+
+// Count rejected vehicles (if you mark rejected, adjust query accordingly)
+const countRejectedVehicles = async (req, res) => {
+    try {
+        const stat = await Stats.findOne({ key: 'vehicles_deleted' });
+        const total = stat?.count ?? 0;
+        res.status(200).json({ total });
+        
+    } catch (error) {
+       res.status(500).json({ message: 'Error counting rejected vehicles', error: error.message });
+   }
+};
+
+
+const getVehicleById = async (req, res) => {
+  try {
+    const vehicle = await Vehicle.findById(req.params.id).lean();
+    if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
+    return res.status(200).json(vehicle);
+  } catch (error) {
+    console.error('getVehicleById error', error);
+    return res.status(500).json({ message: 'Error fetching vehicle', error: error.message });
+  }
 };
 
 // Search/filter vehicles
@@ -84,4 +150,4 @@ const searchVehicles = async (req, res) => {
 };
 
 
-module.exports = { getPendingVehicles, approveVehicle, rejectVehicle, getApprovedVehicles,countApprovedVehicles, searchVehicles };
+module.exports = { getPendingVehicles, approveVehicle, rejectVehicle, getApprovedVehicles,countApprovedVehicles, searchVehicles, getVehicleById, countPendingVehicles, countRejectedVehicles };
