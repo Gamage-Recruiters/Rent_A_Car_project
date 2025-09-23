@@ -1,6 +1,7 @@
 const Vehicle = require('../../Models/vehicleModel');
 const { normalizePlate, deNormalizePlate } = require('../../utils/licensePlateUtil');
 const Stats = require('../../Models/statsModel');
+const { logActivity } = require('../Auth/admin/admin-authController');
 
 // Get all pending vehicles
 // const getPendingVehicles = async (req, res) => {
@@ -38,6 +39,17 @@ const approveVehicle = async (req, res) => {
 
         vehicle.isApproved = true;
         await vehicle.save();
+
+        // log vehicle approval
+       try {
+         logActivity({
+           action: 'Vehicle approved',
+           user: req.user?.email || 'system',
+           type: 'vehicle',
+           meta: { vehicleId: vehicle._id.toString(), ownerId: vehicle.owner?.toString?.() ?? vehicle.owner }
+         });
+       } catch (e) {}
+
         res.status(200).json({ message: 'Vehicle approved successfully', vehicle });
     } catch (error) {
         res.status(500).json({ message: 'Error approving vehicle', error: error.message });

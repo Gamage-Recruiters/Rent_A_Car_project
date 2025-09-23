@@ -55,6 +55,8 @@ async function loginSuperAdmin(req, res) {
         const accessToken = createToken(payload);
         const refreshToken = createRefreshToken(payload);
 
+        try { logActivity({ action: 'Super admin login', user: existUser.email, type: 'auth', meta: { ip: req.ip } }); } catch (e) {}
+
         res
             .cookie(process.env.SUPERADMIN_COOKIE_NAME, accessToken, { httpOnly: true })
             .cookie(process.env.SUPERADMIN_REFRESH_COOKIE_NAME, refreshToken, { httpOnly: true })
@@ -123,6 +125,12 @@ async function deleteAdmin(req, res) {
         }
         const admin = await User.findByIdAndDelete(targetId);
         if (!admin) return res.status(404).json({ message: 'Admin not found' });
+
+        // log admin deletion (non-blocking)
+       try {
+         logActivity({ action: 'Admin deleted', user: req.user?.email || 'system', type: 'admin', meta: { deletedAdminId: targetId, deletedAdminEmail: admin.email } });
+       } catch (e) {}
+
         res.status(200).json({ message: 'Admin deleted' });
     } catch (err) {
         res.status(500).json({ message: 'Error deleting admin', error: err.message });
@@ -132,6 +140,7 @@ async function deleteAdmin(req, res) {
 
 // Logout Super Admin
 async function logoutSuperAdmin(req, res) {
+     try { logActivity({ action: 'Super admin logout', user: req.user?.email || 'unknown', type: 'auth', meta: { ip: req.ip } }); } catch (e) {}
     res.clearCookie(process.env.SUPERADMIN_COOKIE_NAME, {   // ✅ unified cookie name
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',

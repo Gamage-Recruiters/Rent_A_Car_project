@@ -1,5 +1,4 @@
-// Web/src/pages/AdminVehicleListingsPage.tsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Vehicle } from '../types';
 //import { mockVehicles } from '../data/mockData';
 import { useNavigate } from 'react-router-dom';
@@ -18,12 +17,20 @@ const AdminVehicleListingsPage: React.FC = () => {
   const [filteredVehicles, setFilteredVehicles] = useState<VehicleWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+  const [viewMode, setViewMode] = useState<'pending' | 'approved' | 'all'>('pending');
   const [approvedTotal, setApprovedTotal] = useState<number>(0);
   const [pendingTotal, setPendingTotal] = useState<number>(0);
   const [rejectedTotal, setRejectedTotal] = useState<number>(0);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const navigate = useNavigate();
+
+  const prevUiRef = useRef<null | {
+    vehicles: VehicleWithStatus[];
+    filteredVehicles: VehicleWithStatus[];
+    searchTerm: string;
+    statusFilter: string;
+    viewMode: 'pending' | 'approved' | 'all';
+  }>(null);
   
   
   // navigate to vehicle details
@@ -74,6 +81,16 @@ const AdminVehicleListingsPage: React.FC = () => {
  const fetchApprovedVehicles = async () => {
    setLoading(true);
    try {
+
+    // save current UI state so Back can restore it
+     prevUiRef.current = {
+       vehicles,
+      filteredVehicles,
+       searchTerm,
+       statusFilter,
+       viewMode
+     };
+
     const res = await fetch(`${API_URL}/vehicles/approved`, { credentials: 'include' });
      console.log('[Vehicles] fetch approved url:', `${API_URL}/vehicles/approved`, 'status:', res.status);
      if (!res.ok) {
@@ -108,6 +125,8 @@ year: v.year ?? '',
        status: 'approved',
      }));
      setVehicles(mapped);
+
+     setViewMode('approved');
      fetchApprovedTotal();
    } catch (err) {
      console.error('Error fetching approved vehicles', err);
@@ -162,6 +181,7 @@ year: v.year ?? '',
         }));
         
         setVehicles(mapped);
+        setViewMode('pending');
         
       } catch (err) {
         console.error('Error fetching pending vehicles', err);
@@ -400,8 +420,72 @@ const generateExcel = async () => {
               <option value="rejected">Rejected</option>
             </select>
           </div>
-          <div className="flex gap-2">
-             {/* Corner button: load approved vehicles (details only) */}
+          <div className="flex gap-2 items-center">
+            
+            {viewMode === 'approved' && (
+              <button
+                onClick={() => {
+                  // restore saved UI snapshot if present
+                  if (prevUiRef.current) {
+                    setVehicles(prevUiRef.current.vehicles);
+                    setFilteredVehicles(prevUiRef.current.filteredVehicles);
+                    setSearchTerm(prevUiRef.current.searchTerm);
+                    setStatusFilter(prevUiRef.current.statusFilter);
+                    setViewMode(prevUiRef.current.viewMode);
+                    prevUiRef.current = null;
+                   return;
+                 }
+                  // fallback: reload pending list and navigate to vehicles overview
+                  fetch(`${API_URL}/vehicles/pending`, { credentials: 'include' })
+                    .then(async r => {
+                      if (!r.ok) {
+                        setVehicles([]);
+                        setViewMode('pending');
+                        return;
+                      }
+const data = await r.json();
+                      const mapped = (data || []).map((v: any) => ({
+                        _id: v._id ?? v.id,
+                        id: v._id ?? v.id,
+                        name: v.name ?? v.vehicleName ?? 'Unnamed',
+                        brand: v.brand ?? '',
+                        model: v.model ?? '',
+                        ownerId: v.owner ?? v.ownerId ?? '',
+                        contactInfo: v.contactInfo ?? { email: v.email ?? '', phone: v.phone ?? '', address: v.address ?? '' },
+                        images: v.images ?? [],
+                        pricePerDay: v.pricePerDay ?? v.dailyPrice ?? 0,
+                        pricePerKm: v.pricePerKm ?? undefined,
+                        type: v.type ?? '',
+                        seats: v.seats ?? 0,
+                        fuelType: v.fuelType ?? '',
+                        transmission: v.transmission ?? '',
+                        year: v.year ?? '',
+                        mileage: v.mileage ?? undefined,
+                        description: v.description ?? '',
+                        rating: v.rating ?? 0,
+                        reviewCount: v.reviewCount ?? 0,
+                        location: v.location ?? '',
+                        status: v.isApproved ? 'approved' : 'pending',
+                      }));
+                      setVehicles(mapped);
+                      setViewMode('pending');
+                      // navigate back to the vehicle overview route (adjust if different)
+                      navigate('/admin/vehicles');
+                    })
+.catch(e => {
+                      console.error('Failed to fetch pending on Back', e);
+                    });
+                }}
+               className="px-3 py-2 bg-gray-200 rounded-lg text-sm hover:bg-gray-300"
+                title="Back to previous view"
+              >
+                Back
+              </button>
+            )}
+
+
+
+            {/* Corner button: load approved vehicles (details only) */}
             <button
               onClick={fetchApprovedVehicles}
               className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 text-sm"
