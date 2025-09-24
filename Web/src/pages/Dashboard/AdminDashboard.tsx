@@ -88,7 +88,8 @@ a.click();
   };
 
   const [recentActivities, setRecentActivities] = useState<{ action: string; user: string; time: string; type?: string }[]>([]);
-
+const [allActivities, setAllActivities] = useState<{ action: string; user: string; time: string; type?: string }[] | null>(null);
+ const [showAllModal, setShowAllModal] = useState(false);
   useEffect(() => {
     const fetchActivities = async () => {
       try {
@@ -121,6 +122,33 @@ a.click();
     };
     fetchActivities();
   }, []);
+
+  const handleViewAll = async () => {
+    try {
+      const url = `${ADMIN_API}/activities/recent?limit=100`;
+      console.debug('[activities] view all fetch ->', url);
+      const res = await fetch(url, { credentials: 'include' });
+      if (res.status === 401) {
+        console.warn('activities fetch: unauthenticated (401)');
+        return;
+      }
+      if (!res.ok) {
+        console.error('Failed to load activities', res.status);
+        return;
+      }
+      const data = await res.json();
+      const mapped = (data || []).map((a: any) => ({
+        action: a.action ?? a.message ?? 'Activity',
+        user: a.user ?? (a.meta && a.meta.user) ?? 'system',
+        time: new Date(a.createdAt ?? a.time ?? Date.now()).toLocaleString(),
+        type: a.type ?? 'general'
+      }));
+      setAllActivities(mapped);
+      setShowAllModal(true);
+    } catch (err) {
+      console.error('viewAll fetchActivities error', err);
+    }
+  };
 
   const [adminProfile, setAdminProfile] = useState<{ firstName?: string; lastName?: string; email?: string } | null>(null);
 
@@ -336,11 +364,11 @@ a.click();
         {/* Recent Activity */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Recent Activity</h2>
-            <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">View All</button>
-          </div>
+              <h2 className="text-xl font-semibold text-gray-900">Recent Activity</h2>
+              <button onClick={handleViewAll} className="text-sm text-blue-600 hover:text-blue-800 font-medium">View All</button>
+            </div>
           <div className="space-y-4">
-            {recentActivities.map((activity, index) => (
+           {recentActivities.slice(0, 3).map((activity, index) => (
               <div
                 key={index}
                 className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
@@ -366,8 +394,37 @@ a.click();
               </div>
             ))}
           </div>
+          
         </div>
       </div>
+
+      {showAllModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white w-full max-w-3xl rounded-lg shadow-lg overflow-auto max-h-[80vh]">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <h3 className="text-lg font-semibold">All Recent Activities</h3>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setShowAllModal(false); setAllActivities(null); }} className="px-3 py-1 bg-gray-200 rounded">Close</button>
+              </div>
+            </div>
+            <div className="p-4 space-y-2">
+              {(allActivities && allActivities.length > 0) ? (
+                allActivities.map((a, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{a.action}</div>
+                      <div className="text-xs text-gray-500">{a.user}</div>
+                    </div>
+                    <div className="text-xs text-gray-400">{a.time}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-gray-500 py-8">No activities found</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
