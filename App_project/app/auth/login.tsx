@@ -95,14 +95,6 @@ export default function LoginScreen() {
     transform: [{ scale: scaleValue.value }],
   }));
 
-<<<<<<< HEAD
-  // Google Sign-In handler
-  const handleGoogleSignIn = () => {
-    // Redirect to backend Google OAuth endpoint
-    const googleAuthUrl = `${API_URL}/auth/customer/google`;
-    window.location.href = googleAuthUrl;
-  };
-=======
   // Render the login form content
   const renderLoginContent = () => (
     <>
@@ -212,7 +204,6 @@ export default function LoginScreen() {
       </Animated.View>
     </>
   );
->>>>>>> upstream/developer
 
   return (
     <SafeAreaView style={styles.container}>
@@ -228,125 +219,8 @@ export default function LoginScreen() {
           keyExtractor={(item) => item.key}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
-<<<<<<< HEAD
-        >
-          <Animated.View style={styles.illustrationContainer} entering={FadeIn}>
-            <View style={styles.illustrationPlaceholder}>
-              <Image
-                source={require('../../assets/images/login_car.png')}
-                style={{ width: 250, height: 150 }}
-                resizeMode="contain"
-              />
-            </View>
-          </Animated.View>
-
-          <Animated.View style={styles.content} entering={FadeIn.delay(200)}>
-            <Text style={styles.subtitle}>Welcome!</Text>
-            <Text style={styles.description}>Sign in your account to continue</Text>
-
-            {/* Google Sign-In Button */}
-            <TouchableOpacity
-              style={[styles.loginButton, { backgroundColor: '#DB4437', marginBottom: 12 }]}
-              onPress={handleGoogleSignIn}
-            >
-              <Text style={[styles.loginButtonText, { color: '#fff' }]}>Sign in with Google</Text>
-            </TouchableOpacity>
-
-            {/* User Type Selection */}
-            <View style={styles.userTypeContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.userTypeButton,
-                  userType === 'customer' && styles.activeUserTypeButton
-                ]}
-                onPress={() => setUserType('customer')}
-              >
-                <Text style={[
-                  styles.userTypeText,
-                  userType === 'customer' && styles.activeUserTypeText
-                ]}>
-                  Customer
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[
-                  styles.userTypeButton, 
-                  userType === 'owner' && styles.activeUserTypeButton
-                ]}
-                onPress={() => setUserType('owner')}
-              >
-                <Text style={[
-                  styles.userTypeText,
-                  userType === 'owner' && styles.activeUserTypeText
-                ]}>
-                  Car Owner
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Email Address"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                placeholderTextColor="#8E8E93"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <View style={styles.passwordWrapper}>
-                <TextInput
-                  style={styles.passwordInput}
-                  placeholder="Password"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  placeholderTextColor="#8E8E93"
-                />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  {showPassword ? (
-                    <EyeOff size={20} color="#8E8E93" />
-                  ) : (
-                    <Eye size={20} color="#8E8E93" />
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.loginButton, isLoading && styles.disabledButton]}
-              onPress={handleLogin}
-              disabled={isLoading}
-              onPressIn={handlePressIn}
-              onPressOut={handlePressOut}
-            >
-              <Animated.View style={animatedStyle}>
-                <Text style={styles.loginButtonText}>
-                  {isLoading ? 'Signing In...' : 'Login'}
-                </Text>
-              </Animated.View>
-            </TouchableOpacity>
-
-            <View style={styles.signUpContainer}>
-              <Text style={styles.signUpText}>Not a member? </Text>
-              <TouchableOpacity onPress={() => router.push('/auth/register')}>
-                <Text style={styles.signUpLink}>Register now</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </ScrollView>
-=======
           showsVerticalScrollIndicator={false}
         />
->>>>>>> upstream/developer
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
