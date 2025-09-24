@@ -80,6 +80,13 @@ export default function LoginScreen() {
     transform: [{ scale: scaleValue.value }],
   }));
 
+  // Google Sign-In handler
+  const handleGoogleSignIn = () => {
+    // Redirect to backend Google OAuth endpoint
+    const googleAuthUrl = `${API_URL}/auth/customer/google`;
+    window.location.href = googleAuthUrl;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -104,6 +111,14 @@ export default function LoginScreen() {
           <Animated.View style={styles.content} entering={FadeIn.delay(200)}>
             <Text style={styles.subtitle}>Welcome!</Text>
             <Text style={styles.description}>Sign in your account to continue</Text>
+
+            {/* Google Sign-In Button */}
+            <TouchableOpacity
+              style={[styles.loginButton, { backgroundColor: '#DB4437', marginBottom: 12 }]}
+              onPress={handleGoogleSignIn}
+            >
+              <Text style={[styles.loginButtonText, { color: '#fff' }]}>Sign in with Google</Text>
+            </TouchableOpacity>
 
             {/* User Type Selection */}
             <View style={styles.userTypeContainer}>

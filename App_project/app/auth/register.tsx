@@ -10,10 +10,11 @@ import {
   Alert,
   ScrollView,
   Image,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Checkbox } from 'react-native-paper';
-import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react-native';
+import { Mail, Lock, User, Eye, EyeOff, Key } from 'lucide-react-native';
 import axios from 'axios';
 import { router } from 'expo-router';
 
@@ -87,166 +88,174 @@ export default function RegisterScreen() {
     }
   };
 
+  const renderRegisterForm = () => (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <Image
+        source={require('../../assets/images/login_car.png')}
+        style={styles.image}
+        resizeMode="contain"
+      />
+
+      <View style={styles.card}>
+        {/* All your existing form content here */}
+        <Text style={styles.title}>Sign up</Text>
+        <Text style={styles.subtitle}>
+          Create an account to get started
+        </Text>
+
+        {/* User Type Selection */}
+        <View style={styles.userTypeContainer}>
+          <TouchableOpacity
+            style={[
+              styles.userTypeButton,
+              userType === 'customer' && styles.activeUserTypeButton
+            ]}
+            onPress={() => setUserType('customer')}
+          >
+            <Text style={[
+              styles.userTypeText,
+              userType === 'customer' && styles.activeUserTypeText
+            ]}>
+              Customer
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[
+              styles.userTypeButton, 
+              userType === 'owner' && styles.activeUserTypeButton
+            ]}
+            onPress={() => setUserType('owner')}
+          >
+            <Text style={[
+              styles.userTypeText,
+              userType === 'owner' && styles.activeUserTypeText
+            ]}>
+              Car Owner
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* First Name */}
+        <View style={styles.inputWrapper}>
+          <User size={20} color="#999" />
+          <TextInput
+            placeholder="First Name *"
+            style={styles.input}
+            value={firstName}
+            onChangeText={setFirstName}
+          />
+        </View>
+
+        {/* Last Name */}
+        <View style={styles.inputWrapper}>
+          <User size={20} color="#999" />
+          <TextInput
+            placeholder="Last Name"
+            style={styles.input}
+            value={lastName}
+            onChangeText={setLastName}
+          />
+        </View>
+
+        {/* Email */}
+        <View style={styles.inputWrapper}>
+          <Mail size={20} color="#999" />
+          <TextInput
+            placeholder="Email Address"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+          />
+        </View>
+
+        {/* Password */}
+        <View style={styles.inputWrapper}>
+          <Lock size={20} color="#999" />
+          <TextInput
+            placeholder="Create a password *"
+            secureTextEntry={!showPassword}
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+          />
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+            {showPassword ? (
+              <EyeOff size={20} color="#999" />
+            ) : (
+              <Eye size={20} color="#999" />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Confirm Password */}
+        <View style={styles.inputWrapper}>
+          <Lock size={20} color="#999" />
+          <TextInput
+            placeholder="Confirm password"
+            secureTextEntry={!showConfirmPassword}
+            style={styles.input}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+          />
+          <TouchableOpacity
+            onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+          >
+            {showConfirmPassword ? (
+              <EyeOff size={20} color="#999" />
+            ) : (
+              <Eye size={20} color="#999" />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Checkbox */}
+        <View style={styles.checkboxRow}>
+          <Checkbox
+            status={agree ? 'checked' : 'unchecked'}
+            onPress={() => setAgree(!agree)}
+          />
+          <Text style={styles.checkboxText}>
+            I agree to the{' '}
+            <Text style={styles.link}>Terms and Conditions</Text>
+          </Text>
+        </View>
+
+        {/* Button */}
+        <TouchableOpacity
+          onPress={handleRegister}
+          style={[styles.button, !agree && styles.disabled]}
+          disabled={!agree || loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? 'Creating...' : 'Create Account'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Login Link */}
+        <View style={styles.loginContainer}>
+          <Text style={styles.loginText}>Already have an account? </Text>
+          <TouchableOpacity onPress={() => router.push('/auth/login')}>
+            <Text style={styles.loginLink}>Login</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <Image
-            source={require('../../assets/images/login_car.png')}
-            style={styles.image}
-            resizeMode="contain"
-          />
-
-          <View style={styles.card}>
-            <Text style={styles.title}>Sign up</Text>
-            <Text style={styles.subtitle}>
-              Create an account to get started
-            </Text>
-
-            {/* User Type Selection */}
-            <View style={styles.userTypeContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.userTypeButton,
-                  userType === 'customer' && styles.activeUserTypeButton
-                ]}
-                onPress={() => setUserType('customer')}
-              >
-                <Text style={[
-                  styles.userTypeText,
-                  userType === 'customer' && styles.activeUserTypeText
-                ]}>
-                  Customer
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[
-                  styles.userTypeButton, 
-                  userType === 'owner' && styles.activeUserTypeButton
-                ]}
-                onPress={() => setUserType('owner')}
-              >
-                <Text style={[
-                  styles.userTypeText,
-                  userType === 'owner' && styles.activeUserTypeText
-                ]}>
-                  Car Owner
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* First Name */}
-            <View style={styles.inputWrapper}>
-              <User size={20} color="#999" />
-              <TextInput
-                placeholder="First Name *"
-                style={styles.input}
-                value={firstName}
-                onChangeText={setFirstName}
-              />
-            </View>
-
-            {/* Last Name */}
-            <View style={styles.inputWrapper}>
-              <User size={20} color="#999" />
-              <TextInput
-                placeholder="Last Name"
-                style={styles.input}
-                value={lastName}
-                onChangeText={setLastName}
-              />
-            </View>
-
-            {/* Email */}
-            <View style={styles.inputWrapper}>
-              <Mail size={20} color="#999" />
-              <TextInput
-                placeholder="Email Address"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
-
-            {/* Password */}
-            <View style={styles.inputWrapper}>
-              <Lock size={20} color="#999" />
-              <TextInput
-                placeholder="Create a password *"
-                secureTextEntry={!showPassword}
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                {showPassword ? (
-                  <EyeOff size={20} color="#999" />
-                ) : (
-                  <Eye size={20} color="#999" />
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Confirm Password */}
-            <View style={styles.inputWrapper}>
-              <Lock size={20} color="#999" />
-              <TextInput
-                placeholder="Confirm password"
-                secureTextEntry={!showConfirmPassword}
-                style={styles.input}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-              />
-              <TouchableOpacity
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                {showConfirmPassword ? (
-                  <EyeOff size={20} color="#999" />
-                ) : (
-                  <Eye size={20} color="#999" />
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Checkbox */}
-            <View style={styles.checkboxRow}>
-              <Checkbox
-                status={agree ? 'checked' : 'unchecked'}
-                onPress={() => setAgree(!agree)}
-              />
-              <Text style={styles.checkboxText}>
-                I agree to the{' '}
-                <Text style={styles.link}>Terms and Conditions</Text>
-              </Text>
-            </View>
-
-            {/* Button */}
-            <TouchableOpacity
-              onPress={handleRegister}
-              style={[styles.button, !agree && styles.disabled]}
-              disabled={!agree || loading}
-            >
-              <Text style={styles.buttonText}>
-                {loading ? 'Creating...' : 'Create Account'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Login Link */}
-            <View style={styles.loginContainer}>
-              <Text style={styles.loginText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/auth/login')}>
-                <Text style={styles.loginLink}>Login</Text>
-              </TouchableOpacity>
-            </View>
-
-          </View>
-        </KeyboardAvoidingView>
-      </ScrollView>
+      <FlatList
+        data={[{ key: 'registerForm' }]}
+        renderItem={() => renderRegisterForm()}
+        keyExtractor={(item) => item.key}
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      />
     </SafeAreaView>
   );
 }

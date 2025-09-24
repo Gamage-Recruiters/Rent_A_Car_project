@@ -4,8 +4,23 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export interface User {
   id: string;
   email: string;
-  name: string;
+  firstName?: string;
+  lastName?: string;
   phone?: string;
+  phoneNumber?: string;
+  type: 'user' | 'owner';
+  createdAt: string;
+  profileImage?: string;
+  photo?: string;
+  googleId?: string;
+  dateOfBirth?: string;
+  driversLicense?: string;
+  emergencyContact?: string;
+  address?: string;
+  isNewsletterSubscribed?: boolean;
+  newsletterSubscribedAt?: string;
+  newsletterUnsubscribedAt?: string;
+  userRole?: string;
   avatar?: string;
 }
 

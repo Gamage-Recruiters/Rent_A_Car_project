@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { addSuperAdmin, loginSuperAdmin, logoutSuperAdmin,requestPasswordReset, resetPassword,createAdminBySuperAdmin,getAllAdmins,getAdminById,deleteAdmin } = require('../../../controllers/Auth/admin/admin-authController');
+const { addSuperAdmin, loginSuperAdmin, logoutSuperAdmin,requestPasswordReset, resetPassword,createAdminBySuperAdmin,getAllAdmins,getAdminById,deleteAdmin,getProfile,getRecentActivities } = require('../../../controllers/Auth/admin/admin-authController');
 const {verifySuperAdminToken} = require('../../../middleware/Auth/verifyToken');
 const {isSuperAdmin}  = require('../../../middleware/Auth/authorization');
 const { verifyRefreshToken, createAccessToken } = require('../../../utils/jwtUtil');
@@ -16,6 +16,9 @@ router.post('/forgot-password', requestPasswordReset);
 
 // Route for resetting password
 router.put('/reset-password/:token', resetPassword);
+
+router.get('/profile', verifySuperAdminToken, isSuperAdmin, getProfile);
+router.get('/activities/recent', verifySuperAdminToken, isSuperAdmin, getRecentActivities);
 
 
 router.post('/refresh', async (req, res) => {
@@ -40,10 +43,10 @@ router.post('/refresh', async (req, res) => {
 router.post('/logout', logoutSuperAdmin);
 
 // Protected admin-management routes (only for logged-in superadmin)
-+router.post('/admins', verifySuperAdminToken, isSuperAdmin, createAdminBySuperAdmin);
-+router.get('/admins', verifySuperAdminToken, isSuperAdmin, getAllAdmins);
-+router.get('/admins/:id', verifySuperAdminToken, isSuperAdmin, getAdminById);
-+router.delete('/admins/:id', verifySuperAdminToken, isSuperAdmin, deleteAdmin);
+router.post('/admins', verifySuperAdminToken, isSuperAdmin, createAdminBySuperAdmin);
+router.get('/admins', verifySuperAdminToken, isSuperAdmin, getAllAdmins);
+router.get('/admins/:id', verifySuperAdminToken, isSuperAdmin, getAdminById);
+router.delete('/admins/:id', verifySuperAdminToken, isSuperAdmin, deleteAdmin);
 
 //Protected Super Admin route 
 router.get('/owners/pending', verifySuperAdminToken, isSuperAdmin, (req, res) => {
