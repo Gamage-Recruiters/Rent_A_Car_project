@@ -21,6 +21,7 @@ export default function RegisterScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [userType, setUserType] = useState('customer');
@@ -32,51 +33,101 @@ export default function RegisterScreen() {
   const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
   const handleRegister = async () => {
-    if (!firstName || !email || !password || !confirmPassword) {
-      Alert.alert('Please fill in requied fields fields');
+    // Validation
+    if (!firstName || !email || !password || !phone || !confirmPassword) {
+      Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Passwords do not match');
+      Alert.alert('Error', 'Passwords do not match');
       return;
     }
 
     if (!agree) {
-      Alert.alert('Please agree to the terms');
+      Alert.alert('Error', 'Please agree to the terms');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /.+@.+\..+/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
 
     setLoading(true);
+
     try {
-      const endpoint = `/auth/${userType}/register`;
+      // Choose the correct endpoint based on user type
+      // Choose correct endpoint
+      const endpoint =
+        userType === 'owner'
+          ? '/auth/owner/register'
+          : '/auth/customer/register';
+
+      const fullURL = `${API_URL}/api${endpoint}`;
 
       const userData = {
         firstName,
         lastName,
         email,
+        phone,
         password,
       };
 
-      // Call the api
-      const response = await axios.post(`${API_URL}${endpoint}`, userData)
+      console.log('Registering user:', { ...userData, password: '[HIDDEN]' });
+      console.log('Endpoint:', `${API_URL}${endpoint}`);
 
-      const data = response.data;
+      // Call the API
+      const response = await axios.post(fullURL, userData, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000, // 10 second timeout
+      });
 
-      if (response.status < 200 || response.status >= 300) {
-        throw new Error(data.message || 'Registration failed');
-      }
+      console.log('Registration response:', response.data);
 
-      Alert.alert(
-        'Success',
-        'Account created successfully!',
-        [{ text: 'OK', onPress: () => router.push('/auth/login') }]
-      );
+      // Handle successful registration
+      const successMessage =
+        userType === 'owner'
+          ? 'Owner account created successfully!'
+          : 'Customer account created successfully!';
+
+      Alert.alert('Success', successMessage, [
+        { text: 'OK', onPress: () => router.push('/auth/login') },
+      ]);
     } catch (error) {
-      let errorMessage = 'Something went wront. Pleas try again';
+      console.error('Registration error:', error);
 
-      if (axios.isAxiosError(error) && error.response) {
-        errorMessage = error.response.data.message;
+      let errorMessage = 'Something went wrong. Please try again.';
+
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          // Server responded with error status
+          console.log('Error response:', error.response.data);
+          errorMessage = error.response.data.message || errorMessage;
+
+          // Handle specific error cases
+          if (error.response.status === 409) {
+            errorMessage =
+              userType === 'owner'
+                ? 'Owner email already exists. Please use a different email.'
+                : 'Customer email already exists. Please use a different email.';
+          } else if (error.response.status === 400) {
+            errorMessage =
+              error.response.data.message ||
+              'Invalid input. Please check your details.';
+          }
+        } else if (error.request) {
+          // Request was made but no response received
+          errorMessage =
+            'Unable to connect to server. Please check your internet connection.';
+        } else {
+          // Something else happened
+          errorMessage = 'Network error. Please try again.';
+        }
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
@@ -89,17 +140,24 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          { flexGrow: 1, justifyContent: 'center' },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1, justifyContent: 'center' }}
         >
           <Image
             source={require('../../assets/images/login_car.png')}
-            style={styles.image}
+            style={[styles.image, { marginBottom: 0 }]}
             resizeMode="contain"
           />
 
-          <View style={styles.card}>
+          <View style={[styles.card, { marginTop: 0, elevation: 6 }]}>
             <Text style={styles.title}>Sign up</Text>
             <Text style={styles.subtitle}>
               Create an account to get started
@@ -110,66 +168,88 @@ export default function RegisterScreen() {
               <TouchableOpacity
                 style={[
                   styles.userTypeButton,
-                  userType === 'customer' && styles.activeUserTypeButton
+                  userType === 'customer' && styles.activeUserTypeButton,
+                  { borderTopLeftRadius: 8, borderBottomLeftRadius: 8 },
                 ]}
                 onPress={() => setUserType('customer')}
               >
-                <Text style={[
-                  styles.userTypeText,
-                  userType === 'customer' && styles.activeUserTypeText
-                ]}>
+                <Text
+                  style={[
+                    styles.userTypeText,
+                    userType === 'customer' && styles.activeUserTypeText,
+                  ]}
+                >
                   Customer
                 </Text>
               </TouchableOpacity>
-
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
-                  styles.userTypeButton, 
-                  userType === 'owner' && styles.activeUserTypeButton
+                  styles.userTypeButton,
+                  userType === 'owner' && styles.activeUserTypeButton,
+                  { borderTopRightRadius: 8, borderBottomRightRadius: 8 },
+                  { marginLeft: -1 },
                 ]}
                 onPress={() => setUserType('owner')}
               >
-                <Text style={[
-                  styles.userTypeText,
-                  userType === 'owner' && styles.activeUserTypeText
-                ]}>
+              
+                <Text
+                  style={[
+                    styles.userTypeText,
+                    userType === 'owner' && styles.activeUserTypeText,
+                  ]}
+                >
                   Car Owner
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {/* First Name */}
-            <View style={styles.inputWrapper}>
-              <User size={20} color="#999" />
-              <TextInput
-                placeholder="First Name *"
-                style={styles.input}
-                value={firstName}
-                onChangeText={setFirstName}
-              />
-            </View>
-
-            {/* Last Name */}
-            <View style={styles.inputWrapper}>
-              <User size={20} color="#999" />
-              <TextInput
-                placeholder="Last Name"
-                style={styles.input}
-                value={lastName}
-                onChangeText={setLastName}
-              />
+            {/* First Name & Last Name side by side */}
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+              <View style={[styles.inputWrapper, { flex: 1 }]}>
+                <User size={20} color="#999" />
+                <TextInput
+                  placeholder="First Name *"
+                  style={styles.input}
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  autoCapitalize="words"
+                />
+              </View>
+              <View style={[styles.inputWrapper, { flex: 1 }]}>
+                <User size={20} color="#999" />
+                <TextInput
+                  placeholder="Last Name"
+                  style={styles.input}
+                  value={lastName}
+                  onChangeText={setLastName}
+                  autoCapitalize="words"
+                />
+              </View>
             </View>
 
             {/* Email */}
             <View style={styles.inputWrapper}>
               <Mail size={20} color="#999" />
               <TextInput
-                placeholder="Email Address"
+                placeholder="Email Address *"
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
+              />
+            </View>
+
+            {/* Phone */}
+            <View style={styles.inputWrapper}>
+              <User size={20} color="#999" />
+              <TextInput
+                placeholder="Phone Number *"
+                keyboardType="phone-pad"
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
               />
             </View>
 
@@ -179,6 +259,8 @@ export default function RegisterScreen() {
               <TextInput
                 placeholder="Create a password *"
                 secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
                 style={styles.input}
                 value={password}
                 onChangeText={setPassword}
@@ -196,8 +278,10 @@ export default function RegisterScreen() {
             <View style={styles.inputWrapper}>
               <Lock size={20} color="#999" />
               <TextInput
-                placeholder="Confirm password"
+                placeholder="Confirm password *"
                 secureTextEntry={!showConfirmPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
                 style={styles.input}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -212,6 +296,15 @@ export default function RegisterScreen() {
                 )}
               </TouchableOpacity>
             </View>
+
+            {/* Show owner approval notice */}
+            {userType === 'owner' && (
+              <View style={styles.noticeContainer}>
+                <Text style={styles.noticeText}>
+                  ℹ️ Owner accounts require admin approval before you can login.
+                </Text>
+              </View>
+            )}
 
             {/* Checkbox */}
             <View style={styles.checkboxRow}>
@@ -228,11 +321,15 @@ export default function RegisterScreen() {
             {/* Button */}
             <TouchableOpacity
               onPress={handleRegister}
-              style={[styles.button, !agree && styles.disabled]}
+              style={[
+                styles.button,
+                (!agree || loading) && styles.disabled,
+                { marginTop: 8, marginBottom: 4 },
+              ]}
               disabled={!agree || loading}
             >
               <Text style={styles.buttonText}>
-                {loading ? 'Creating...' : 'Create Account'}
+                {loading ? 'Creating Account...' : 'Create Account'}
               </Text>
             </TouchableOpacity>
 
@@ -243,7 +340,6 @@ export default function RegisterScreen() {
                 <Text style={styles.loginLink}>Login</Text>
               </TouchableOpacity>
             </View>
-
           </View>
         </KeyboardAvoidingView>
       </ScrollView>
@@ -363,5 +459,18 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: '600',
     fontSize: 14,
+  },
+  noticeContainer: {
+    backgroundColor: '#E3F2FD',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196F3',
+  },
+  noticeText: {
+    color: '#1565C0',
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

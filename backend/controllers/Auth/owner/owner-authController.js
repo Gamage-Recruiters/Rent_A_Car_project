@@ -72,14 +72,27 @@ async function registerOwner(req, res) {
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       });
 
-      return res
-        .status(200)
-        .json({ message: "Owner Registration Successfull" });
+      return res.status(200).json({
+        message: "Owner Registration Successful",
+        accessToken,
+        refreshToken,
+        owner: {
+          id: newOwner._id,
+          email: newOwner.email,
+          firstName: newOwner.firstName,
+          lastName: newOwner.lastName,
+          phone: newOwner.phone,
+        },
+      });
     }
   } catch (error) {
     if (error.code === 11000) {
       console.warn("Duplicate slipped through:", email);
-      return res.status(409).json({ message: "Owner's Email Already Exsist" });
+      return res.status(409).json({
+        message: "Owner's Email Already Exsist",
+        accessToken,
+        refreshToken,
+      });
     }
 
     // Email Validation
