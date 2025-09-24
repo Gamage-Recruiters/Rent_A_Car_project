@@ -19,6 +19,10 @@ export interface User {
   newsletterSubscribedAt?: string;
   newsletterUnsubscribedAt?: string;
   userRole?: string;
+  image?: {
+    public_id?: string;
+    url?: string;
+  };
 }
 
 export interface Vehicle {
