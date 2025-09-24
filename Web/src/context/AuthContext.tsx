@@ -43,45 +43,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const checkAuthStatus = async (): Promise<boolean> => {
     try {
       setIsLoading(true);
-      
-      // Get user type from local storage if available
-      const storedUser = localStorage.getItem('user');
-      if (!storedUser) {
-        // No stored user, don't attempt to fetch profile
-        return false;
-      }
-      
-      let userType = 'user'; // Default
-      
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        if (parsedUser.type) {
-          userType = parsedUser.type;
-        }
-      } catch (error) {
-        console.error('Error parsing stored user type:', error);
-        localStorage.removeItem('user');
-        return false;
-      }
-
-      // Use the appropriate endpoint based on user type
+      // Always try to check /me endpoint for customer (user) type
+      let userType: 'user' | 'owner' | 'admin' = 'user';
       let endpoint = '';
+      // Try to get user type from localStorage, fallback to 'user'
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          if (parsedUser.type) userType = parsedUser.type;
+        } catch (error) {
+          localStorage.removeItem('user');
+        }
+      }
       if (userType === 'admin') {
         endpoint = `${API_URL}/admin/profile`;
       } else if (userType === 'owner') {
         endpoint = `${API_URL}/owner/profile`;
       } else {
-        endpoint = `${API_URL}/customer/profile`;
+        endpoint = `${API_URL}/auth/customer/me`;
       }
-
       try {
-        const response = await axios.get(endpoint, {
-          withCredentials: true,
-        });
-        
-        if (response.data.success || response.data.data) {
-          const userData = response.data.data;
-          
+        const response = await axios.get(endpoint, { withCredentials: true });
+        // For /me endpoint, user is in response.data.user
+        const userData = response.data.user || response.data.data;
+        if (userData) {
           const updatedUser: User = {
             id: userData._id,
             email: userData.email,
@@ -102,7 +88,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             userRole: userData.userRole,
             image: userData.image
           };
-          
           setUser(updatedUser);
           localStorage.setItem('user', JSON.stringify(updatedUser));
           return true;
@@ -110,14 +95,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return false;
       } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 401) {
-          // This is an expected case for unauthenticated users - handle silently
           localStorage.removeItem('user');
           setUser(null);
           return false;
         }
-        
-        // Log other unexpected errors
-        console.error('Auth check failed with unexpected error:', error);
         setUser(null);
         localStorage.removeItem('user');
         return false;
@@ -138,28 +119,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Initialize auth status on app load
   useEffect(() => {
-    const initializeAuth = async () => {
-      // First check if we have stored user data
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        try {
-          const userData = JSON.parse(storedUser);
-          setUser(userData);
-          
-          // Verify the stored user is still valid by checking auth status
-          await checkAuthStatus();
-        } catch (error) {
-          console.error('Error parsing stored user data:', error);
-          localStorage.removeItem('user');
-          setIsLoading(false);
-        }
-      } else {
-        // No stored user, just check if user is authenticated
-        await checkAuthStatus();
-      }
-    };
-
-    initializeAuth();
+    // Always check auth status on load (for Google login, etc.)
+    checkAuthStatus();
   }, []);
 
   const updateUserData = (userData: any) => {
