@@ -35,7 +35,7 @@ export default function LoginScreen() {
   const scaleValue = useSharedValue(1);
 
   const API_URL = process.env.EXPO_PUBLIC_API_URL;
-  
+
   const handleLogin = async () => {
   if (!email || !password) {
     Alert.alert('Error', 'Please enter your email and password');
@@ -80,6 +80,7 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     } else {
       throw new Error('Login failed');
+
     }
   } catch (error) {
     let errorMessage = 'Please check your credentials and try again.';
