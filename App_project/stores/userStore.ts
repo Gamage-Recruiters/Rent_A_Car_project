@@ -313,11 +313,16 @@ export const useUserStore = create<UserStore>((set, get) => ({
     try {
       const [userData, userTypeData] = await AsyncStorage.multiGet(['user', 'userType']);
       
+      console.log("Loaded user data from storage:", userData[1]);
+      
       if (userData[1]) {
-        set({ user: JSON.parse(userData[1]) });
+        const parsedUser = JSON.parse(userData[1]);
+        console.log("Parsed user data:", parsedUser);
+        set({ user: parsedUser });
       }
       
       if (userTypeData[1]) {
+        console.log("User type from storage:", userTypeData[1]);
         set({ userType: userTypeData[1] as 'user' | 'owner' });
       }
       

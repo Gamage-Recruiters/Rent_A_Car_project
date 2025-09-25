@@ -115,16 +115,24 @@ export default function CarDetailsScreen() {
   };
 
   const handleBookNow = () => {
+    // Log the user state to debug
+    console.log("Current user state:", user);
+    
+    // Simplified check - if user exists, consider them logged in
     if (!user) {
+      console.log("No user detected, redirecting to login");
       router.push('/auth/login');
       return;
     }
     
     if (car) {
+      console.log("User authenticated, navigating to booking page with car ID:", car.id);
       router.push({
         pathname: '/booking/[carId]',
         params: { carId: car.id },
       });
+    } else {
+      console.log("Car data is missing");
     }
   };
 

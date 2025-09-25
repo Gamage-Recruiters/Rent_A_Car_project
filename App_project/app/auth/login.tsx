@@ -37,51 +37,64 @@ export default function LoginScreen() {
   const API_URL = process.env.EXPO_PUBLIC_API_URL;
   
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter your email and password');
-      return;
-    }
+  if (!email || !password) {
+    Alert.alert('Error', 'Please enter your email and password');
+    return;
+  }
 
-    setIsLoading(true);
-    try {
-      // Api call
-      const endpoint = `/auth/${userType}/login`;
-      console.log(`Making login request to: ${API_URL}${endpoint}`);
+  setIsLoading(true);
+  try {
+    // Api call
+    const endpoint = `/auth/${userType}/login`;
+    console.log(`Making login request to: ${API_URL}${endpoint}`);
+    
+    const response = await axios.post(`${API_URL}${endpoint}`, {
+      email,
+      password,
+    });
+
+    if (response.status === 200) {
+      console.log('Login successful:', response.data);
       
-      const response = await axios.post(`${API_URL}${endpoint}`, {
-        email,
-        password,
-      });
-
-      if (response.status === 200) {
-        console.log('Login successful:', response.data);
-        
-        // Store the token and user type
-        await AsyncStorage.setItem('customerToken', response.data.token || 'dummy-token');
-        await AsyncStorage.setItem('userType', userType);
-        
-        // Also update the store
-        setStoreUserType(userType === 'owner' ? 'owner' : 'user');
-        
-        // Login successful, navigate to main app
-        router.replace('/(tabs)');
-      } else {
-        throw new Error('Login failed');
-      }
-    } catch (error) {
-      let errorMessage = 'Please check your credentials and try again.';
-        if (axios.isAxiosError(error) && error.response) {
-          // Get the error message from the API response
-          console.log('Login error:', error.response.data);
-          errorMessage = error.response.data.message || errorMessage;
-        } else if (error instanceof Error) {
-          errorMessage = error.message;
-        }
-        Alert.alert('Login Failed', errorMessage);
-      } finally {
-      setIsLoading(false);
+      // Store the token
+      await AsyncStorage.setItem('customerToken', response.data.token || 'dummy-token');
+      
+      // Create a proper user object with an id field
+      const userData = {
+        id: response.data.userId || response.data._id || Date.now().toString(), // Add id field
+        email: email,
+        type: userType === 'owner' ? 'owner' : 'user' as 'user' | 'owner',
+        userRole: response.data.userRole || userType,
+        createdAt: new Date().toISOString(),
+      };
+      
+      // Update the store with the user data
+      useUserStore.getState().setUser(userData);
+      useUserStore.getState().setUserType(userType === 'owner' ? 'owner' : 'user');
+      
+      // Store user data in AsyncStorage
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      await AsyncStorage.setItem('userType', userType);
+      
+      // Login successful, navigate to main app
+      router.replace('/(tabs)');
+    } else {
+      throw new Error('Login failed');
     }
-  };
+  } catch (error) {
+    let errorMessage = 'Please check your credentials and try again.';
+    if (axios.isAxiosError(error) && error.response) {
+      // Get the error message from the API response
+      console.log('Login error:', error.response.data);
+      errorMessage = error.response.data.message || errorMessage;
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    Alert.alert('Login Failed', errorMessage);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handlePressIn = () => {
     scaleValue.value = withSpring(0.95);
