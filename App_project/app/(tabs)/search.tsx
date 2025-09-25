@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, Filter, Star, MapPin, Fuel, Users, Settings2 } from 'lucide-react-native';
-import { useUserStore } from '@/stores/userStore';
+import { Car, useUserStore } from '@/stores/userStore';
 import { router, useLocalSearchParams } from 'expo-router';
 import Animated, {
   useSharedValue,
@@ -19,25 +19,105 @@ import Animated, {
   withSpring,
   FadeIn,
 } from 'react-native-reanimated';
+import { ActivityIndicator } from 'react-native-paper';
 
 export default function SearchScreen() {
-  const { allCars } = useUserStore();
+  const { fetchAllVehicles, getVehicleLocations } = useUserStore();
   const params = useLocalSearchParams();
   const [searchQuery, setSearchQuery] = useState((params.query as string) || '');
   const [selectedLocation, setSelectedLocation] = useState((params.location as string) || '');
   const [selectedCategory, setSelectedCategory] = useState((params.category as string) || '');
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 500 });
-  const [filteredCars, setFilteredCars] = useState(allCars);
+  const [filteredCars, setFilteredCars] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [locations, setLocations] = useState<string[]>([]);
 
   const filterScale = useSharedValue(0);
 
   useEffect(() => {
-    filterCars();
+    loadVehicles();
+    loadLocations();
+  }, [])
+
+  const loadVehicles = async () => {
+    setLoading(true);
+    try {
+      const cars = await fetchAllVehicles();
+      setFilteredCars(cars);
+    } catch (error) {
+      console.error('Error loading vehicles:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadLocations = async () => {
+    try {
+      const locationsList = await getVehicleLocations();
+      setLocations(locationsList);
+    } catch (error) {
+      console.error('Error loading locations:', error);
+    }
+  };
+
+  useEffect(() => {
+    handleSearch();
   }, [searchQuery, selectedLocation, selectedCategory, priceRange]);
 
+  const handleSearch = async () => {
+    setLoading(true);
+    try {
+      let results = [];
+      
+      if (searchQuery) {
+        results = await searchVehicles(searchQuery);
+      } else {
+        results = await fetchAllVehicles();
+      }
+      
+      // Apply additional client-side filters
+      if (selectedLocation) {
+        results = results.filter((car: Car) =>
+          car.location.toLowerCase().includes(selectedLocation.toLowerCase())
+        );
+      }
+      
+      if (selectedCategory) {
+        results = results.filter((car: Car) => {
+          const category = selectedCategory.toLowerCase();
+          switch (category) {
+            case 'sedan':
+              return car.make.toLowerCase().includes('toyota') || car.make.toLowerCase().includes('honda');
+            case 'suv':
+              return car.model.toLowerCase().includes('suv') || car.model.toLowerCase().includes('crossover');
+            case 'luxury':
+              return car.make.toLowerCase().includes('bmw') || car.make.toLowerCase().includes('mercedes') ||
+                car.pricePerDay > 100;
+            case 'electric':
+              return car.fuel?.toLowerCase().includes('electric');
+            default:
+              return true;
+          }
+        });
+      }
+      
+      if (priceRange.min > 0 || priceRange.max < 500) {
+        results = results.filter(car =>
+          car.pricePerDay >= priceRange.min && car.pricePerDay <= priceRange.max
+        );
+      }
+      
+      setFilteredCars(results);
+    } catch (error) {
+      console.error('Error during search:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filterCars = () => {
-    let filtered = allCars;
+    let filtered = filteredCars;
 
     if (searchQuery) {
       filtered = filtered.filter(car =>
@@ -53,7 +133,7 @@ export default function SearchScreen() {
     }
 
     if (selectedCategory) {
-      filtered = filtered.filter(car => {
+      filtered = filtered.filter((car) => {
         switch (selectedCategory.toLowerCase()) {
           case 'sedan':
             return car.make.toLowerCase().includes('toyota') || car.make.toLowerCase().includes('honda');
@@ -83,7 +163,7 @@ export default function SearchScreen() {
 
   const handleCarPress = (carId: string) => {
     router.push({
-      pathname: '/car-details',
+      pathname: '/car-details/[carId]',
       params: { carId },
     });
   };
@@ -95,7 +175,7 @@ export default function SearchScreen() {
     };
   });
 
-  const renderCarCard = ({ item }: { item: typeof allCars[0] }) => (
+  const renderCarCard = ({ item }: { item: typeof filteredCars[0] }) => (
     <Animated.View entering={FadeIn.delay(100)} style={styles.carCard}>
       <TouchableOpacity
         onPress={() => handleCarPress(item.id)}
@@ -187,16 +267,27 @@ export default function SearchScreen() {
       {/* Results */}
       <View style={styles.resultsContainer}>
         <Text style={styles.resultsText}>
-          {filteredCars.length} cars found
+          {loading ? 'Searching...' : `${filteredCars.length} cars found`}
         </Text>
         
-        <FlatList
-          data={filteredCars}
-          renderItem={renderCarCard}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.carsList}
-        />
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+          </View>
+        ) : (
+          <FlatList
+            data={filteredCars}
+            renderItem={renderCarCard}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.carsList}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No cars found</Text>
+              </View>
+            }
+          />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -372,5 +463,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Inter-Medium',
     color: '#4CAF50',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#8E8E93',
   },
 });

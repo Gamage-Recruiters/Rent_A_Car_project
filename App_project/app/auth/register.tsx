@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Checkbox } from 'react-native-paper';
-import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react-native';
+import { Mail, Lock, User, Eye, EyeOff, Key } from 'lucide-react-native';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -198,19 +198,19 @@ export default function RegisterScreen() {
               </View>
             </View>
 
-            {/* Email */}
-            <View style={styles.inputWrapper}>
-              <Mail size={20} color="#999" />
-              <TextInput
-                placeholder="Email Address"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
-
+        {/* Email */}
+        <View style={styles.inputWrapper}>
+          <Mail size={20} color="#999" />
+          <TextInput
+            placeholder="Email Address"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+          />
+        </View>
+            
             {/* Phone */}
             <View style={styles.inputWrapper}>
               <User size={20} color="#999" />

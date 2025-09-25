@@ -1,11 +1,38 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { Platform } from 'react-native';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const BASE_URL = API_URL?.replace(/\/api$/, "");
+
+const getAdjustedUrl = (url: string) => {
+  if (Platform.OS === 'android' && url && url.includes('localhost')) {
+    return url.replace('localhost', '10.0.2.2');
+  }
+  return url;
+};
 
 export interface User {
   id: string;
   email: string;
-  name: string;
+  firstName?: string;
+  lastName?: string;
   phone?: string;
+  phoneNumber?: string;
+  type: 'user' | 'owner';
+  createdAt: string;
+  profileImage?: string;
+  photo?: string;
+  googleId?: string;
+  dateOfBirth?: string;
+  driversLicense?: string;
+  emergencyContact?: string;
+  address?: string;
+  isNewsletterSubscribed?: boolean;
+  newsletterSubscribedAt?: string;
+  newsletterUnsubscribedAt?: string;
+  userRole?: string;
   avatar?: string;
 }
 
@@ -26,7 +53,7 @@ export interface Car {
   driverIncluded: boolean;
   rating: number;
   reviews: number;
-  fuel: string;
+  fuel?: string;
   transmission: string;
   seats: number;
   description: string;
@@ -166,6 +193,7 @@ interface UserStore {
   addBooking: (booking: Booking) => void;
   updateBooking: (bookingId: string, updates: Partial<Booking>) => void;
   logout: () => void;
+  fetchAllVehicles: () => Promise<Car[]>;
   initializeStore: () => Promise<void>;
 }
 
@@ -174,7 +202,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
   userType: null,
   cars: [],
   bookings: [],
-  allCars: mockCars,
+  allCars: [],
   setUser: (user) => {
     set({ user });
     if (user) {
@@ -220,19 +248,142 @@ export const useUserStore = create<UserStore>((set, get) => ({
     set({ user: null, userType: null, cars: [], bookings: [] });
     AsyncStorage.multiRemove(['user', 'userType']);
   },
+
+  fetchAllVehicles: async () => {
+    try {
+      const response = await axios.get(`${API_URL}/customer/vehicle`);
+      if (response.data && response.data.success) {
+        const vehicles = response.data.data.map(mapVehicleToCar);
+        set({ allCars: vehicles });
+        return vehicles;
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching vehicles:', error);
+      return [];
+    }
+  },
+
+  fetchVehicleById: async (id: string) => {
+    try {
+      const response = await axios.get(`${API_URL}/customer/vehicle/${id}`);
+      if (response.data && response.data.success) {
+        const car = mapVehicleToCar(response.data.data);
+        // Update the car in allCars if it exists
+        const { allCars } = get();
+        const updatedCars = allCars.map(c => c.id === car.id ? car : c);
+        set({ allCars: updatedCars });
+        return car;
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error fetching vehicle with ID ${id}:`, error);
+      return null;
+    }
+  },
+
+  searchVehicles: async (query: string) => {
+    try {
+      const response = await axios.get(`${API_URL}/customer/vehicle/search?query=${encodeURIComponent(query)}`);
+      if (response.data && response.data.success) {
+        const vehicles = response.data.data.map(mapVehicleToCar);
+        return vehicles;
+      }
+      return [];
+    } catch (error) {
+      console.error('Error searching vehicles:', error);
+      return [];
+    }
+  },
+
+  getVehicleLocations: async () => {
+    try {
+      const response = await axios.get(`${API_URL}/customer/vehicle/locations`);
+      if (response.data) {
+        return response.data; // Array of location strings
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching vehicle locations:', error);
+      return [];
+    }
+  },
+
   initializeStore: async () => {
     try {
       const [userData, userTypeData] = await AsyncStorage.multiGet(['user', 'userType']);
       
+      console.log("Loaded user data from storage:", userData[1]);
+      
       if (userData[1]) {
-        set({ user: JSON.parse(userData[1]) });
+        const parsedUser = JSON.parse(userData[1]);
+        console.log("Parsed user data:", parsedUser);
+        set({ user: parsedUser });
       }
       
       if (userTypeData[1]) {
+        console.log("User type from storage:", userTypeData[1]);
         set({ userType: userTypeData[1] as 'user' | 'owner' });
       }
+      
+      // Fetch vehicles when app initializes
+      const store = get();
+      await store.fetchAllVehicles();
     } catch (error) {
       console.error('Failed to initialize store:', error);
     }
   },
 }));
+
+function mapVehicleToCar(vehicle: any): Car {
+  let imageUrl = 'https://via.placeholder.com/400x300?text=No+Image';
+  
+  if (vehicle.images && vehicle.images.length > 0) {
+    // Check if the image path is already a full URL
+    if (vehicle.images[0].startsWith('http')) {
+      imageUrl = vehicle.images[0];
+    } else {
+      // Fix: Don't add /uploads/vehicles/ if it's already in the path
+      const adjustedBaseUrl = getAdjustedUrl(BASE_URL || '');
+      
+      // Check if the image path already contains the upload directory
+      if (vehicle.images[0].startsWith('uploads/vehicles/') || 
+          vehicle.images[0].startsWith('/uploads/vehicles/')) {
+        // Just use the path as is with the base URL
+        imageUrl = `${adjustedBaseUrl}${vehicle.images[0].startsWith('/') ? '' : '/'}${vehicle.images[0]}`;
+      } else {
+        // Add the uploads path if it's not already there
+        imageUrl = `${adjustedBaseUrl}/uploads/vehicles/${vehicle.images[0]}`;
+      }
+    }
+  }
+  
+  console.log('Fixed Image URL:', imageUrl);
+  return {
+    id: vehicle._id || vehicle.id,
+    ownerId: vehicle.owner || 'unknown',
+    make: vehicle.brand,
+    model: vehicle.model,
+    year: parseInt(vehicle.year) || new Date().getFullYear(),
+    image: imageUrl,
+    // Rest of your mapping remains the same
+    pricePerDay: vehicle.pricePerDay,
+    pricePerKm: vehicle.pricePerDistance,
+    location: vehicle.location || vehicle.pickupAddress,
+    available: vehicle.isAvailable,
+    unavailableDates: vehicle.unavailableDates 
+      ? vehicle.unavailableDates.map((date: any) => date.startDate.split('T')[0]) 
+      : [],
+    features: ['AC', 'GPS', 'Bluetooth'],
+    withDriver: vehicle.isDriverAvailable,
+    driverIncluded: false,
+    rating: vehicle.rating || 0,
+    reviews: vehicle.reviewCount || 0,
+    fuel: vehicle.fuelType,
+    transmission: vehicle.transmission,
+    seats: vehicle.noSeats,
+    description: vehicle.description || 'No description provided',
+    contactPhone: vehicle.phoneNumber?.toString() || '',
+    contactEmail: vehicle.email || '',
+  };
+}

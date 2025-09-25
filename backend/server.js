@@ -34,8 +34,11 @@ app.use(cookieParser());
 app.use(passport.initialize());
 
 // ✅ Serve static files (profile images, etc.)
-app.use('/uploads/ownerProfileImages', express.static(path.join(__dirname, 'uploads/ownerProfileImages')));
 
+// Serve static files for vehicle images
+app.use('/uploads/ownerProfileImages', express.static(path.join(__dirname, 'uploads/ownerProfileImages')));
+app.use('/uploads/vehicles', express.static(path.join(__dirname, 'uploads/vehicles')));
+app.use('/uploads/customerProfiles', express.static(path.join(__dirname, 'uploads/customerProfiles')));
 // ============================
 // ✅ Database Connection
 // ============================
