@@ -21,6 +21,7 @@ import Animated, {
   withSpring,
   FadeIn,
 } from 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -32,7 +33,7 @@ export default function LoginScreen() {
   const scaleValue = useSharedValue(1);
 
   const API_URL = process.env.EXPO_PUBLIC_API_URL;
-  
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter your email and password');
@@ -40,8 +41,9 @@ export default function LoginScreen() {
     }
 
     setIsLoading(true);
+
     try {
-      // Api call
+      // API call
       const endpoint = `/auth/${userType}/login`;
       const response = await axios.post(`${API_URL}${endpoint}`, {
         email,
@@ -49,21 +51,27 @@ export default function LoginScreen() {
       });
 
       if (response.status === 200) {
-        // Login successful, navigate to main app
-        router.replace('/(tabs)');
+        const { accessToken, refreshToken, owner, message } = response.data;
+
+        // Store tokens in AsyncStorage
+        await AsyncStorage.setItem('accessToken', accessToken);
+        await AsyncStorage.setItem('refreshToken', refreshToken);
+
+        // Optionally store user info
+        await AsyncStorage.setItem('user', JSON.stringify(owner));
+
       } else {
         throw new Error('Login failed');
       }
     } catch (error) {
       let errorMessage = 'Please check your credentials and try again.';
-        if (axios.isAxiosError(error) && error.response) {
-          // Get the error message from the API response
-          errorMessage = error.response.data.message || errorMessage;
-        } else if (error instanceof Error) {
-          errorMessage = error.message;
-        }
-        Alert.alert('Login Failed', errorMessage);
-      } finally {
+      if (axios.isAxiosError(error) && error.response) {
+        errorMessage = error.response.data.message || errorMessage;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      Alert.alert('Login Failed', errorMessage);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -103,36 +111,42 @@ export default function LoginScreen() {
 
           <Animated.View style={styles.content} entering={FadeIn.delay(200)}>
             <Text style={styles.subtitle}>Welcome!</Text>
-            <Text style={styles.description}>Sign in your account to continue</Text>
+            <Text style={styles.description}>
+              Sign in your account to continue
+            </Text>
 
             {/* User Type Selection */}
             <View style={styles.userTypeContainer}>
               <TouchableOpacity
                 style={[
                   styles.userTypeButton,
-                  userType === 'customer' && styles.activeUserTypeButton
+                  userType === 'customer' && styles.activeUserTypeButton,
                 ]}
                 onPress={() => setUserType('customer')}
               >
-                <Text style={[
-                  styles.userTypeText,
-                  userType === 'customer' && styles.activeUserTypeText
-                ]}>
+                <Text
+                  style={[
+                    styles.userTypeText,
+                    userType === 'customer' && styles.activeUserTypeText,
+                  ]}
+                >
                   Customer
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
-                  styles.userTypeButton, 
-                  userType === 'owner' && styles.activeUserTypeButton
+                  styles.userTypeButton,
+                  userType === 'owner' && styles.activeUserTypeButton,
                 ]}
                 onPress={() => setUserType('owner')}
               >
-                <Text style={[
-                  styles.userTypeText,
-                  userType === 'owner' && styles.activeUserTypeText
-                ]}>
+                <Text
+                  style={[
+                    styles.userTypeText,
+                    userType === 'owner' && styles.activeUserTypeText,
+                  ]}
+                >
                   Car Owner
                 </Text>
               </TouchableOpacity>
@@ -160,7 +174,9 @@ export default function LoginScreen() {
                   secureTextEntry={!showPassword}
                   placeholderTextColor="#8E8E93"
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                >
                   {showPassword ? (
                     <EyeOff size={20} color="#8E8E93" />
                   ) : (
