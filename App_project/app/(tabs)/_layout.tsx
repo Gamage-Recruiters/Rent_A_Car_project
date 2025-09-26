@@ -109,6 +109,15 @@ export default function TabLayout() {
           tabBarIcon: ({ size, color }) => (
             <Calendar size={size} color={color} />
           ),
+          // Route to appropriate history screen based on user type
+          href: isOwner ? '/(tabs)/rental_history' : '/(tabs)/customer_rental_history',
+        }}
+      />
+      <Tabs.Screen
+        name="customer_rental_history"
+        options={{
+          // Hide this from tab bar
+          href: null,
         }}
       />
       <Tabs.Screen

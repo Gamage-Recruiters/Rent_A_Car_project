@@ -17,20 +17,20 @@ const mockEarnings = {
 };
 
 const mockHistory = [
-  { id: 'RH401', car: 'Toyota Camry 2022', customer: 'John Smith', status: 'Completed' },
-  { id: 'RH502', car: 'Honda Civic 2022', customer: 'Mia Wilson', status: 'Completed' },
+  { id: 'RH401', car: 'Toyota Camry 20222', customer: 'John Smith', status: 'Completed' },
+  { id: 'RH502', car: 'Honda Civic 222', customer: 'Mia Wilson', status: 'Completed' },
   { id: 'RH602', car: 'BMW X5 2014', customer: 'Emily Davis', status: 'Pending' },
 ];
 
 const TABS = ['All Rentals', 'Active', 'Completed', 'Pending'];
 
-export default function RentalHistoryScreen() {
+export default function CustomerRentalHistoryScreen() {
   const [selectedTab, setSelectedTab] = useState('All Rentals');
 
   const filteredHistory =
     selectedTab === 'All Rentals'
       ? mockHistory
-      : mockHistory.filter((item) => item.status === selectedTab);
+      : mockHistory.filter((item) => item.status === selectedTab.slice(0, -1));
 
   return (
     <SafeAreaView style={styles.container}>
