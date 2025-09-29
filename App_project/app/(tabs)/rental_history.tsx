@@ -30,7 +30,7 @@ export default function RentalHistoryScreen() {
   const filteredHistory =
     selectedTab === 'All Rentals'
       ? mockHistory
-      : mockHistory.filter((item) => item.status === selectedTab.slice(0, -1));
+      : mockHistory.filter((item) => item.status === selectedTab);
 
   return (
     <SafeAreaView style={styles.container}>
