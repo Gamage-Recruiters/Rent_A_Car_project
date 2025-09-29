@@ -63,6 +63,11 @@ export default function LoginScreen() {
       const userData = {
         id: response.data.userId || response.data._id || Date.now().toString(), // Add id field
         email: email,
+        firstName: response.data.firstName || response.data.user?.firstName || email.split('@')[0],
+        lastName: response.data.lastName || response.data.user?.lastName || '',
+        name: response.data.firstName 
+        ? `${response.data.firstName} ${response.data.lastName || ''}`
+        : email.split('@')[0],
         type: userType === 'owner' ? 'owner' : 'user' as 'user' | 'owner',
         userRole: response.data.userRole || userType,
         createdAt: new Date().toISOString(),

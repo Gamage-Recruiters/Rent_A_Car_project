@@ -18,6 +18,7 @@ export interface User {
   email: string;
   firstName?: string;
   lastName?: string;
+  name?: string;
   phone?: string;
   phoneNumber?: string;
   type: 'user' | 'owner';

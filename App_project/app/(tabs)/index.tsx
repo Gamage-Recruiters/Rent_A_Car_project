@@ -65,6 +65,26 @@ export default function HomeScreen() {
     return "day isn't it";
   };
 
+  type UserType = {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  };
+
+  const getUserDisplayName = (user: UserType | undefined) => {
+    if (!user) return '';
+    
+    // If firstName exists, use it (with lastName if available)
+    if (user.firstName) {
+      return user.lastName 
+        ? `${user.firstName} ${user.lastName}`
+        : user.firstName;
+    }
+    
+    // Fallback to email if no name is available
+    return user.email?.split('@')[0] || 'there';
+  };
+
   const time = getTimeOfDay();
 
   const handleSearch = () => {
@@ -144,7 +164,12 @@ export default function HomeScreen() {
         <Animated.View style={[styles.header, animatedStyle]}>
           <View style={styles.headerContent}>
             <Text style={styles.greeting}>
-              {user ? `Good ${time}, ${user.name}!` : `Good ${time}`}
+              Good {time},{' '}
+              {user ? (
+                <Text style={styles.username}>{getUserDisplayName(user)}</Text>
+              ) : (
+                'there'
+              )}
             </Text>
             <Text style={styles.subtitle}>Find your perfect ride</Text>
           </View>
@@ -259,10 +284,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   greeting: {
-    fontSize: 28,
+    fontSize: 24, 
     fontFamily: 'Poppins-Bold',
     color: '#1D1D1F',
     marginTop: 5
+  },
+  username: {
+    fontSize: 20, 
+    fontFamily: 'Poppins-SemiBold', 
+    color: '#007AFF', 
   },
   subtitle: {
     fontSize: 16,
