@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,10 @@ import {
   Image,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   ArrowLeft, 
   Star,
@@ -18,6 +20,7 @@ import {
   Calendar,
   Plus,
   Send,
+  Loader,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Animated, {
@@ -26,6 +29,8 @@ import Animated, {
   withSpring,
   FadeIn,
 } from 'react-native-reanimated';
+import { reviewService, BackendReview } from '../services/reviewService';
+import { useUserStore } from '../stores/userStore';
 
 interface Review {
   id: string;
@@ -35,65 +40,137 @@ interface Review {
   comment: string;
   date: string;
   carName: string;
+  vehicle?: {
+    id: string;
+    name: string;
+    brand: string;
+    model: string;
+    year: string;
+    image?: string;
+  };
 }
 
-const mockReviews: Review[] = [
-  {
-    id: '1',
-    userName: 'John Smith',
-    rating: 5,
-    comment: 'Excellent service! The car was clean and well-maintained. The owner was very responsive and helpful.',
-    date: '2024-01-15',
-    carName: 'Toyota Camry',
-  },
-  {
-    id: '2',
-    userName: 'Sarah Johnson',
-    rating: 4,
-    comment: 'Great experience overall. The car performed well during our trip. Would definitely rent again.',
-    date: '2024-01-10',
-    carName: 'Honda CR-V',
-  },
-  {
-    id: '3',
-    userName: 'Mike Wilson',
-    rating: 5,
-    comment: 'Amazing luxury car! Perfect for our special occasion. The owner was professional and accommodating.',
-    date: '2024-01-05',
-    carName: 'BMW X3',
-  },
-];
+// Helper function to convert backend review to frontend format
+const mapBackendReviewToReview = (backendReview: BackendReview): Review => {
+  const BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace('/api', '') || '';
+  
+  const getImageUrl = (images?: string[]) => {
+    if (!images || images.length === 0) return undefined;
+    const imagePath = images[0];
+    if (imagePath.startsWith('http')) return imagePath;
+    if (imagePath.startsWith('/uploads')) return `${BASE_URL}${imagePath}`;
+    return `${BASE_URL}/uploads/vehicles/${imagePath}`;
+  };
+
+  const getUserAvatarUrl = (photo?: string) => {
+    if (!photo) return undefined;
+    if (photo.startsWith('http')) return photo;
+    if (photo.startsWith('/uploads')) return `${BASE_URL}${photo}`;
+    return `${BASE_URL}/uploads/customerProfiles/${photo}`;
+  };
+
+  return {
+    id: backendReview._id,
+    userName: `${backendReview.customer.firstName} ${backendReview.customer.lastName}`,
+    userAvatar: getUserAvatarUrl(backendReview.customer.photo),
+    rating: backendReview.rating,
+    comment: backendReview.comment,
+    date: backendReview.createdAt.split('T')[0],
+    carName: backendReview.vehicle?.vehicleName || `${backendReview.vehicle?.brand} ${backendReview.vehicle?.model}`,
+    vehicle: backendReview.vehicle ? {
+      id: backendReview.vehicle._id,
+      name: backendReview.vehicle.vehicleName,
+      brand: backendReview.vehicle.brand,
+      model: backendReview.vehicle.model,
+      year: backendReview.vehicle.year,
+      image: getImageUrl(backendReview.vehicle.images),
+    } : undefined,
+  };
+};
 
 export default function ReviewsScreen() {
-  const [reviews, setReviews] = useState<Review[]>(mockReviews);
+  const { user } = useUserStore();
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showAddReview, setShowAddReview] = useState(false);
   const [newReview, setNewReview] = useState({
     rating: 5,
     comment: '',
     carName: '',
+    vehicleId: '',
   });
 
   const scaleValue = useSharedValue(1);
 
-  const handleAddReview = () => {
-    if (!newReview.comment.trim() || !newReview.carName.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+  // Fetch reviews from API
+  const fetchReviews = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const backendReviews = await reviewService.getAllReviews();
+      const mappedReviews = backendReviews.map(mapBackendReviewToReview);
+      setReviews(mappedReviews);
+    } catch (err: any) {
+      console.error('Error fetching reviews:', err);
+      setError(err.message || 'Failed to fetch reviews');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load reviews on component mount
+  useEffect(() => {
+    fetchReviews();
+  }, []);
+
+  // Retry function for failed requests
+  const handleRetry = () => {
+    fetchReviews();
+  };
+
+  const handleAddReview = async () => {
+    if (!newReview.comment.trim() || !newReview.vehicleId.trim()) {
+      Alert.alert('Error', 'Please fill in all fields and select a vehicle');
       return;
     }
 
-    const review: Review = {
-      id: Date.now().toString(),
-      userName: 'You',
-      rating: newReview.rating,
-      comment: newReview.comment,
-      date: new Date().toISOString().split('T')[0],
-      carName: newReview.carName,
-    };
+    if (!user) {
+      Alert.alert('Error', 'Please log in to add a review');
+      return;
+    }
 
-    setReviews([review, ...reviews]);
-    setNewReview({ rating: 5, comment: '', carName: '' });
-    setShowAddReview(false);
-    Alert.alert('Success', 'Your review has been added!');
+    try {
+      setSubmitting(true);
+      
+      // Get the stored token
+      const token = await AsyncStorage.getItem('customerToken');
+      if (!token) {
+        Alert.alert('Error', 'Please log in again');
+        return;
+      }
+
+      const reviewData = {
+        vehicle: newReview.vehicleId,
+        rating: newReview.rating,
+        comment: newReview.comment,
+      };
+
+      const createdReview = await reviewService.createReview(reviewData, token);
+      const mappedReview = mapBackendReviewToReview(createdReview);
+
+      setReviews([mappedReview, ...reviews]);
+      setNewReview({ rating: 5, comment: '', carName: '', vehicleId: '' });
+      setShowAddReview(false);
+      Alert.alert('Success', 'Your review has been added!');
+    } catch (error: any) {
+      console.error('Error adding review:', error);
+      Alert.alert('Error', error.message || 'Failed to add review');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const renderStars = (rating: number, size: number = 16, interactive: boolean = false) => {
@@ -170,7 +247,16 @@ export default function ReviewsScreen() {
         <Text style={styles.title}>Reviews</Text>
         <TouchableOpacity 
           style={styles.addButton} 
-          onPress={() => setShowAddReview(!showAddReview)}
+          onPress={() => {
+            if (!user) {
+              Alert.alert('Login Required', 'Please log in to add a review', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Login', onPress: () => router.push('/auth/login') }
+              ]);
+              return;
+            }
+            setShowAddReview(!showAddReview);
+          }}
         >
           <Plus size={24} color="#007AFF" />
         </TouchableOpacity>
@@ -181,75 +267,147 @@ export default function ReviewsScreen() {
         <Animated.View style={styles.addReviewContainer} entering={FadeIn}>
           <Text style={styles.addReviewTitle}>Add Your Review</Text>
           
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Car name"
-              value={newReview.carName}
-              onChangeText={(text) => setNewReview({ ...newReview, carName: text })}
-              placeholderTextColor="#8E8E93"
-            />
-          </View>
+          {user ? (
+            <>
+              <Text style={styles.helpText}>
+                Share your experience with a vehicle you've rented
+              </Text>
+              
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Vehicle ID (required)"
+                  value={newReview.vehicleId}
+                  onChangeText={(text) => setNewReview({ ...newReview, vehicleId: text })}
+                  placeholderTextColor="#8E8E93"
+                />
+                <Text style={styles.fieldHint}>
+                  Enter the ID of the vehicle you want to review
+                </Text>
+              </View>
 
-          <View style={styles.ratingSection}>
-            <Text style={styles.ratingLabel}>Rating:</Text>
-            {renderStars(newReview.rating, 24, true)}
-          </View>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Car name (optional)"
+                  value={newReview.carName}
+                  onChangeText={(text) => setNewReview({ ...newReview, carName: text })}
+                  placeholderTextColor="#8E8E93"
+                />
+              </View>
 
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.textArea}
-              placeholder="Write your review..."
-              value={newReview.comment}
-              onChangeText={(text) => setNewReview({ ...newReview, comment: text })}
-              multiline
-              numberOfLines={4}
-              placeholderTextColor="#8E8E93"
-            />
-          </View>
+              <View style={styles.ratingSection}>
+                <Text style={styles.ratingLabel}>Rating:</Text>
+                {renderStars(newReview.rating, 24, true)}
+              </View>
 
-          <TouchableOpacity
-            style={styles.submitButton}
-            onPress={handleAddReview}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-          >
-            <Animated.View style={[styles.submitButtonContent, animatedStyle]}>
-              <Send size={16} color="#FFFFFF" />
-              <Text style={styles.submitButtonText}>Submit Review</Text>
-            </Animated.View>
-          </TouchableOpacity>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.textArea}
+                  placeholder="Write your review..."
+                  value={newReview.comment}
+                  onChangeText={(text) => setNewReview({ ...newReview, comment: text })}
+                  multiline
+                  numberOfLines={4}
+                  placeholderTextColor="#8E8E93"
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+                onPress={handleAddReview}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                disabled={submitting}
+              >
+                <Animated.View style={[styles.submitButtonContent, animatedStyle]}>
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Send size={16} color="#FFFFFF" />
+                  )}
+                  <Text style={styles.submitButtonText}>
+                    {submitting ? 'Submitting...' : 'Submit Review'}
+                  </Text>
+                </Animated.View>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View style={styles.authPrompt}>
+              <Text style={styles.authPromptText}>
+                Please log in to add a review
+              </Text>
+              <TouchableOpacity 
+                style={styles.loginButton}
+                onPress={() => router.push('/auth/login')}
+              >
+                <Text style={styles.loginButtonText}>Go to Login</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </Animated.View>
       )}
 
       {/* Reviews List */}
       <View style={styles.content}>
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{reviews.length}</Text>
-            <Text style={styles.statLabel}>Total Reviews</Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading reviews...</Text>
           </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>
-              {(reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)}
-            </Text>
-            <Text style={styles.statLabel}>Average Rating</Text>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorTitle}>Unable to load reviews</Text>
+            <Text style={styles.errorMessage}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+              <Text style={styles.retryButtonText}>Try Again</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.statItem}>
-            <View style={styles.starsContainer}>
-              {renderStars(Math.round(reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length))}
+        ) : (
+          <>
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{reviews.length}</Text>
+                <Text style={styles.statLabel}>Total Reviews</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>
+                  {reviews.length > 0 
+                    ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
+                    : '0.0'
+                  }
+                </Text>
+                <Text style={styles.statLabel}>Average Rating</Text>
+              </View>
+              <View style={styles.statItem}>
+                <View style={styles.starsContainer}>
+                  {renderStars(reviews.length > 0 
+                    ? Math.round(reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length)
+                    : 0
+                  )}
+                </View>
+                <Text style={styles.statLabel}>Overall</Text>
+              </View>
             </View>
-            <Text style={styles.statLabel}>Overall</Text>
-          </View>
-        </View>
 
-        <FlatList
-          data={reviews}
-          renderItem={renderReviewItem}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.reviewsList}
-        />
+            {reviews.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyTitle}>No reviews yet</Text>
+                <Text style={styles.emptyMessage}>
+                  Be the first to share your experience!
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={reviews}
+                renderItem={renderReviewItem}
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.reviewsList}
+              />
+            )}
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -351,6 +509,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#8E8E93',
   },
   submitButtonContent: {
     flexDirection: 'row',
@@ -476,5 +637,101 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: '#1D1D1F',
     lineHeight: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#8E8E93',
+    marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    color: '#1D1D1F',
+    marginBottom: 8,
+  },
+  errorMessage: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    color: '#1D1D1F',
+    marginBottom: 8,
+  },
+  emptyMessage: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#8E8E93',
+    textAlign: 'center',
+  },
+  helpText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#8E8E93',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  fieldHint: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#8E8E93',
+    marginTop: 4,
+  },
+  authPrompt: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  authPromptText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#8E8E93',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  loginButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
   },
 });
