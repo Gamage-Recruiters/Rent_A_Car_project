@@ -36,80 +36,141 @@ export default function RegisterScreen() {
   const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
   const handleRegister = async () => {
-    // Validation
-    if (!firstName || !email || !password || !phone || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all required fields');
-      return;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
-    if (!agree) {
-      Alert.alert('Error', 'Please agree to the terms');
-      return;
-    }
-    const emailRegex = /.+@.+\..+/;
-    if (!emailRegex.test(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return;
-    }
+  // Validation
+  if (!firstName || !email || !password || !phone || !confirmPassword) {
+    Alert.alert('Error', 'Please fill in all required fields');
+    return;
+  }
+  if (password !== confirmPassword) {
+    Alert.alert('Error', 'Passwords do not match');
+    return;
+  }
+  if (!agree) {
+    Alert.alert('Error', 'Please agree to the terms');
+    return;
+  }
+  const emailRegex = /.+@.+\..+/;
+  if (!emailRegex.test(email)) {
+    Alert.alert('Error', 'Please enter a valid email address');
+    return;
+  }
 
-    setLoading(true);
+  const phoneRegex = /^\+?[0-9\s\-()]{8,15}$/;
+  if (!phoneRegex.test(phone)) {
+    Alert.alert('Error', 'Please enter a valid phone number');
+    return;
+  }
 
-    try {
-      const endpoint =
-        userType === 'owner'
-          ? '/auth/owner/register'
-          : '/auth/customer/register';
+  if (password.length < 6) {
+    Alert.alert('Error', 'Password must be at least 6 characters');
+    return;
+  }
 
-      const fullURL = `${API_URL}/api${endpoint}`;
+  setLoading(true);
 
-      const userData = { firstName, lastName, email, phone, password };
+  try {
+    const endpoint = userType === 'owner' 
+      ? '/auth/owner/register'
+      : '/auth/customer/register';
+      
+    console.log(`Registering ${userType} with endpoint: ${API_URL}${endpoint}`);
+    
+    const userData = { 
+      firstName, 
+      lastName, 
+      email, 
+      phone,  
+      phoneNumber: phone, 
+      password 
+    };
 
-      const response = await axios.post(fullURL, userData, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 10000,
-      });
+    const response = await axios.post(`${API_URL}${endpoint}`, userData, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 10000,
+    });
 
-      // Get tokens and user info
-      const { accessToken, refreshToken, owner } = response.data;
-
-      await AsyncStorage.setItem('accessToken', accessToken);
-      await AsyncStorage.setItem('refreshToken', refreshToken);
-      await AsyncStorage.setItem('user', JSON.stringify(owner));
-
-      const successMessage =
-        userType === 'owner'
-          ? 'Owner account created successfully! Wait for admin approval.'
-          : 'Customer account created successfully!';
-
-      // Navigate after success
-      Alert.alert('Success', successMessage, [
-        {
-          text: 'OK',
-          onPress: () => router.push('../login'),
-        },
-      ]);
-    } catch (error: any) {
-      let errorMessage = 'Something went wrong. Please try again.';
-      if (axios.isAxiosError(error) && error.response) {
-        if (error.response.status === 409) {
-          errorMessage =
-            userType === 'owner'
-              ? 'Owner email already exists.'
-              : 'Customer email already exists.';
-        } else if (error.response.status === 400) {
-          errorMessage = error.response.data.message || errorMessage;
-        }
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
+    console.log(`Registration response for ${userType}:`, response.data);
+    
+    if (userType === 'customer') {
+      // For customers, the backend returns different data
+      if (response.data.userRole === 'customer') {
+        // Save user type to AsyncStorage
+        await AsyncStorage.setItem('userType', 'user');
+        
+        // Show success message
+        Alert.alert('Success', 'Your account has been created successfully!', [
+          {
+            text: 'Login Now',
+            onPress: () => router.push('/auth/login'),
+          },
+        ]);
       }
-      Alert.alert('Registration Failed', errorMessage);
-    } finally {
-      setLoading(false);
+    } else if (userType === 'owner') {
+      // For owners, backend returns tokens and owner object
+      const { accessToken, refreshToken, owner } = response.data;
+      
+      if (accessToken && refreshToken && owner) {
+        // Save tokens and user info
+        await AsyncStorage.setItem('accessToken', accessToken);
+        await AsyncStorage.setItem('refreshToken', refreshToken);
+        
+        // Convert owner object to match our User interface
+        const userData = {
+          id: owner.id,
+          email: owner.email,
+          firstName: owner.firstName,
+          lastName: owner.lastName || '',
+          phone: owner.phone || '',
+          type: 'owner',
+          userRole: 'owner',
+          createdAt: new Date().toISOString()
+        };
+        
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
+        await AsyncStorage.setItem('userType', 'owner');
+        
+        // Show owner-specific message
+        Alert.alert('Success', 'Your account has been created. Please wait for admin approval.', [
+          {
+            text: 'OK',
+            onPress: () => router.push('/auth/login'),
+          },
+        ]);
+      }
     }
-  };
+  } catch (error: any) {
+    console.error('Registration error:', error);
+    
+    let errorMessage = 'Something went wrong. Please try again.';
+    
+    if (axios.isAxiosError(error)) {
+      // Handle Axios specific errors
+      if (error.response) {
+        // Server responded with an error status
+        console.log('Error response data:', error.response.data);
+        console.log('Error response status:', error.response.status);
+        
+        if (error.response.status === 409) {
+          errorMessage = `This email is already registered. Please login or use a different email.`;
+        } else if (error.response.data && error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error.request) {
+        // Request made but no response received
+        console.log('No response received:', error.request);
+        errorMessage = 'No response from server. Please check your internet connection.';
+      } else {
+        // Error setting up the request
+        console.log('Request setup error:', error.message);
+        errorMessage = `Request error: ${error.message}`;
+      }
+    }
+    
+    Alert.alert('Registration Failed', errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <SafeAreaView style={styles.container}>
@@ -175,11 +236,11 @@ export default function RegisterScreen() {
             </View>
 
             {/* Name */}
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', gap: 4, marginBottom: 2 }}>
               <View style={[styles.inputWrapper, { flex: 1 }]}>
                 <User size={20} color="#999" />
                 <TextInput
-                  placeholder="First Name *"
+                  placeholder="First Name*"
                   style={styles.input}
                   value={firstName}
                   onChangeText={setFirstName}
@@ -189,7 +250,7 @@ export default function RegisterScreen() {
               <View style={[styles.inputWrapper, { flex: 1 }]}>
                 <User size={20} color="#999" />
                 <TextInput
-                  placeholder="Last Name"
+                  placeholder="Last Name*"
                   style={styles.input}
                   value={lastName}
                   onChangeText={setLastName}
@@ -322,11 +383,11 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
     borderWidth: 1,
     borderRadius: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     marginBottom: 16,
     backgroundColor: '#fff',
   },
-  input: { flex: 1, paddingVertical: 12, marginLeft: 8, fontSize: 16, color: '#111' },
+  input: { flex: 1, paddingVertical: 12, marginLeft: 8, fontSize: 14, color: '#111' },
   checkboxRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20, gap: 8 },
   checkboxText: { flex: 1, color: '#666', fontSize: 13 },
   link: { color: '#007AFF', fontWeight: '600' },

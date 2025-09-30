@@ -18,6 +18,7 @@ export interface User {
   email: string;
   firstName?: string;
   lastName?: string;
+  name?: string;
   phone?: string;
   phoneNumber?: string;
   type: 'user' | 'owner';
@@ -308,6 +309,79 @@ export const useUserStore = create<UserStore>((set, get) => ({
       return [];
     }
   },
+
+  registerUser: async (userData: {
+  firstName: string;
+  lastName?: string;
+  email: string;
+  phone: string;
+  password: string;
+  userType: 'user' | 'owner';
+}) => {
+  try {
+    const endpoint = userData.userType === 'owner' 
+      ? `/auth/owner/register`
+      : `/auth/customer/register`;
+      
+    const postData = {
+      firstName: userData.firstName,
+      lastName: userData.lastName || '',
+      email: userData.email,
+      phone: userData.phone,
+      phoneNumber: userData.phone,
+      password: userData.password
+    };
+    
+    const response = await axios.post(`${API_URL}${endpoint}`, postData);
+    
+    if (response.data) {
+      if (userData.userType === 'owner' && response.data.owner && response.data.accessToken) {
+        // Owner registration successful with tokens
+        const { accessToken, refreshToken, owner } = response.data;
+        
+        // Store tokens
+        await AsyncStorage.setItem('accessToken', accessToken);
+        await AsyncStorage.setItem('refreshToken', refreshToken);
+        
+        // Store user data
+        const user: User = {
+          id: owner.id,
+          email: owner.email,
+          firstName: owner.firstName,
+          lastName: owner.lastName || '',
+          phone: owner.phone,
+          type: 'owner',
+          userRole: 'owner',
+          createdAt: new Date().toISOString()
+        };
+        
+        await AsyncStorage.setItem('user', JSON.stringify(user));
+        await AsyncStorage.setItem('userType', 'owner');
+        
+        // Update store state
+        set({ user, userType: 'owner' });
+        
+        return { success: true, requiresApproval: true };
+      } 
+      else if (userData.userType === 'user' && response.data.userRole === 'customer') {
+        // Customer registration successful
+        // For customers, we don't get user data back, so we need to login after registration
+        return { success: true, requiresApproval: false };
+      }
+    }
+    
+    return { success: false, message: 'Registration failed' };
+  } catch (error: any) {
+    console.error('Registration error:', error);
+    
+    let errorMessage = 'Registration failed';
+    if (axios.isAxiosError(error) && error.response) {
+      errorMessage = error.response.data?.message || errorMessage;
+    }
+    
+    return { success: false, message: errorMessage };
+  }
+},
 
   initializeStore: async () => {
     try {
