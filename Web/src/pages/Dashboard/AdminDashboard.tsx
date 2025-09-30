@@ -15,6 +15,7 @@ import autoTable from "jspdf-autotable";
 
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 const ADMIN_API = `${BASE.replace(/\/$/, "")}/auth/superadmin`;
+const ADMIN_RESOURCE_API = `${BASE.replace(/\/$/, "")}/superadmin`;
 
 const AdminDashboard: React.FC = () => {
   const generatePDF = () => {
@@ -108,6 +109,18 @@ const AdminDashboard: React.FC = () => {
   const [recentActivities, setRecentActivities] = useState<
     { action: string; user: string; time: string; type?: string }[]
   >([]);
+  const [customersCount, setCustomersCount] = useState<number | null>(null);
+  const [approvedOwnersCount, setApprovedOwnersCount] = useState<number | null>(null);
+  const [pendingOwnersCount, setPendingOwnersCount] = useState<number | null>(null);
+  const [adminsCount, setAdminsCount] = useState<number | null>(null);
+
+  // derived total users = approved owners + customers + admins
+  const totalUsersCount: number | null =
+    approvedOwnersCount === null && customersCount === null && adminsCount === null
+      ? null
+      : (approvedOwnersCount ?? 0) + (customersCount ?? 0) + (adminsCount ?? 0);
+  
+
   const [allActivities, setAllActivities] = useState<
     { action: string; user: string; time: string; type?: string }[] | null
   >(null);
@@ -142,6 +155,90 @@ const AdminDashboard: React.FC = () => {
       }
     };
     fetchActivities();
+
+    // fetch total customers for metrics
+    const fetchCustomersCount = async () => {
+      try {
+        const res = await fetch(`${ADMIN_RESOURCE_API}/customers/count`, {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        // data expected: { total: number }
+        if (data && typeof data.total === "number") {
+          setCustomersCount(data.total);
+        }
+      } catch (err) {
+        console.error("Failed to load customers count", err);
+      }
+    };
+    fetchCustomersCount();
+
+    // fetch approved owners count (call approved list and use length)
+    const fetchApprovedOwnersCount = async () => {
+      try {
+        const res = await fetch(`${ADMIN_RESOURCE_API}/owners/approved`, {
+          credentials: "include",
+        });
+        if (!res.ok) {
+          console.error("Failed to load approved owners", res.status);
+          return;
+        }
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setApprovedOwnersCount(data.length);
+        } else if (data && typeof data.total === "number") {
+          // in case backend returns { total: n }
+          setApprovedOwnersCount(data.total);
+        }
+      } catch (err) {
+        console.error("Failed to load approved owners count", err);
+      }
+    };
+    fetchApprovedOwnersCount();
+
+    // fetch pending owners count for metrics
+    const fetchPendingOwnersCount = async () => {
+      try {
+        const res = await fetch(`${ADMIN_RESOURCE_API}/owners/pending`, {
+          credentials: "include",
+        });
+       if (!res.ok) {
+          console.error("Failed to load pending owners", res.status);
+          return;
+        }
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setPendingOwnersCount(data.length);
+        } else if (data && typeof data.total === "number") {
+          setPendingOwnersCount(data.total);
+        }
+      } catch (err) {
+        console.error("Failed to load pending owners count", err);
+      }
+    };
+    fetchPendingOwnersCount();
+
+    // fetch total admins count
+    const fetchAdminsCount = async () => {
+      try {
+        const res = await fetch(`${ADMIN_API}/admins`, { credentials: "include" });
+        if (!res.ok) {
+          console.error("Failed to load admins list", res.status);
+          return;
+        }
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setAdminsCount(data.length);
+        } else if (data && typeof data.total === "number") {
+          setAdminsCount(data.total);
+        }
+      } catch (err) {
+        console.error("Failed to load admins count", err);
+      }
+    };
+    fetchAdminsCount();
+
   }, []);
 
   const handleViewAll = async () => {
@@ -226,7 +323,7 @@ const AdminDashboard: React.FC = () => {
   const metrics = [
     {
       title: "Total Users",
-      value: "12,847",
+       value: totalUsersCount !== null ? totalUsersCount.toLocaleString() : "—",
       change: "+12.5%",
       changeType: "increase",
       icon: Users,
@@ -235,20 +332,10 @@ const AdminDashboard: React.FC = () => {
       bgColor: "bg-blue-50",
       borderColor: "border-l-blue-500",
     },
-    {
-      title: "Total Owners",
-      value: "1,250",
-      change: "+5.2%",
-      changeType: "increase",
-      icon: Users,
-      description: "All registered owners",
-      color: "text-green-600",
-      bgColor: "bg-green-50",
-      borderColor: "border-l-green-500",
-    },
+    
     {
       title: "Approved Owners",
-      value: "980",
+      value: approvedOwnersCount !== null ? approvedOwnersCount.toLocaleString() : "—",
       change: "+4.7%",
       changeType: "increase",
       icon: Users,
@@ -258,8 +345,9 @@ const AdminDashboard: React.FC = () => {
       borderColor: "border-l-purple-500",
     },
     {
+      //done
       title: "Total Customers",
-      value: "11,300",
+     value: customersCount !== null ? customersCount.toLocaleString() : "—",
       change: "+9.1%",
       changeType: "increase",
       icon: Users,
@@ -270,7 +358,7 @@ const AdminDashboard: React.FC = () => {
     },
     {
       title: "Total Admins",
-      value: "17",
+      value: adminsCount !== null ? adminsCount.toLocaleString() : "—",
       change: "+1.0%",
       changeType: "increase",
       icon: Users,
@@ -281,7 +369,7 @@ const AdminDashboard: React.FC = () => {
     },
     {
       title: "Total Pending Requests",
-      value: "47",
+      value: pendingOwnersCount !== null ? pendingOwnersCount.toLocaleString() : "—",
       change: "-5.1%",
       changeType: "decrease",
       icon: Clock,
@@ -335,14 +423,36 @@ const AdminDashboard: React.FC = () => {
     // Or if using React Router: navigate('/admin/profile', { state: { changePassword: true } })
   };
 
-  const handleLogout = () => {
-    // Handle logout logic
-    if (confirm("Are you sure you want to logout?")) {
-      // Clear auth tokens, redirect to login, etc.
-      console.log("Logging out...");
-      window.location.href = "/admin/login";
+  // Call backend logout endpoint, then redirect to login
+  const handleLogout = async () => {
+    if (!confirm("Are you sure you want to logout?")) return;
+    try {
+      const res = await fetch(`${ADMIN_API}/logout`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res.status === 200 || res.status === 204) {
+        // optionally clear UI state
+        setAdminProfile(null);
+        // Redirect to admin login
+        window.location.href = "/admin-login";
+        return;
+      }
+      if (res.status === 401) {
+        // already unauthenticated
+        window.location.href = "/admin-login";
+        return;
+      }
+      const txt = await res.text().catch(() => "");
+      console.error("Logout failed:", res.status, txt);
+      alert("Logout failed. Check console.");
+    } catch (err) {
+      console.error("Logout error:", err);
+      alert("Logout failed. Check console.");
     }
   };
+  
 
   return (
     <div className="min-h-screen bg-gray-50">
