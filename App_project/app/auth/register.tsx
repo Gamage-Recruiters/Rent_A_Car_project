@@ -236,11 +236,11 @@ export default function RegisterScreen() {
             </View>
 
             {/* Name */}
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', gap: 4, marginBottom: 2 }}>
               <View style={[styles.inputWrapper, { flex: 1 }]}>
                 <User size={20} color="#999" />
                 <TextInput
-                  placeholder="First Name *"
+                  placeholder="First Name*"
                   style={styles.input}
                   value={firstName}
                   onChangeText={setFirstName}
@@ -250,7 +250,7 @@ export default function RegisterScreen() {
               <View style={[styles.inputWrapper, { flex: 1 }]}>
                 <User size={20} color="#999" />
                 <TextInput
-                  placeholder="Last Name"
+                  placeholder="Last Name*"
                   style={styles.input}
                   value={lastName}
                   onChangeText={setLastName}
@@ -383,11 +383,11 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
     borderWidth: 1,
     borderRadius: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     marginBottom: 16,
     backgroundColor: '#fff',
   },
-  input: { flex: 1, paddingVertical: 12, marginLeft: 8, fontSize: 16, color: '#111' },
+  input: { flex: 1, paddingVertical: 12, marginLeft: 8, fontSize: 14, color: '#111' },
   checkboxRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20, gap: 8 },
   checkboxText: { flex: 1, color: '#666', fontSize: 13 },
   link: { color: '#007AFF', fontWeight: '600' },
