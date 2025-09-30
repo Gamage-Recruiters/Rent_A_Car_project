@@ -196,7 +196,10 @@ export default function LoginScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.forgotPassword}>
+        <TouchableOpacity 
+          style={styles.forgotPassword}
+          onPress={() => router.push('/auth/forgotpPassword')}
+        >
           <Text style={styles.forgotPasswordText}>Forgot password?</Text>
         </TouchableOpacity>
 
