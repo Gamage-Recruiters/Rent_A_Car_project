@@ -34,13 +34,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+import { bookingService } from '@/services/bookingService';
 
 export default function BookingScreen() {
-  const { carId } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const { carId, editMode, bookingId, startDate: editStartDate, endDate: editEndDate, 
+          pickupLocation: editPickupLocation, dropoffLocation: editDropoffLocation, 
+          totalPrice: editTotalPrice } = params;
   const { allCars, user, addBooking } = useUserStore();
   
   // Check if user is logged in
@@ -52,6 +52,27 @@ export default function BookingScreen() {
       console.log("User authenticated:", user);
     }
   }, [user]);
+
+  // Populate form fields when in edit mode
+  useEffect(() => {
+    if (editMode === 'true' && editStartDate && editEndDate) {
+      setStartDate(editStartDate as string);
+      setEndDate(editEndDate as string);
+      setPickupLocation(editPickupLocation as string || '');
+      setDropoffLocation(editDropoffLocation as string || '');
+      
+      // Parse and set the dates for the date pickers
+      const startDateObj = new Date(editStartDate as string);
+      const endDateObj = new Date(editEndDate as string);
+      
+      if (!isNaN(startDateObj.getTime())) {
+        setSelectedStartDate(startDateObj);
+      }
+      if (!isNaN(endDateObj.getTime())) {
+        setSelectedEndDate(endDateObj);
+      }
+    }
+  }, [editMode, editStartDate, editEndDate, editPickupLocation, editDropoffLocation]);
 
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -202,13 +223,20 @@ const calculateRentalDays = () => {
       !endDate ||
       !pickupLocation ||
       !contactName ||
-      !contactPhone ||
+      !contactPhone
+    ) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    // For new bookings, require documents
+    if (editMode !== 'true' && (
       !idFrontImage ||
       !idBackImage ||
       !licenseFrontImage ||
       !licenseBackImage
-    ) {
-      Alert.alert('Error', 'Please fill in all required fields and upload all required documents');
+    )) {
+      Alert.alert('Error', 'Please upload all required documents');
       return;
     }
 
@@ -221,118 +249,83 @@ const calculateRentalDays = () => {
     setIsLoading(true);
     
     try {
-      // Get the token from storage
-      const token = await AsyncStorage.getItem('customerToken');
-      
-      if (!token) {
-        Alert.alert('Error', 'Authentication token not found. Please log in again.');
-        router.push('/auth/login');
-        return;
-      }
-
-      // Create form data to send files and text data
-      const formData = new FormData();
-      
-      // Add ID images
-      formData.append('customerIdImage', {
-        uri: idFrontImage,
-        name: 'id_front.jpg',
-        type: 'image/jpeg'
-      } as any);
-      
-      formData.append('customerIdImage', {
-        uri: idBackImage,
-        name: 'id_back.jpg',
-        type: 'image/jpeg'
-      } as any);
-      
-      // Add License images
-      formData.append('customerLicenseImage', {
-        uri: licenseFrontImage,
-        name: 'license_front.jpg',
-        type: 'image/jpeg'
-      } as any);
-      
-      formData.append('customerLicenseImage', {
-        uri: licenseBackImage,
-        name: 'license_back.jpg',
-        type: 'image/jpeg'
-      } as any);
-      
-      // Add other booking details
-      formData.append('vehicle', car.id);
-      formData.append('owner', car.ownerId);
-      formData.append('pickupLocation', pickupLocation);
-      formData.append('dropoffLocation', dropoffLocation || pickupLocation);
-      formData.append('pickupDate', selectedStartDate.toISOString());
-      formData.append('dropoffDate', selectedEndDate.toISOString());
-      formData.append('totalAmount', totalPrice.toString());
-      
-      console.log('Submitting booking with data:', {
+      // Prepare booking data
+      const bookingData = {
         vehicle: car.id,
+        owner: car.ownerId,
         pickupLocation,
         dropoffLocation: dropoffLocation || pickupLocation,
         pickupDate: selectedStartDate.toISOString(),
         dropoffDate: selectedEndDate.toISOString(),
-        totalAmount: totalPrice
-      });
-      
-      // Make API call
-      const response = await axios.post(
-        `${API_URL}/customer/booking/create`, 
-        formData, 
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      
-      console.log('Booking response:', response.data);
-      
-      if (response.data.success) {
-        // Create local booking object
-        const newBooking = {
-          id: response.data.booking._id,
-          userId: user!.id,
-          carId: car.id,
-          ownerId: car.ownerId,
-          startDate,
-          endDate,
-          totalPrice,
-          status: 'pending' as const,
-          pickupLocation,
-          dropoffLocation: dropoffLocation || pickupLocation,
-          withDriver,
-          createdAt: new Date().toISOString(),
-          car,
-        };
+        totalAmount: totalPrice,
+      };
 
-        // Add to local store
-        addBooking(newBooking);
-
+      console.log('Submitting booking with data:', bookingData);
+      
+      if (editMode === 'true') {
+        // For edit mode, show message about updating
         Alert.alert(
-          'Booking Confirmed!',
-          'Your booking request has been submitted. You will receive a confirmation shortly.',
+          'Update Booking',
+          'Booking update functionality will be implemented soon. For now, please cancel and create a new booking.',
           [
             {
               text: 'OK',
-              onPress: () => router.replace('/(tabs)/profile'),
+              onPress: () => router.back(),
             },
           ]
         );
-      } else {
-        throw new Error(response.data.message || 'Failed to create booking');
+        return;
       }
+
+      // Prepare document images for new bookings
+      const idImages = [
+        { uri: idFrontImage!, type: 'image/jpeg', name: 'id_front.jpg' },
+        { uri: idBackImage!, type: 'image/jpeg', name: 'id_back.jpg' },
+      ];
+
+      const licenseImages = [
+        { uri: licenseFrontImage!, type: 'image/jpeg', name: 'license_front.jpg' },
+        { uri: licenseBackImage!, type: 'image/jpeg', name: 'license_back.jpg' },
+      ];
+      
+      // Use the booking service for new bookings
+      const backendBooking = await bookingService.createBooking(bookingData, idImages, licenseImages);
+      
+      console.log('Booking created successfully:', backendBooking);
+      
+      // Create local booking object for immediate UI update
+      const newBooking = {
+        id: backendBooking._id,
+        userId: user!.id,
+        carId: car.id,
+        ownerId: car.ownerId,
+        startDate,
+        endDate,
+        totalPrice,
+        status: 'pending' as const,
+        pickupLocation,
+        dropoffLocation: dropoffLocation || pickupLocation,
+        withDriver,
+        createdAt: backendBooking.createdAt,
+        car,
+      };
+
+      // Add to local store
+      addBooking(newBooking);
+
+      Alert.alert(
+        'Booking Confirmed!',
+        'Your booking request has been submitted. You will receive a confirmation shortly.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/bookings'),
+          },
+        ]
+      );
     } catch (error: any) {
       console.error('Error creating booking:', error);
-      
-      const errorMessage = error.response?.data?.message || 
-                          error.message || 
-                          'An error occurred while creating your booking';
-                          
-      Alert.alert('Booking Failed', errorMessage);
+      Alert.alert('Booking Failed', error.message);
     } finally {
       setIsLoading(false);
     }
@@ -406,7 +399,9 @@ const calculateRentalDays = () => {
           >
             <ArrowLeft size={24} color="#1D1D1F" />
           </TouchableOpacity>
-          <Text style={styles.title}>Book Now</Text>
+          <Text style={styles.title}>
+            {editMode === 'true' ? 'Edit Booking' : 'Book Now'}
+          </Text>
         </Animated.View>
 
         {/* Car Summary */}
@@ -556,12 +551,13 @@ const calculateRentalDays = () => {
             </View>
           </View>
 
-          {/* Document Upload */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Required Documents</Text>
-            <Text style={styles.documentDescription}>
-              Please upload clear images of both sides of your ID card and driver's license
-            </Text>
+          {/* Document Upload - Only show for new bookings */}
+          {editMode !== 'true' && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Required Documents</Text>
+              <Text style={styles.documentDescription}>
+                Please upload clear images of both sides of your ID card and driver's license
+              </Text>
             
             {/* ID Document */}
             <View style={styles.documentSection}>
@@ -632,7 +628,19 @@ const calculateRentalDays = () => {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+            </View>
+          )}
+
+          {/* Edit Mode Notice */}
+          {editMode === 'true' && (
+            <View style={styles.section}>
+              <View style={styles.editNotice}>
+                <Text style={styles.editNoticeText}>
+                  📝 You're editing an existing booking. Documents are already on file.
+                </Text>
+              </View>
+            </View>
+          )}
 
           {/* Price Summary */}
           <View style={styles.priceSection}>
@@ -687,7 +695,9 @@ const calculateRentalDays = () => {
             <Text style={styles.bookButtonText}>
               {isLoading
                 ? 'Processing...'
-                : `Book for $${calculateTotalPrice()}`}
+                : editMode === 'true' 
+                  ? `Update Booking - $${calculateTotalPrice()}`
+                  : `Book for $${calculateTotalPrice()}`}
             </Text>
           </Animated.View>
         </TouchableOpacity>
@@ -1035,11 +1045,24 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   noDateText: {
-  fontSize: 14,
-  fontFamily: 'Inter-Regular',
-  color: '#8E8E93',
-  fontStyle: 'italic',
-  textAlign: 'center',
-  marginTop: 10,
-},
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#8E8E93',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  editNotice: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+  },
+  editNoticeText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#007AFF',
+    textAlign: 'center',
+  },
 });

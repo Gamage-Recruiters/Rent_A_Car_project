@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Platform } from 'react-native';
+import { bookingService, BackendBooking } from '../services/bookingService';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 const BASE_URL = API_URL?.replace(/\/api$/, "");
@@ -184,6 +185,8 @@ interface UserStore {
   cars: Car[];
   bookings: Booking[];
   allCars: Car[];
+  isLoadingBookings: boolean;
+  bookingsError: string | null;
   setUser: (user: User | null) => void;
   setUserType: (type: 'user' | 'owner' | null) => void;
   setCars: (cars: Car[]) => void;
@@ -195,6 +198,8 @@ interface UserStore {
   updateBooking: (bookingId: string, updates: Partial<Booking>) => void;
   logout: () => void;
   fetchAllVehicles: () => Promise<Car[]>;
+  fetchMyBookings: () => Promise<void>;
+  cancelBooking: (bookingId: string) => Promise<void>;
   initializeStore: () => Promise<void>;
 }
 
@@ -204,10 +209,17 @@ export const useUserStore = create<UserStore>((set, get) => ({
   cars: [],
   bookings: [],
   allCars: [],
+  isLoadingBookings: false,
+  bookingsError: null,
   setUser: (user) => {
     set({ user });
     if (user) {
       AsyncStorage.setItem('user', JSON.stringify(user));
+      // If user is a customer, fetch their bookings
+      const { userType, fetchMyBookings } = get();
+      if (userType === 'user') {
+        fetchMyBookings();
+      }
     } else {
       AsyncStorage.removeItem('user');
     }
@@ -262,6 +274,37 @@ export const useUserStore = create<UserStore>((set, get) => ({
     } catch (error) {
       console.error('Error fetching vehicles:', error);
       return [];
+    }
+  },
+
+  fetchMyBookings: async () => {
+    try {
+      set({ isLoadingBookings: true, bookingsError: null });
+      const backendBookings = await bookingService.getMyBookings();
+      const mappedBookings = backendBookings.map(mapBackendBookingToFrontend);
+      set({ bookings: mappedBookings, isLoadingBookings: false });
+    } catch (error: any) {
+      console.error('Error fetching bookings:', error);
+      set({ 
+        bookingsError: error.message || 'Failed to fetch bookings', 
+        isLoadingBookings: false 
+      });
+    }
+  },
+
+  cancelBooking: async (bookingId: string) => {
+    try {
+      const updatedBackendBooking = await bookingService.cancelBooking(bookingId);
+      const updatedBooking = mapBackendBookingToFrontend(updatedBackendBooking);
+      
+      const { bookings } = get();
+      const updatedBookings = bookings.map(booking => 
+        booking.id === bookingId ? updatedBooking : booking
+      );
+      set({ bookings: updatedBookings });
+    } catch (error: any) {
+      console.error('Error cancelling booking:', error);
+      throw error;
     }
   },
 
@@ -364,8 +407,29 @@ export const useUserStore = create<UserStore>((set, get) => ({
         return { success: true, requiresApproval: true };
       } 
       else if (userData.userType === 'user' && response.data.userRole === 'customer') {
-        // Customer registration successful
-        // For customers, we don't get user data back, so we need to login after registration
+        // Customer registration successful with token
+        if (response.data.token) {
+          await AsyncStorage.setItem('customerToken', response.data.token);
+          
+          // Store user data
+          const user: User = {
+            id: response.data.userId,
+            email: userData.email,
+            firstName: response.data.firstName || userData.firstName,
+            lastName: response.data.lastName || userData.lastName || '',
+            phone: userData.phone,
+            type: 'user',
+            userRole: 'customer',
+            createdAt: new Date().toISOString()
+          };
+          
+          await AsyncStorage.setItem('user', JSON.stringify(user));
+          await AsyncStorage.setItem('userType', 'user');
+          
+          // Update store state
+          set({ user, userType: 'user' });
+        }
+        
         return { success: true, requiresApproval: false };
       }
     }
@@ -403,11 +467,65 @@ export const useUserStore = create<UserStore>((set, get) => ({
       // Fetch vehicles when app initializes
       const store = get();
       await store.fetchAllVehicles();
+      
+      // Fetch bookings if user is logged in and is a customer
+      if (userData[1] && userTypeData[1] === 'user') {
+        await store.fetchMyBookings();
+      }
     } catch (error) {
       console.error('Failed to initialize store:', error);
     }
   },
 }));
+
+function mapBackendBookingToFrontend(backendBooking: BackendBooking): Booking {
+  const BASE_URL = API_URL?.replace(/\/api$/, "");
+  const adjustedBaseUrl = getAdjustedUrl(BASE_URL || '');
+  
+  // Map the car data from the vehicle in the booking
+  const car: Car = {
+    id: backendBooking.vehicle._id,
+    ownerId: backendBooking.owner._id,
+    make: backendBooking.vehicle.brand,
+    model: backendBooking.vehicle.model,
+    year: parseInt(backendBooking.vehicle.year) || new Date().getFullYear(),
+    image: backendBooking.vehicle.images && backendBooking.vehicle.images.length > 0
+      ? `${adjustedBaseUrl}/uploads/vehicles/${backendBooking.vehicle.images[0]}`
+      : 'https://via.placeholder.com/400x300?text=No+Image',
+    pricePerDay: backendBooking.vehicle.pricePerDay || 0,
+    pricePerKm: backendBooking.vehicle.pricePerDistance || 0,
+    location: backendBooking.vehicle.location || backendBooking.vehicle.pickupAddress || '',
+    available: true,
+    unavailableDates: [],
+    features: ['AC', 'GPS', 'Bluetooth'],
+    withDriver: false,
+    driverIncluded: false,
+    rating: 0,
+    reviews: 0,
+    fuel: '',
+    transmission: 'Automatic',
+    seats: 5,
+    description: 'No description provided',
+    contactPhone: backendBooking.owner.phoneNumber || '',
+    contactEmail: backendBooking.owner.email || '',
+  };
+
+  return {
+    id: backendBooking._id,
+    userId: backendBooking.customer._id,
+    carId: backendBooking.vehicle._id,
+    ownerId: backendBooking.owner._id,
+    startDate: backendBooking.pickupDate,
+    endDate: backendBooking.dropoffDate,
+    totalPrice: backendBooking.totalAmount,
+    status: backendBooking.bookingStatus as 'pending' | 'confirmed' | 'cancelled' | 'completed',
+    pickupLocation: backendBooking.pickupLocation,
+    dropoffLocation: backendBooking.dropoffLocation,
+    withDriver: false, // This info is not in the backend booking, might need to get it from vehicle
+    createdAt: backendBooking.createdAt,
+    car: car,
+  };
+}
 
 function mapVehicleToCar(vehicle: any): Car {
   let imageUrl = 'https://via.placeholder.com/400x300?text=No+Image';
