@@ -165,7 +165,17 @@ async function loginOwner(req, res) {
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     });
 
-    return res.status(200).json({ message: "Owner Login Successful" });
+    return res.status(200).json({ 
+        message: "Owner Login Successful",
+        userRole: existOwner.userRole || "owner",
+        userId: existOwner._id.toString(),
+        firstName: existOwner.firstName,
+        lastName: existOwner.lastName,
+        email: existOwner.email,
+        phoneNumber: existOwner.phone,
+        phone: existOwner.phone,
+        token: accessToken
+    });
   } catch (error) {
     if (error.name === "ValidationError") {
       return res.status(400).json({ message: "Invalid Email format" });

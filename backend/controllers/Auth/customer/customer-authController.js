@@ -24,7 +24,7 @@ async function addUser(req, res) {
 
 
     try {
-        const { email, password, firstName, lastName } = req.body;
+        const { email, password, firstName, lastName, phoneNumber, phone } = req.body;
 
         if (!email || !password || !firstName) {
             return res.status(400).json({ message: 'All Fields Required' });
@@ -37,7 +37,13 @@ async function addUser(req, res) {
 
         const hashedPassword = await hashPassword(password);
 
-        const newUser = await User.create({ email, password: hashedPassword, firstName, lastName });
+        const newUser = await User.create({ 
+            email, 
+            password: hashedPassword, 
+            firstName, 
+            lastName,
+            phoneNumber: phoneNumber || phone || ''
+        });
         if (newUser) {
             const payload = {
                 id: newUser._id.toString(),
@@ -79,7 +85,13 @@ async function addUser(req, res) {
 
             return res.status(200).json({
                 message: "User Registration Successfull",
-                userRole: newUser.userRole
+                userRole: newUser.userRole,
+                userId: newUser._id.toString(),
+                firstName: newUser.firstName,
+                lastName: newUser.lastName,
+                email: newUser.email,
+                phoneNumber: newUser.phoneNumber,
+                phone: newUser.phoneNumber
             });
         }
 
@@ -161,6 +173,8 @@ async function loginUser(req, res) {
             firstName: existUser.firstName,
             lastName: existUser.lastName,
             email: existUser.email,
+            phoneNumber: existUser.phoneNumber,
+            phone: existUser.phoneNumber, // Include both for compatibility
             token: accessToken // Also return token for mobile app
         });
 

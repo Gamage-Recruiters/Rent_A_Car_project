@@ -68,6 +68,8 @@ export default function LoginScreen() {
         name: response.data.firstName 
         ? `${response.data.firstName} ${response.data.lastName || ''}`
         : email.split('@')[0],
+        phone: response.data.phone || response.data.phoneNumber || response.data.user?.phone || response.data.user?.phoneNumber || '',
+        phoneNumber: response.data.phoneNumber || response.data.phone || response.data.user?.phoneNumber || response.data.user?.phone || '',
         type: userType === 'owner' ? 'owner' : 'user' as 'user' | 'owner',
         userRole: response.data.userRole || userType,
         createdAt: new Date().toISOString(),

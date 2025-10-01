@@ -74,6 +74,24 @@ export default function BookingScreen() {
     }
   }, [editMode, editStartDate, editEndDate, editPickupLocation, editDropoffLocation]);
 
+  // Update contact info when user object changes
+  useEffect(() => {
+    if (user) {
+      // Update contact name
+      const fullName = user.firstName || user.lastName 
+        ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
+        : user.name || '';
+      setContactName(fullName);
+
+      // Update contact phone
+      const phoneValue = user.phone || user.phoneNumber || '';
+      setContactPhone(phoneValue);
+
+      // Update contact email
+      setContactEmail(user.email || '');
+    }
+  }, [user]);
+
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [pickupLocation, setPickupLocation] = useState('');
