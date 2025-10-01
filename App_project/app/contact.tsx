@@ -53,7 +53,7 @@ export default function ContactScreen() {
 
   const fetchPastMessages = async () => {
     try {
-      const token = await AsyncStorage.getItem('customerToken');
+      const token = await AsyncStorage.getItem('accessToken');
       
       if (!token) {
         console.log('No auth token found');
@@ -91,7 +91,7 @@ export default function ContactScreen() {
     setIsLoading(true);
     
     try {
-      const token = await AsyncStorage.getItem('customerToken');
+      const token = await AsyncStorage.getItem('accessToken');
       
       if (!token) {
         Alert.alert('Authentication Required', 'Please log in to submit inquiries.');
