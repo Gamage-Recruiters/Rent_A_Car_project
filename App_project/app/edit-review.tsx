@@ -103,12 +103,19 @@ export default function EditReviewScreen() {
       console.log('✅ API call successful:', result);
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Success', 'Your review has been updated!', [
-        {
-          text: 'OK',
-          onPress: () => router.back(),
-        },
-      ]);
+      
+      // Navigate back with the updated review data
+      router.back();
+      
+      // Use a slight delay to ensure navigation completes, then trigger refresh
+      setTimeout(() => {
+        // Trigger a custom event or use navigation params to refresh
+        if (router.canGoBack()) {
+          // The reviews screen will automatically refresh when it comes into focus
+        }
+      }, 100);
+      
+      Alert.alert('Success', 'Your review has been updated!');
     } catch (error: any) {
       console.error('❌ Error updating review:', error);
       console.error('❌ Error message:', error.message);

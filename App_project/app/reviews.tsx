@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -28,11 +28,13 @@ import {
   X,
   Check,
 } from 'lucide-react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withRepeat,
+  withTiming,
   FadeIn,
 } from 'react-native-reanimated';
 import { reviewService, BackendReview } from '../services/reviewService';
@@ -110,6 +112,7 @@ export default function ReviewsScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [showAddReview, setShowAddReview] = useState(isBookingReview);
   const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
   const [newReview, setNewReview] = useState({
@@ -144,9 +147,27 @@ export default function ReviewsScreen() {
     fetchReviews();
   }, []);
 
+  // Refresh reviews when screen comes into focus (after editing)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 Reviews screen focused, refreshing reviews...');
+      fetchReviews();
+    }, [])
+  );
+
   // Retry function for failed requests
   const handleRetry = () => {
     fetchReviews();
+  };
+
+  // Pull-to-refresh function
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchReviews();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleAddReview = async () => {
@@ -395,21 +416,23 @@ export default function ReviewsScreen() {
           <ArrowLeft size={24} color="#1D1D1F" />
         </TouchableOpacity>
         <Text style={styles.title}>Reviews</Text>
-        <TouchableOpacity 
-          style={styles.addButton} 
-          onPress={() => {
-            if (!user) {
-              Alert.alert('Login Required', 'Please log in to add a review', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Login', onPress: () => router.push('/auth/login') }
-              ]);
-              return;
-            }
-            setShowAddReview(!showAddReview);
-          }}
-        >
-          <Plus size={24} color="#007AFF" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.addButton} 
+            onPress={() => {
+              if (!user) {
+                Alert.alert('Login Required', 'Please log in to add a review', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Login', onPress: () => router.push('/auth/login') }
+                ]);
+                return;
+              }
+              setShowAddReview(!showAddReview);
+            }}
+          >
+            <Plus size={24} color="#007AFF" />
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
       {/* Add Review Form */}
@@ -520,6 +543,8 @@ export default function ReviewsScreen() {
         </Animated.View>
       )}
 
+
+
       {/* Reviews List */}
       <View style={styles.content}>
         {loading ? (
@@ -576,6 +601,8 @@ export default function ReviewsScreen() {
                 keyExtractor={(item) => item.id}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.reviewsList}
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
               />
             )}
           </>
@@ -615,6 +642,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: 'Poppins-Bold',
     color: '#1D1D1F',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   addButton: {
     width: 40,
