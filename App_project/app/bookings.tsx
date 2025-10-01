@@ -178,11 +178,6 @@ export default function BookingsScreen() {
 
       <View style={styles.bookingActions}>
         <View style={styles.leftActions}>
-          <TouchableOpacity style={styles.actionButton}>
-            <Phone size={16} color="#007AFF" />
-            <Text style={styles.actionButtonText}>Contact</Text>
-          </TouchableOpacity>
-          
           {item.status === 'pending' && (
             <TouchableOpacity 
               style={styles.editButton}
