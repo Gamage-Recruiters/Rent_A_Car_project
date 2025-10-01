@@ -78,6 +78,12 @@ export interface Booking {
   car: Car;
 }
 
+export interface Favorite {
+  id: string;
+  carId: string;
+  car: Car;
+}
+
 // Mock data for demonstration - moved before store creation
 const mockCars: Car[] = [
   {
@@ -184,6 +190,7 @@ interface UserStore {
   cars: Car[];
   bookings: Booking[];
   allCars: Car[];
+  favorites: Favorite[];
   setUser: (user: User | null) => void;
   setUserType: (type: 'user' | 'owner' | null) => void;
   setCars: (cars: Car[]) => void;
@@ -196,6 +203,11 @@ interface UserStore {
   logout: () => void;
   fetchAllVehicles: () => Promise<Car[]>;
   initializeStore: () => Promise<void>;
+  setFavorites: (favorites: Favorite[]) => void;
+  addToFavorites: (carId: string) => Promise<boolean>;
+  removeFromFavorites: (favoriteId: string) => Promise<boolean>;
+  checkIfFavorited: (carId: string) => Promise<{isFavorited: boolean, favoriteId: string | null}>;
+  fetchFavorites: () => Promise<void>;
 }
 
 export const useUserStore = create<UserStore>((set, get) => ({
@@ -204,6 +216,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
   cars: [],
   bookings: [],
   allCars: [],
+  favorites: [],
   setUser: (user) => {
     set({ user });
     if (user) {
@@ -309,79 +322,113 @@ export const useUserStore = create<UserStore>((set, get) => ({
       return [];
     }
   },
+  setFavorites: (favorites) => set({ favorites }),
 
-  registerUser: async (userData: {
-  firstName: string;
-  lastName?: string;
-  email: string;
-  phone: string;
-  password: string;
-  userType: 'user' | 'owner';
-}) => {
-  try {
-    const endpoint = userData.userType === 'owner' 
-      ? `/auth/owner/register`
-      : `/auth/customer/register`;
-      
-    const postData = {
-      firstName: userData.firstName,
-      lastName: userData.lastName || '',
-      email: userData.email,
-      phone: userData.phone,
-      phoneNumber: userData.phone,
-      password: userData.password
-    };
-    
-    const response = await axios.post(`${API_URL}${endpoint}`, postData);
-    
-    if (response.data) {
-      if (userData.userType === 'owner' && response.data.owner && response.data.accessToken) {
-        // Owner registration successful with tokens
-        const { accessToken, refreshToken, owner } = response.data;
-        
-        // Store tokens
-        await AsyncStorage.setItem('accessToken', accessToken);
-        await AsyncStorage.setItem('refreshToken', refreshToken);
-        
-        // Store user data
-        const user: User = {
-          id: owner.id,
-          email: owner.email,
-          firstName: owner.firstName,
-          lastName: owner.lastName || '',
-          phone: owner.phone,
-          type: 'owner',
-          userRole: 'owner',
-          createdAt: new Date().toISOString()
-        };
-        
-        await AsyncStorage.setItem('user', JSON.stringify(user));
-        await AsyncStorage.setItem('userType', 'owner');
-        
-        // Update store state
-        set({ user, userType: 'owner' });
-        
-        return { success: true, requiresApproval: true };
-      } 
-      else if (userData.userType === 'user' && response.data.userRole === 'customer') {
-        // Customer registration successful
-        // For customers, we don't get user data back, so we need to login after registration
-        return { success: true, requiresApproval: false };
+  addToFavorites: async (carId) => {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        console.log('No token found, cannot add to favorites');
+        return false;
       }
+      
+      const response = await axios.post(
+        `${API_URL}/customer/favorite/add`, 
+        { vehicleId: carId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.data && response.data.success) {
+        // After successful addition, refresh favorites
+        const store = get();
+        await store.fetchFavorites();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error adding to favorites:', error);
+      return false;
     }
-    
-    return { success: false, message: 'Registration failed' };
-  } catch (error: any) {
-    console.error('Registration error:', error);
-    
-    let errorMessage = 'Registration failed';
-    if (axios.isAxiosError(error) && error.response) {
-      errorMessage = error.response.data?.message || errorMessage;
+  },
+  
+  removeFromFavorites: async (favoriteId) => {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        console.log('No token found, cannot remove from favorites');
+        return false;
+      }
+      
+      const response = await axios.delete(
+        `${API_URL}/customer/favorite/remove/${favoriteId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.data && response.data.success) {
+        // After successful removal, update the local favorites list
+        const { favorites } = get();
+        set({ favorites: favorites.filter(fav => fav.id !== favoriteId) });
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error removing from favorites:', error);
+      return false;
     }
-    
-    return { success: false, message: errorMessage };
-  }
-},
+  },
+  
+  checkIfFavorited: async (carId) => {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        console.log('No token found, cannot check favorites');
+        return { isFavorited: false, favoriteId: null };
+      }
+      
+      const response = await axios.get(
+        `${API_URL}/customer/favorite/check/${carId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.data) {
+        return { 
+          isFavorited: response.data.isFavorited, 
+          favoriteId: response.data.favoriteId 
+        };
+      }
+      return { isFavorited: false, favoriteId: null };
+    } catch (error) {
+      console.error('Error checking favorite status:', error);
+      return { isFavorited: false, favoriteId: null };
+    }
+  },
+  
+  fetchFavorites: async () => {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        console.log('No token found, cannot fetch favorites');
+        return;
+      }
+      
+      const response = await axios.get(
+        `${API_URL}/customer/favorite/list`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.data && response.data.success) {
+        const favorites = response.data.favorites.map((favorite: any) => ({
+          id: favorite._id,
+          carId: favorite.vehicle._id,
+          car: mapVehicleToCar(favorite.vehicle)
+        }));
+        
+        set({ favorites });
+      }
+    } catch (error) {
+      console.error('Error fetching favorites:', error);
+    }
+  },
 
   initializeStore: async () => {
     try {
@@ -403,6 +450,11 @@ export const useUserStore = create<UserStore>((set, get) => ({
       // Fetch vehicles when app initializes
       const store = get();
       await store.fetchAllVehicles();
+
+      const token = await AsyncStorage.getItem('accessToken');
+      if (token) {
+        await store.fetchFavorites();
+      }
     } catch (error) {
       console.error('Failed to initialize store:', error);
     }

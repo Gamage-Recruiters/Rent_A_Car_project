@@ -57,7 +57,8 @@ export default function LoginScreen() {
       console.log('Login successful:', response.data);
       
       // Store the token
-      await AsyncStorage.setItem('customerToken', response.data.token || 'dummy-token');
+      //await AsyncStorage.setItem('customerToken', response.data.token || 'dummy-token');
+      await AsyncStorage.setItem('accessToken', response.data.token || 'dummy-token');
       
       // Create a proper user object with an id field
       const userData = {
