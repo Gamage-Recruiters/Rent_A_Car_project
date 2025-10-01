@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import { bookingService, BackendBooking } from '../services/bookingService';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
 const BASE_URL = API_URL?.replace(/\/api$/, "");
 
 const getAdjustedUrl = (url: string) => {

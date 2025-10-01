@@ -154,7 +154,15 @@ async function loginUser(req, res) {
             maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
         });
 
-        return res.status(200).json({ message: "Login Successful", userRole: existUser.userRole });
+        return res.status(200).json({ 
+            message: "Login Successful", 
+            userRole: existUser.userRole,
+            userId: existUser._id.toString(),
+            firstName: existUser.firstName,
+            lastName: existUser.lastName,
+            email: existUser.email,
+            token: accessToken // Also return token for mobile app
+        });
 
     } catch (error) {
         if (error.name === "ValidationError") {

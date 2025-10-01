@@ -5,8 +5,47 @@ async function createReview(req, res) {
     try {
         const { vehicle, rating, comment, booking } = req.body;
 
-        // Temporary user ID for testing (when auth is bypassed)
-        const userId = req.user ? req.user.id : '672192b675ae443b22b4d5ba';
+        // Ensure user is authenticated
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authentication required to create a review'
+            });
+        }
+
+        const userId = req.user.id;
+
+        // Validate required fields
+        if (!vehicle || !rating || !comment) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vehicle ID, rating, and comment are required'
+            });
+        }
+
+        // Validate rating range
+        if (rating < 1 || rating > 5) {
+            return res.status(400).json({
+                success: false,
+                message: 'Rating must be between 1 and 5'
+            });
+        }
+
+        // Check if user has already reviewed this vehicle (for non-booking reviews)
+        if (!booking) {
+            const existingReview = await Review.findOne({
+                customer: userId,
+                vehicle: vehicle,
+                booking: { $exists: false }
+            });
+
+            if (existingReview) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'You have already reviewed this vehicle'
+                });
+            }
+        }
 
         console.log('Creating regular review with data:', { vehicle, rating, comment, booking, userId });
 
@@ -18,16 +57,22 @@ async function createReview(req, res) {
             ...(booking && { booking })
         });
 
+        // Populate the review data for response
+        const populatedReview = await Review.findById(review._id)
+            .populate('customer', 'firstName lastName email photo')
+            .populate('vehicle', 'vehicleName vehicleLicenseNumber brand model year images vehicleType');
+
         return res.status(201).json({
             success: true,
             message: 'Review added successfully',
-            data: review
+            data: populatedReview
         });
     } catch (error) {
-        console.error(error);
+        console.error('Create review error:', error);
         return res.status(500).json({
             success: false,
-            message: 'Server Error'
+            message: 'Server Error',
+            error: error.message
         });
     }
 };
@@ -40,8 +85,31 @@ async function createBookingReview(req, res) {
         console.log('Creating booking review for booking:', bookingId);
         console.log('Review data:', { rating, comment });
 
-        // Temporary user ID for testing (when auth is bypassed)
-        const userId = req.user ? req.user.id : '672192b675ae443b22b4d5ba';
+        // Ensure user is authenticated
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authentication required to create a review'
+            });
+        }
+
+        const userId = req.user.id;
+
+        // Validate required fields
+        if (!rating || !comment) {
+            return res.status(400).json({
+                success: false,
+                message: 'Rating and comment are required'
+            });
+        }
+
+        // Validate rating range
+        if (rating < 1 || rating > 5) {
+            return res.status(400).json({
+                success: false,
+                message: 'Rating must be between 1 and 5'
+            });
+        }
 
         // First, verify the booking exists and belongs to the customer
         const booking = await Booking.findById(bookingId).populate('vehicle');
@@ -57,7 +125,8 @@ async function createBookingReview(req, res) {
         console.log('Found booking:', booking._id, 'Customer:', booking.customer);
         console.log('Booking status:', booking.bookingStatus, 'Payment status:', booking.paymentStatus);
 
-        if (req.user && booking.customer.toString() !== userId) {
+        // Verify booking belongs to the authenticated user
+        if (booking.customer.toString() !== userId) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to review this booking'
@@ -151,11 +220,27 @@ async function getVehicleReviews(req, res) {
 
 async function deleteReview(req, res) {
     try {
+        // Ensure user is authenticated
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authentication required to delete a review'
+            });
+        }
+
         const review = await Review.findById(req.params.reviewId);
-        if (!review || review.customer.toString() !== req.user.id) {
+        
+        if (!review) {
             return res.status(404).json({
                 success: false,
-                message: 'Review not found or not authorized'
+                message: 'Review not found'
+            });
+        }
+
+        if (review.customer.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to delete this review'
             });
         }
 
@@ -166,25 +251,33 @@ async function deleteReview(req, res) {
             message: 'Review deleted successfully'
         });
     } catch (error) {
-        console.error(error);
+        console.error('Delete review error:', error);
         return res.status(500).json({
             success: false,
-            message: 'Server Error'
+            message: 'Server Error',
+            error: error.message
         });
     }
 };
 
 async function getCustomerReviews(req, res) {
     try {
-        // Temporary user ID for testing (when auth is bypassed)
-        const userId = req.user ? req.user.id : '672192b675ae443b22b4d5ba';
+        // Ensure user is authenticated
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authentication required to get your reviews'
+            });
+        }
+
+        const userId = req.user.id;
         
         const reviews = await Review.find({ customer: userId })
             .populate('customer', 'firstName lastName email photo') 
             .populate('vehicle', 'vehicleName vehicleLicenseNumber brand model year images vehicleType') 
             .sort({ createdAt: -1 });
 
-        console.log(`Found ${reviews.length} reviews for customer ${req.user.id}`);
+        console.log(`Found ${reviews.length} reviews for customer ${userId}`);
         
         return res.status(200).json({
             success: true,
@@ -203,38 +296,73 @@ async function getCustomerReviews(req, res) {
 
 async function updateReview(req, res) {
     try {
+        console.log('🔄 Backend: Update review controller called');
         const { reviewId } = req.params;
         const { rating, comment } = req.body;
+        
+        console.log('🆔 Review ID:', reviewId);
+        console.log('📝 Request body:', { rating, comment });
+        console.log('👤 User from token:', req.user);
+
+        // Ensure user is authenticated
+        if (!req.user || !req.user.id) {
+            console.log('❌ No user found in request');
+            return res.status(401).json({
+                success: false,
+                message: 'Authentication required to update a review'
+            });
+        }
+
+        console.log('✅ User authenticated:', req.user.id);
 
         if (!rating || rating < 1 || rating > 5) {
+            console.log('❌ Invalid rating:', rating);
             return res.status(400).json({
                 success: false,
                 message: 'Valid rating (1-5) is required'
             });
         }
 
+        if (!comment || comment.trim() === '') {
+            console.log('❌ Empty comment:', comment);
+            return res.status(400).json({
+                success: false,
+                message: 'Comment is required'
+            });
+        }
+
+        console.log('🔍 Finding review by ID...');
         const review = await Review.findById(reviewId);
         
         if (!review) {
+            console.log('❌ Review not found:', reviewId);
             return res.status(404).json({
                 success: false,
                 message: 'Review not found'
             });
         }
 
+        console.log('📄 Found review:', review._id, 'Owner:', review.customer);
+        console.log('👤 Current user:', req.user.id);
+
         if (review.customer.toString() !== req.user.id) {
+            console.log('❌ User not authorized to update this review');
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to update this review'
             });
         }
 
+        console.log('💾 Updating review with data:', { rating, comment: comment.trim() });
+        
         const updatedReview = await Review.findByIdAndUpdate(
             reviewId,
-            { rating, comment: comment || '' },
+            { rating, comment: comment.trim() },
             { new: true }
-        ).populate('customer', 'firstName lastName email')
-         .populate('vehicle', 'vehicleName vehicleLicenseNumber');
+        ).populate('customer', 'firstName lastName email photo')
+         .populate('vehicle', 'vehicleName vehicleLicenseNumber brand model year images vehicleType');
+
+        console.log('✅ Review updated successfully:', updatedReview._id);
 
         return res.status(200).json({
             success: true,
