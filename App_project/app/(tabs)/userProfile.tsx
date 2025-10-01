@@ -18,14 +18,28 @@ import axios from 'axios';
 import { useUserStore } from '../../stores/userStore';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+type ProfileData = {
+  photo?: string | null;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phoneNumber?: string;
+  address?: string;
+  quickStats?: {
+    totalBookings?: number;
+    upcomingTrips?: number;
+    totalSpent?: number;
+  };
+};
+
 export default function ProfileScreen() {
-  const [profileData, setProfileData] = useState(null);
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const logout = useUserStore(state => state.logout);
   
-  const API_URL = process.env.EXPO_PUBLIC_API_URL;
+  const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 
   useEffect(() => {
     fetchProfileData();
@@ -36,10 +50,10 @@ export default function ProfileScreen() {
       setLoading(true);
       setError(null);
       
-      const token = await AsyncStorage.getItem('customerToken');
+      const token = await AsyncStorage.getItem('accessToken');
       
       if (!token) {
-        setError('Not authenticated');
+        router.push('/auth/login');
         return;
       }
       
@@ -66,6 +80,7 @@ export default function ProfileScreen() {
         if (err.response.status === 401) {
           await AsyncStorage.removeItem('customerToken');
           router.push('/auth/login');
+          return;
         }
       }
       
@@ -89,6 +104,10 @@ export default function ProfileScreen() {
     router.push('/bookings');
   };
 
+  const handleViewFavorites = () => {
+    router.push('/favorites');
+  };
+
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
@@ -98,7 +117,7 @@ export default function ProfileScreen() {
         onPress: async () => {
           try {
             // Clear token from AsyncStorage
-            await AsyncStorage.removeItem('customerToken');
+            await AsyncStorage.removeItem('accessToken');
             await AsyncStorage.removeItem('userType');
             
             // Reset store state
@@ -115,13 +134,13 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const getImageUrl = (photoPath) => {
+  const getImageUrl = (photoPath: string | null | undefined): string | null => {
     if (!photoPath) return null;
     if (photoPath.startsWith('http')) return photoPath;
-    return `${API_URL.replace('/api', '')}${photoPath}`;
+    return `${API_URL?.replace('/api', '') ?? ''}${photoPath}`;
   };
 
-  const getInitials = (firstName, lastName) => {
+  const getInitials = (firstName: string | undefined, lastName: string | undefined) => {
     return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
   };
 
@@ -136,7 +155,7 @@ export default function ProfileScreen() {
       <View style={styles.avatarWrapper}>
         {profileData?.photo ? (
           <Image 
-            source={{ uri: getImageUrl(profileData.photo) }} 
+            source={{ uri: getImageUrl(profileData.photo) || '' }} 
             style={styles.profileImage} 
             resizeMode="cover"
           />
@@ -214,6 +233,10 @@ export default function ProfileScreen() {
       
       <TouchableOpacity style={styles.actionButton} onPress={handleViewBookings}>
         <Text style={styles.actionButtonText}>View Bookings</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.actionButton} onPress={handleViewFavorites}>
+        <Text style={styles.actionButtonText}>My Favorites</Text>
       </TouchableOpacity>
       
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
