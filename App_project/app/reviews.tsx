@@ -21,8 +21,9 @@ import {
   Plus,
   Send,
   Loader,
+  Car,
 } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -90,16 +91,25 @@ const mapBackendReviewToReview = (backendReview: BackendReview): Review => {
 
 export default function ReviewsScreen() {
   const { user } = useUserStore();
+  const params = useLocalSearchParams();
+  
+  // Check if we're coming from a booking completion
+  const isBookingReview = params.addReview === 'true';
+  const bookingId = params.bookingId as string;
+  const vehicleId = params.vehicleId as string;
+  const carName = params.carName as string;
+  
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showAddReview, setShowAddReview] = useState(false);
+  const [showAddReview, setShowAddReview] = useState(isBookingReview);
   const [newReview, setNewReview] = useState({
     rating: 5,
     comment: '',
-    carName: '',
-    vehicleId: '',
+    carName: carName || '',
+    vehicleId: vehicleId || '',
+    bookingId: bookingId || '',
   });
 
   const scaleValue = useSharedValue(1);
@@ -156,15 +166,27 @@ export default function ReviewsScreen() {
         vehicle: newReview.vehicleId,
         rating: newReview.rating,
         comment: newReview.comment,
+        ...(newReview.bookingId && { booking: newReview.bookingId }),
       };
 
-      const createdReview = await reviewService.createReview(reviewData, token);
+      // Use booking-specific review API if we have a booking ID
+      const createdReview = newReview.bookingId 
+        ? await reviewService.createBookingReview(newReview.bookingId, reviewData, token)
+        : await reviewService.createReview(reviewData, token);
+        
       const mappedReview = mapBackendReviewToReview(createdReview);
 
       setReviews([mappedReview, ...reviews]);
-      setNewReview({ rating: 5, comment: '', carName: '', vehicleId: '' });
+      setNewReview({ rating: 5, comment: '', carName: '', vehicleId: '', bookingId: '' });
       setShowAddReview(false);
       Alert.alert('Success', 'Your review has been added!');
+      
+      // If this was a booking review, navigate back to bookings
+      if (newReview.bookingId) {
+        setTimeout(() => {
+          router.push('/bookings');
+        }, 1500);
+      }
     } catch (error: any) {
       console.error('Error adding review:', error);
       Alert.alert('Error', error.message || 'Failed to add review');
@@ -269,32 +291,54 @@ export default function ReviewsScreen() {
           
           {user ? (
             <>
-              <Text style={styles.helpText}>
-                Share your experience with a vehicle you've rented
-              </Text>
-              
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Vehicle ID (required)"
-                  value={newReview.vehicleId}
-                  onChangeText={(text) => setNewReview({ ...newReview, vehicleId: text })}
-                  placeholderTextColor="#8E8E93"
-                />
-                <Text style={styles.fieldHint}>
-                  Enter the ID of the vehicle you want to review
+              {isBookingReview && bookingId ? (
+                <>
+                  <View style={styles.bookingContext}>
+                    <Car size={20} color="#007AFF" />
+                    <View style={styles.bookingDetails}>
+                      <Text style={styles.bookingTitle}>Reviewing Your Rental</Text>
+                      <Text style={styles.bookingSubtitle}>
+                        {carName || 'Recent rental vehicle'}
+                      </Text>
+                      <Text style={styles.bookingId}>Booking ID: #{bookingId}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.helpText}>
+                    Share your experience with this completed rental
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.helpText}>
+                  Share your experience with a vehicle you've rented
                 </Text>
-              </View>
+              )}
+              
+              {!isBookingReview && (
+                <>
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Vehicle ID (required)"
+                      value={newReview.vehicleId}
+                      onChangeText={(text) => setNewReview({ ...newReview, vehicleId: text })}
+                      placeholderTextColor="#8E8E93"
+                    />
+                    <Text style={styles.fieldHint}>
+                      Enter the ID of the vehicle you want to review
+                    </Text>
+                  </View>
 
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Car name (optional)"
-                  value={newReview.carName}
-                  onChangeText={(text) => setNewReview({ ...newReview, carName: text })}
-                  placeholderTextColor="#8E8E93"
-                />
-              </View>
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Car name (optional)"
+                      value={newReview.carName}
+                      onChangeText={(text) => setNewReview({ ...newReview, carName: text })}
+                      placeholderTextColor="#8E8E93"
+                    />
+                  </View>
+                </>
+              )}
 
               <View style={styles.ratingSection}>
                 <Text style={styles.ratingLabel}>Rating:</Text>
@@ -733,5 +777,36 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
+  },
+  bookingContext: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E3F2FD',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  bookingDetails: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  bookingTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#1D1D1F',
+    marginBottom: 2,
+  },
+  bookingSubtitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#007AFF',
+    marginBottom: 2,
+  },
+  bookingId: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#8E8E93',
   },
 });

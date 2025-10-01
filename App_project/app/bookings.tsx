@@ -162,6 +162,15 @@ export default function BookingsScreen() {
           <Text style={styles.detailValue}>{item.withDriver ? 'Yes' : 'No'}</Text>
         </View>
         <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Payment Status:</Text>
+          <Text style={[
+            styles.detailValue,
+            { color: item.paymentStatus === 'paid' ? '#4CAF50' : '#FF9800' }
+          ]}>
+            {item.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
+          </Text>
+        </View>
+        <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Booking ID:</Text>
           <Text style={styles.detailValue}>#{item.id}</Text>
         </View>
@@ -184,11 +193,28 @@ export default function BookingsScreen() {
             </TouchableOpacity>
           )}
           
-          {item.status === 'completed' && (
-            <TouchableOpacity style={styles.actionButton}>
+          {item.status === 'completed' && item.paymentStatus === 'paid' && (
+            <TouchableOpacity 
+              style={styles.reviewButton}
+              onPress={() => router.push({
+                pathname: '/reviews',
+                params: {
+                  bookingId: item.id,
+                  vehicleId: item.carId,
+                  carName: `${item.car.make} ${item.car.model}`,
+                  addReview: 'true'
+                }
+              })}
+            >
               <Star size={16} color="#FFD700" />
-              <Text style={styles.actionButtonText}>Review</Text>
+              <Text style={styles.reviewButtonText}>Add Review</Text>
             </TouchableOpacity>
+          )}
+          
+          {item.status === 'completed' && item.paymentStatus === 'pending' && (
+            <View style={styles.paymentPendingButton}>
+              <Text style={styles.paymentPendingText}>Complete Payment to Review</Text>
+            </View>
           )}
         </View>
         
@@ -590,5 +616,35 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     color: '#007AFF',
     marginLeft: 4,
+  },
+  reviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFF9E6',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  reviewButtonText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#B8860B',
+    marginLeft: 4,
+  },
+  paymentPendingButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#FFF3E0',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FF9800',
+  },
+  paymentPendingText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Medium',
+    color: '#E65100',
+    textAlign: 'center',
   },
 });

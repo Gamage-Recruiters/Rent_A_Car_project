@@ -72,6 +72,7 @@ export interface Booking {
   endDate: string;
   totalPrice: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  paymentStatus: 'pending' | 'paid';
   pickupLocation: string;
   dropoffLocation: string;
   withDriver: boolean;
@@ -519,6 +520,7 @@ function mapBackendBookingToFrontend(backendBooking: BackendBooking): Booking {
     endDate: backendBooking.dropoffDate,
     totalPrice: backendBooking.totalAmount,
     status: backendBooking.bookingStatus as 'pending' | 'confirmed' | 'cancelled' | 'completed',
+    paymentStatus: backendBooking.paymentStatus as 'pending' | 'paid',
     pickupLocation: backendBooking.pickupLocation,
     dropoffLocation: backendBooking.dropoffLocation,
     withDriver: false, // This info is not in the backend booking, might need to get it from vehicle

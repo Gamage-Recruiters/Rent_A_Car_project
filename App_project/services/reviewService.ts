@@ -41,6 +41,7 @@ export interface CreateReviewRequest {
   vehicle: string;
   rating: number;
   comment: string;
+  booking?: string; // Optional booking ID for booking-specific reviews
 }
 
 export interface UpdateReviewRequest {
@@ -74,6 +75,35 @@ class ReviewService {
         error.response?.data?.message || 
         error.message || 
         'Failed to create review'
+      );
+    }
+  }
+
+  // Create a booking-specific review
+  async createBookingReview(bookingId: string, reviewData: CreateReviewRequest, token: string): Promise<BackendReview> {
+    try {
+      const response = await axios.post(
+        `${adjustedApiUrl}/customer/review/booking/${bookingId}`,
+        reviewData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        throw new Error(response.data.message || 'Failed to create booking review');
+      }
+    } catch (error: any) {
+      console.error('Create booking review error:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        error.message || 
+        'Failed to create booking review'
       );
     }
   }
