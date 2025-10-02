@@ -91,10 +91,11 @@ const ProfileTab = () => {
       // Handle the image preview from different possible sources
       let imageUrl = null;
       
-      if (user.photo) {
+      if (user.googleId && user.photo) {
+        imageUrl = user.photo;
+      } else if (user.photo) {
         imageUrl = constructImageUrl(user.photo);
       } else if (user.image?.url) {
-        console.log('Using image URL:', user.image.url);
         imageUrl = user.image.url;
       }
       
@@ -239,6 +240,7 @@ const ProfileTab = () => {
                   className="w-full h-full object-cover"
                   onError={handleImageError}
                   onLoad={handleImageLoad}
+                  referrerPolicy="no-referrer" 
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gray-100">
