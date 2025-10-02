@@ -327,7 +327,6 @@ export const useUserStore = create<UserStore>((set, get) => ({
 
   fetchMyBookings: async () => {
     try {
-      set({ isLoadingBookings: true, bookingsError: null });
       const backendBookings = await bookingService.getMyBookings();
       
       // Filter and map bookings, handling corrupted data
@@ -356,13 +355,11 @@ export const useUserStore = create<UserStore>((set, get) => ({
       } else {
         console.log(`✅ Successfully loaded ${mappedBookings.length} bookings`);
       }
-      set({ bookings: mappedBookings, isLoadingBookings: false });
+      set({ bookings: mappedBookings });
     } catch (error: any) {
       console.error('Error fetching bookings:', error);
-      set({ 
-        bookingsError: error.message || 'Failed to fetch bookings', 
-        isLoadingBookings: false 
-      });
+      // Just log the error, don't crash the app
+      set({ bookings: [] });
     }
   },
 
@@ -522,8 +519,8 @@ export const useUserStore = create<UserStore>((set, get) => ({
       
       if (response.data) {
         return { 
-          isFavorited: response.data.isFavorited, 
-          favoriteId: response.data.favoriteId 
+          isFavorited: response.data.isFavorited || false, 
+          favoriteId: response.data.favoriteId || null
         };
       }
       return { isFavorited: false, favoriteId: null };
@@ -546,17 +543,34 @@ export const useUserStore = create<UserStore>((set, get) => ({
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      if (response.data && response.data.success) {
-        const favorites = response.data.favorites.map((favorite: any) => ({
-          id: favorite._id,
-          carId: favorite.vehicle._id,
-          car: mapVehicleToCar(favorite.vehicle)
-        }));
+      if (response.data && response.data.success && response.data.favorites) {
+        // Filter out null/undefined favorites and add null checks
+        const validFavorites = response.data.favorites
+          .filter((favorite: any) => favorite && favorite._id && favorite.vehicle && favorite.vehicle._id)
+          .map((favorite: any) => {
+            try {
+              return {
+                id: favorite._id,
+                carId: favorite.vehicle._id,
+                car: mapVehicleToCar(favorite.vehicle)
+              };
+            } catch (error) {
+              console.warn('Error mapping favorite vehicle:', error);
+              return null;
+            }
+          })
+          .filter((favorite: any) => favorite !== null); // Remove any failed mappings
         
-        set({ favorites });
+        console.log(`Successfully loaded ${validFavorites.length} favorites`);
+        set({ favorites: validFavorites });
+      } else {
+        console.log('No favorites data found or invalid response');
+        set({ favorites: [] });
       }
     } catch (error) {
       console.error('Error fetching favorites:', error);
+      // Set empty array on error to prevent undefined issues
+      set({ favorites: [] });
     }
   },
 

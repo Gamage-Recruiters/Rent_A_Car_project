@@ -387,18 +387,26 @@ const calculateRentalDays = () => {
 };
 
 const handleBooking = async () => {
+  // Basic validation for all modes
   if (
     !startDate ||
     !endDate ||
     !pickupLocation ||
     !contactName ||
-    !contactPhone ||
+    !contactPhone
+  ) {
+    Alert.alert('Error', 'Please fill in all required fields');
+    return;
+  }
+
+  // Document validation only for new bookings (not edit mode)
+  if (editMode !== 'true' && (
     !idFrontImage ||
     !idBackImage ||
     !licenseFrontImage ||
     !licenseBackImage
-  ) {
-    Alert.alert('Error', 'Please fill in all required fields and upload all required documents');
+  )) {
+    Alert.alert('Error', 'Please upload all required documents');
     return;
   }
 
@@ -420,154 +428,185 @@ const handleBooking = async () => {
       return;
     }
 
-    console.log('=== STARTING BOOKING PROCESS ===');
+    console.log(`=== STARTING ${editMode === 'true' ? 'BOOKING UPDATE' : 'BOOKING CREATION'} PROCESS ===`);
     console.log('API URL:', API_URL);
     console.log('Token exists:', !!accessToken);
 
-    // Create FormData
-    const formData = new FormData();
-    const timestamp = Date.now();
+    let responseData;
 
-    // Add booking details FIRST
-    formData.append('vehicle', car.id);
-    formData.append('owner', car.ownerId);
-    formData.append('pickupLocation', pickupLocation);
-    formData.append('dropoffLocation', dropoffLocation || pickupLocation);
-    formData.append('pickupDate', selectedStartDate.toISOString());
-    formData.append('dropoffDate', selectedEndDate.toISOString());
-    formData.append('totalAmount', totalPrice.toString());
-
-    console.log('FormData text fields added');
-
-    // Add images with proper structure
-    if (idFrontImage) {
-      formData.append('customerIdImage', {
-        uri: idFrontImage,
-        type: 'image/jpeg',
-        name: `id_front_${timestamp}.jpg`
-      } as any);
-      console.log('ID Front image added');
-    }
-
-    if (idBackImage) {
-      formData.append('customerIdImage', {
-        uri: idBackImage,
-        type: 'image/jpeg',
-        name: `id_back_${timestamp}.jpg`
-      } as any);
-      console.log('ID Back image added');
-    }
-
-    if (licenseFrontImage) {
-      formData.append('customerLicenseImage', {
-        uri: licenseFrontImage,
-        type: 'image/jpeg',
-        name: `license_front_${timestamp}.jpg`
-      } as any);
-      console.log('License Front image added');
-    }
-
-    if (licenseBackImage) {
-      formData.append('customerLicenseImage', {
-        uri: licenseBackImage,
-        type: 'image/jpeg',
-        name: `license_back_${timestamp}.jpg`
-      } as any);
-      console.log('License Back image added');
-    }
-
-    console.log('All images added to FormData');
-
-    // Test connectivity first
-    try {
-      console.log('Testing server connectivity...');
-      const testResponse = await fetch(`${API_URL}/test`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-      
-      if (!testResponse.ok) {
-        throw new Error(`Connectivity test failed: ${testResponse.status}`);
-      }
-      
-      console.log('Server connectivity test passed');
-    } catch (connectError) {
-      console.error('Connectivity test failed:', connectError);
-      Alert.alert('Connection Error', 'Cannot connect to server. Please check your network and try again.');
-      setIsLoading(false);
-      return;
-    }
-
-    // Make the booking request
-    console.log('Making booking request...');
-    const response = await fetch(`${API_URL}/customer/booking/create`, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json',
-      },
-    });
-
-    console.log('Response status:', response.status);
-    console.log('Response headers:', response.headers);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Response error:', errorText);
-      throw new Error(`Server error: ${response.status} - ${errorText}`);
-    }
-
-    const responseData = await response.json();
-    console.log('Booking response:', responseData);
-
-    if (responseData.success) {
-      // Create local booking object
-      const newBooking = {
-        id: responseData.booking._id,
-        userId: user!.id,
-        carId: car.id,
-        ownerId: car.ownerId,
+    if (editMode === 'true' && bookingId) {
+      // Edit mode: Use updateBooking from userStore
+      console.log('Updating existing booking...');
+      const updatedBooking = await updateBooking(bookingId as string, {
+        pickupLocation,
+        dropoffLocation: dropoffLocation || pickupLocation,
         startDate,
         endDate,
         totalPrice,
-        status: 'pending' as const,
-        pickupLocation,
-        dropoffLocation: dropoffLocation || pickupLocation,
-        withDriver,
-        createdAt: new Date().toISOString(),
-        car,
-      };
+      });
 
-      // Add to local store
-      addBooking(newBooking);
-
-      Alert.alert(
-        'Booking Confirmed!',
-        'Your booking request has been submitted successfully.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(tabs)/profile'),
-          },
-        ]
-      );
+      responseData = { success: true, booking: updatedBooking };
     } else {
-      throw new Error(responseData.message || 'Failed to create booking');
+      // Create mode: Use existing FormData approach
+      const formData = new FormData();
+      const timestamp = Date.now();
+
+      // Add booking details FIRST
+      formData.append('vehicle', car.id);
+      formData.append('owner', car.ownerId);
+      formData.append('pickupLocation', pickupLocation);
+      formData.append('dropoffLocation', dropoffLocation || pickupLocation);
+      formData.append('pickupDate', selectedStartDate.toISOString());
+      formData.append('dropoffDate', selectedEndDate.toISOString());
+      formData.append('totalAmount', totalPrice.toString());
+
+      console.log('FormData text fields added');
+
+      // Add images with proper structure (only for create mode)
+      if (idFrontImage) {
+        formData.append('customerIdImage', {
+          uri: idFrontImage,
+          type: 'image/jpeg',
+          name: `id_front_${timestamp}.jpg`
+        } as any);
+        console.log('ID Front image added');
+      }
+
+      if (idBackImage) {
+        formData.append('customerIdImage', {
+          uri: idBackImage,
+          type: 'image/jpeg',
+          name: `id_back_${timestamp}.jpg`
+        } as any);
+        console.log('ID Back image added');
+      }
+
+      if (licenseFrontImage) {
+        formData.append('customerLicenseImage', {
+          uri: licenseFrontImage,
+          type: 'image/jpeg',
+          name: `license_front_${timestamp}.jpg`
+        } as any);
+        console.log('License Front image added');
+      }
+
+      if (licenseBackImage) {
+        formData.append('customerLicenseImage', {
+          uri: licenseBackImage,
+          type: 'image/jpeg',
+          name: `license_back_${timestamp}.jpg`
+        } as any);
+        console.log('License Back image added');
+      }
+
+      console.log('All images added to FormData');
+
+      // Test connectivity first
+      try {
+        console.log('Testing server connectivity...');
+        const testResponse = await fetch(`${API_URL}/test`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+        
+        if (!testResponse.ok) {
+          throw new Error(`Connectivity test failed: ${testResponse.status}`);
+        }
+        
+        console.log('Server connectivity test passed');
+      } catch (connectError) {
+        console.error('Connectivity test failed:', connectError);
+        Alert.alert('Connection Error', 'Cannot connect to server. Please check your network and try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Make the booking request
+      console.log('Making booking request...');
+      const response = await fetch(`${API_URL}/customer/booking/create`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`Server error: ${response.status} - ${errorText}`);
+      }
+
+      responseData = await response.json();
+      console.log('Booking response:', responseData);
+    }
+
+    if (responseData.success) {
+      if (editMode === 'true') {
+        // Edit mode success
+        Alert.alert(
+          'Booking Updated!',
+          'Your booking has been updated successfully.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.back(),
+            },
+          ]
+        );
+      } else {
+        // Create mode success
+        const newBooking = {
+          id: responseData.booking._id || responseData.booking.id,
+          userId: user!.id,
+          carId: car.id,
+          ownerId: car.ownerId,
+          startDate,
+          endDate,
+          totalPrice,
+          status: 'pending' as const,
+          paymentStatus: 'pending' as const,
+          pickupLocation,
+          dropoffLocation: dropoffLocation || pickupLocation,
+          withDriver,
+          createdAt: new Date().toISOString(),
+          car,
+        };
+
+        // Add to local store
+        addBooking(newBooking);
+
+        Alert.alert(
+          'Booking Confirmed!',
+          'Your booking request has been submitted successfully.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/(tabs)/profile'),
+            },
+          ]
+        );
+      }
+    } else {
+      throw new Error(responseData.message || `Failed to ${editMode === 'true' ? 'update' : 'create'} booking`);
     }
     
   } catch (error: any) {
-    console.error('Booking error:', error);
+    console.error(`${editMode === 'true' ? 'Update' : 'Booking'} error:`, error);
     
-    let errorMessage = 'Failed to create booking. Please try again.';
+    let errorMessage = `Failed to ${editMode === 'true' ? 'update' : 'create'} booking. Please try again.`;
     
     if (error.message) {
       errorMessage = error.message;
     }
     
-    Alert.alert('Booking Failed', errorMessage);
+    Alert.alert(`${editMode === 'true' ? 'Update' : 'Booking'} Failed`, errorMessage);
   } finally {
     setIsLoading(false);
   }
