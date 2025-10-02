@@ -1,20 +1,53 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { mockVehicles } from "../../data/mockData";
+import { useVehicle } from "../../context/VehicleContext";
+import { Vehicle } from "../../types";
 import { Eye, Edit3, Trash2, MapPin, Star } from "lucide-react";
 
 const Vehicle_component: React.FC = () => {
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(true);
   const [vehicleFilter, setVehicleFilter] = useState("all");
-  const ownerVehicles = mockVehicles.filter((v) => v.ownerId === "owner1");
+  const { getVehiclesByOwner, deleteVehicle } = useVehicle();
+
+  useEffect(() => {
+    const fetchVehicles = async () => {
+      try {
+        const data = await getVehiclesByOwner();
+        setVehicles(data);
+      } catch (error) {
+        console.error("Error fetching vehicles:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVehicles();
+  }, [getVehiclesByOwner]);
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm("Are you sure you want to delete this vehicle?")) {
+      try {
+        await deleteVehicle(id);
+        setVehicles(vehicles.filter((v) => v._id !== id));
+      } catch (error) {
+        console.error("Error deleting vehicle:", error);
+      }
+    }
+  };
 
   const filteredVehicles =
     vehicleFilter === "all"
-      ? ownerVehicles
-      : ownerVehicles.filter((vehicle) => {
+      ? vehicles
+      : vehicles.filter((vehicle) => {
           if (vehicleFilter === "available") return vehicle.availability;
           if (vehicleFilter === "rented") return !vehicle.availability;
           return true;
         });
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -31,33 +64,27 @@ const Vehicle_component: React.FC = () => {
             <option value="available">Available</option>
             <option value="rented">Currently Rented</option>
           </select>
-          {/* Add Vehicle Link (commented) */}
-          {/*
-          <Link
-            to="/add-vehicle"
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Add Vehicle</span>
-          </Link>
-          */}
         </div>
       </div>
 
       {/* Vehicles Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredVehicles.map((vehicle) => (
+          
           <div
             key={vehicle._id}
             className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow"
           >
             {/* Vehicle Image and Availability */}
             <div className="relative">
-              <img
-                src={vehicle.images[0]}
-                alt={vehicle.name}
-                className="w-full h-48 object-cover"
-              />
+            <img
+              src={`${import.meta.env.VITE_API_URL?.replace('/api', '')}${vehicle.images[0]}`}
+              alt={vehicle.name}
+              className="w-full h-48 object-cover"
+            />
+
+
+
               <div className="absolute top-4 right-4">
                 <span
                   className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -69,6 +96,7 @@ const Vehicle_component: React.FC = () => {
                   {vehicle.availability ? "Available" : "Rented"}
                 </span>
               </div>
+
             </div>
 
             {/* Vehicle Details */}
@@ -104,15 +132,15 @@ const Vehicle_component: React.FC = () => {
               <div className="grid grid-cols-3 gap-2 mb-4">
                 <div className="text-center p-2 bg-gray-50 rounded">
                   <p className="text-xs text-gray-500">Views</p>
-                  <p className="font-semibold">245</p>
+                  <p className="font-semibold"></p>
                 </div>
                 <div className="text-center p-2 bg-gray-50 rounded">
                   <p className="text-xs text-gray-500">Bookings</p>
-                  <p className="font-semibold">12</p>
+                  <p className="font-semibold"></p>
                 </div>
                 <div className="text-center p-2 bg-gray-50 rounded">
                   <p className="text-xs text-gray-500">Earnings</p>
-                  <p className="font-semibold">$540</p>
+                  <p className="font-semibold"></p>
                 </div>
               </div>
 
@@ -130,9 +158,10 @@ const Vehicle_component: React.FC = () => {
                   <Edit3 className="w-4 h-4" />
                   <span>Edit</span>
                 </Link>
-                {/* <button className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center space-x-1"> */}
-                {/* </button> */}
-                <button className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors">
+                <button
+                  onClick={() => vehicle._id && handleDelete(vehicle._id)}
+                  className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>

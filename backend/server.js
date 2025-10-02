@@ -75,6 +75,9 @@ app.use("/api/superadmin", require("./Routers/Admin/admin-vehicleRouter"));
 app.use("/api/superadmin", require("./Routers/Admin/admin-customerRoute"));
 app.use("/api/superadmin", require("./Routers/Admin/admin-profileRouter"));
 
+// 🔹 Cloudinary
+app.use("/api/cloudinary", require("./Routers/Cloudinary/imageUploadRouter"));
+
 // ============================
 // ✅ Health Check
 // ============================

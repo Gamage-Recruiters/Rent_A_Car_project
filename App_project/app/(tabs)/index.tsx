@@ -25,6 +25,7 @@ import {
   Gift,
   HelpCircle,
   MessageSquare,
+  Heart,
 } from 'lucide-react-native';
 import { useUserStore } from '@/stores/userStore';
 import { router } from 'expo-router';
@@ -37,6 +38,7 @@ import Animated, {
   FadeInDown,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import FavoriteButton from '@/components/FavoriteButton';
 
 const { width } = Dimensions.get('window');
 
@@ -161,6 +163,10 @@ export default function HomeScreen() {
           <Text style={styles.featuredCarPrice}>${item.pricePerDay}/day</Text>
         </View>
       </LinearGradient>
+      {/* Add FavoriteButton */}
+    <View style={styles.featuredCarFavoriteButton}>
+      <FavoriteButton carId={item.id} />
+    </View>
     </TouchableOpacity>
   );
 
@@ -177,6 +183,10 @@ export default function HomeScreen() {
             <Text style={styles.popularBadgeText}>Popular</Text>
           </View>
         )}
+        {/* Add FavoriteButton */}
+        <View style={styles.popularCarFavoriteButton}>
+          <FavoriteButton carId={item.id} />
+        </View>
       </View>
       <View style={styles.popularCarInfo}>
         <Text style={styles.popularCarName} numberOfLines={1}>
@@ -393,12 +403,12 @@ export default function HomeScreen() {
             <View style={styles.quickActionsGrid}>
               <TouchableOpacity 
                 style={styles.quickActionItem}
-                onPress={() => router.push('/search')}
+                onPress={() => router.push('/favorites')}
               >
                 <View style={[styles.quickActionIconContainer, { backgroundColor: '#E3F2FD' }]}>
-                  <Car size={24} color="#007AFF" />
+                  <Heart size={24} color="#007AFF" />
                 </View>
-                <Text style={styles.quickActionLabel}>Browse Cars</Text>
+                <Text style={styles.quickActionLabel}>My Favorites</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
@@ -697,7 +707,7 @@ const styles = StyleSheet.create({
   popularBadge: {
     position: 'absolute',
     top: 8,
-    right: 8,
+    left: 8,
     backgroundColor: 'rgba(255, 59, 48, 0.8)',
     borderRadius: 6,
     paddingHorizontal: 8,
@@ -830,56 +840,68 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginTop: 6,
   },
-  // Add these styles to your StyleSheet:
-quickActionsWrapper: {
-  marginHorizontal: 20,
-  marginVertical: 32,
-},
-quickActionsContainer: {
-  borderRadius: 20,
-  padding: 20,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 6 },
-  shadowOpacity: 0.1,
-  shadowRadius: 16,
-  elevation: 8,
-},
-quickActionsTitle: {
-  fontSize: 18,
-  fontFamily: 'Poppins-SemiBold',
-  color: '#1D1D1F',
-  marginBottom: 16,
-},
-quickActionsGrid: {
-  flexDirection: 'row',
-  flexWrap: 'wrap',
-  justifyContent: 'space-between',
-},
-quickActionItem: {
-  width: '48%',
-  marginBottom: 16,
-  alignItems: 'center',
-  justifyContent: 'center',
-  paddingVertical: 16,
-  borderRadius: 16,
-  backgroundColor: '#FFFFFF',
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.05,
-  shadowRadius: 4,
-  elevation: 2,
-},
-quickActionIconContainer: {
-  width: 60,
-  height: 60,
-  borderRadius: 30,
-  justifyContent: 'center',
-  alignItems: 'center',
-  marginBottom: 12,
-},
-quickActionLabel: {
-  fontSize: 14,
-  fontFamily: 'Inter-Medium',
-  color: '#1D1D1F',
-},
+  quickActionsWrapper: {
+    marginHorizontal: 20,
+    marginVertical: 32,
+  },
+  quickActionsContainer: {
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  quickActionsTitle: {
+    fontSize: 18,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#1D1D1F',
+    marginBottom: 16,
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  quickActionItem: {
+    width: '48%',
+    marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quickActionIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  quickActionLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#1D1D1F',
+  },
+  featuredCarFavoriteButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+  },
+  
+  popularCarFavoriteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 10,
+  },
 });

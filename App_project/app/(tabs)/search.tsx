@@ -20,6 +20,7 @@ import Animated, {
   FadeIn,
 } from 'react-native-reanimated';
 import { ActivityIndicator } from 'react-native-paper';
+import FavoriteButton from '@/components/FavoriteButton';
 
 export default function SearchScreen() {
   const { fetchAllVehicles, getVehicleLocations } = useUserStore();
@@ -182,6 +183,9 @@ export default function SearchScreen() {
         activeOpacity={0.9}
       >
         <Image source={{ uri: item.image }} style={styles.carImage} />
+        <View style={styles.favoriteButtonContainer}>
+          <FavoriteButton carId={item.id} />
+        </View>
         <View style={styles.carInfo}>
           <View style={styles.carHeader}>
             <Text style={styles.carName}>{item.make} {item.model}</Text>
@@ -403,6 +407,12 @@ const styles = StyleSheet.create({
     height: 200,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
+  },
+  favoriteButtonContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 10,
   },
   carInfo: {
     padding: 16,

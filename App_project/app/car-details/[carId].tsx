@@ -32,7 +32,7 @@ import Animated, {
   FadeIn,
 } from 'react-native-reanimated';
 import { ActivityIndicator } from 'react-native-paper';
-
+import FavoriteButton from '@/components/FavoriteButton';
 
 // ...other imports remain the same
 
@@ -212,13 +212,7 @@ export default function CarDetailsScreen() {
             <ArrowLeft size={24} color="#1D1D1F" />
           </TouchableOpacity>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerButton} onPress={handleFavorite}>
-              <Heart 
-                size={24} 
-                color={isFavorited ? "#F44336" : "#1D1D1F"}
-                fill={isFavorited ? "#F44336" : "none"}
-              />
-            </TouchableOpacity>
+            <FavoriteButton carId={carId as string} style={styles.headerButton} />
             <TouchableOpacity style={styles.headerButton} onPress={handleShare}>
               <Share size={24} color="#1D1D1F" />
             </TouchableOpacity>
