@@ -196,10 +196,17 @@ interface UserStore {
   addCar: (car: Car) => void;
   updateCar: (carId: string, updates: Partial<Car>) => void;
   addBooking: (booking: Booking) => void;
-  updateBooking: (bookingId: string, updates: Partial<Booking>) => void;
+  updateBooking: (bookingId: string, updates: {
+    pickupLocation?: string;
+    dropoffLocation?: string;
+    startDate?: string;
+    endDate?: string;
+    totalPrice?: number;
+  }) => Promise<Booking>;
   logout: () => void;
   fetchAllVehicles: () => Promise<Car[]>;
   fetchMyBookings: () => Promise<void>;
+  fetchBookingById: (bookingId: string) => Promise<Booking | null>;
   cancelBooking: (bookingId: string) => Promise<void>;
   initializeStore: () => Promise<void>;
 }
@@ -250,13 +257,44 @@ export const useUserStore = create<UserStore>((set, get) => ({
     const { bookings } = get();
     set({ bookings: [...bookings, booking] });
   },
-  updateBooking: (bookingId, updates) => {
-    const { bookings } = get();
-    set({ 
-      bookings: bookings.map(booking => 
-        booking.id === bookingId ? { ...booking, ...updates } : booking
-      )
-    });
+  updateBooking: async (bookingId: string, updates: {
+    pickupLocation?: string;
+    dropoffLocation?: string;
+    startDate?: string;
+    endDate?: string;
+    totalPrice?: number;
+  }) => {
+    try {
+      // Map frontend updates to backend format
+      const backendUpdates: any = {};
+      if (updates.pickupLocation) backendUpdates.pickupLocation = updates.pickupLocation;
+      if (updates.dropoffLocation) backendUpdates.dropoffLocation = updates.dropoffLocation;
+      if (updates.startDate) backendUpdates.pickupDate = updates.startDate;
+      if (updates.endDate) backendUpdates.dropoffDate = updates.endDate;
+      if (updates.totalPrice) backendUpdates.totalAmount = updates.totalPrice;
+
+      console.log('=== USERSTORE UPDATE DEBUG ===');
+      console.log('Frontend updates received:', updates);
+      console.log('Backend updates mapped:', backendUpdates);
+      console.log('================================');
+
+      const updatedBackendBooking = await bookingService.updateBooking(bookingId, backendUpdates);
+      console.log('Backend response:', updatedBackendBooking);
+      
+      const updatedBooking = mapBackendBookingToFrontend(updatedBackendBooking);
+      console.log('Mapped frontend booking:', updatedBooking);
+      
+      const { bookings } = get();
+      const updatedBookings = bookings.map(booking => 
+        booking.id === bookingId ? updatedBooking : booking
+      );
+      set({ bookings: updatedBookings });
+      
+      return updatedBooking;
+    } catch (error: any) {
+      console.error('Error updating booking:', error);
+      throw error;
+    }
   },
   logout: () => {
     set({ user: null, userType: null, cars: [], bookings: [] });
@@ -282,7 +320,33 @@ export const useUserStore = create<UserStore>((set, get) => ({
     try {
       set({ isLoadingBookings: true, bookingsError: null });
       const backendBookings = await bookingService.getMyBookings();
-      const mappedBookings = backendBookings.map(mapBackendBookingToFrontend);
+      
+      // Filter and map bookings, handling corrupted data
+      const mappedBookings: Booking[] = [];
+      let skippedCount = 0;
+      
+      backendBookings.forEach((backendBooking, index) => {
+        try {
+          if (backendBooking && backendBooking._id) {
+            const mappedBooking = mapBackendBookingToFrontend(backendBooking);
+            mappedBookings.push(mappedBooking);
+          } else {
+            console.warn(`⚠️  Skipping null booking at index ${index}`);
+            skippedCount++;
+          }
+        } catch (mappingError: any) {
+          // Clean logging without stack traces for known data issues
+          console.warn(`⚠️  Skipped booking ${backendBooking?._id || 'unknown'}: ${mappingError.message}`);
+          skippedCount++;
+          // Continue processing other bookings instead of failing completely
+        }
+      });
+      
+      if (skippedCount > 0) {
+        console.log(`📊 Booking fetch result: ${mappedBookings.length} valid, ${skippedCount} skipped (corrupted data)`);
+      } else {
+        console.log(`✅ Successfully loaded ${mappedBookings.length} bookings`);
+      }
       set({ bookings: mappedBookings, isLoadingBookings: false });
     } catch (error: any) {
       console.error('Error fetching bookings:', error);
@@ -290,6 +354,32 @@ export const useUserStore = create<UserStore>((set, get) => ({
         bookingsError: error.message || 'Failed to fetch bookings', 
         isLoadingBookings: false 
       });
+    }
+  },
+
+  fetchBookingById: async (bookingId: string) => {
+    try {
+      const backendBooking = await bookingService.getBookingById(bookingId);
+      
+      if (!backendBooking || !backendBooking._id) {
+        console.error('Invalid booking data received for ID:', bookingId);
+        return null;
+      }
+      
+      const mappedBooking = mapBackendBookingToFrontend(backendBooking);
+      
+      // Update the booking in the local bookings array if it exists
+      const { bookings } = get();
+      const updatedBookings = bookings.map(booking => 
+        booking.id === bookingId ? mappedBooking : booking
+      );
+      set({ bookings: updatedBookings });
+      
+      return mappedBooking;
+    } catch (error: any) {
+      console.error('Error fetching booking by ID:', error);
+      console.error('Booking ID that caused error:', bookingId);
+      return null;
     }
   },
 
@@ -483,19 +573,39 @@ function mapBackendBookingToFrontend(backendBooking: BackendBooking): Booking {
   const BASE_URL = API_URL?.replace(/\/api$/, "");
   const adjustedBaseUrl = getAdjustedUrl(BASE_URL || '');
   
+  // Add null checks for all required nested objects
+  if (!backendBooking) {
+    throw new Error('Backend booking is null or undefined');
+  }
+
+  if (!backendBooking.vehicle) {
+    console.warn(`⚠️  Skipping booking ${backendBooking._id}: Vehicle data is missing (likely deleted)`);
+    throw new Error('Vehicle data is missing from booking');
+  }
+
+  if (!backendBooking.owner) {
+    console.warn(`⚠️  Skipping booking ${backendBooking._id}: Owner data is missing (likely deleted)`);
+    throw new Error('Owner data is missing from booking');
+  }
+
+  if (!backendBooking.customer) {
+    console.warn(`⚠️  Skipping booking ${backendBooking._id}: Customer data is missing`);
+    throw new Error('Customer data is missing from booking');
+  }
+  
   // Map the car data from the vehicle in the booking
   const car: Car = {
-    id: backendBooking.vehicle._id,
-    ownerId: backendBooking.owner._id,
-    make: backendBooking.vehicle.brand,
-    model: backendBooking.vehicle.model,
+    id: backendBooking.vehicle._id || 'unknown',
+    ownerId: backendBooking.owner._id || 'unknown',
+    make: backendBooking.vehicle.brand || 'Unknown',
+    model: backendBooking.vehicle.model || 'Unknown',
     year: parseInt(backendBooking.vehicle.year) || new Date().getFullYear(),
     image: backendBooking.vehicle.images && backendBooking.vehicle.images.length > 0
       ? `${adjustedBaseUrl}/uploads/vehicles/${backendBooking.vehicle.images[0]}`
       : 'https://via.placeholder.com/400x300?text=No+Image',
     pricePerDay: backendBooking.vehicle.pricePerDay || 0,
     pricePerKm: backendBooking.vehicle.pricePerDistance || 0,
-    location: backendBooking.vehicle.location || backendBooking.vehicle.pickupAddress || '',
+    location: backendBooking.vehicle.location || backendBooking.vehicle.pickupAddress || 'Unknown',
     available: true,
     unavailableDates: [],
     features: ['AC', 'GPS', 'Bluetooth'],
@@ -512,19 +622,19 @@ function mapBackendBookingToFrontend(backendBooking: BackendBooking): Booking {
   };
 
   return {
-    id: backendBooking._id,
-    userId: backendBooking.customer._id,
-    carId: backendBooking.vehicle._id,
-    ownerId: backendBooking.owner._id,
-    startDate: backendBooking.pickupDate,
-    endDate: backendBooking.dropoffDate,
-    totalPrice: backendBooking.totalAmount,
-    status: backendBooking.bookingStatus as 'pending' | 'confirmed' | 'cancelled' | 'completed',
-    paymentStatus: backendBooking.paymentStatus as 'pending' | 'paid',
-    pickupLocation: backendBooking.pickupLocation,
-    dropoffLocation: backendBooking.dropoffLocation,
+    id: backendBooking._id || 'unknown',
+    userId: backendBooking.customer._id || 'unknown',
+    carId: backendBooking.vehicle._id || 'unknown',
+    ownerId: backendBooking.owner._id || 'unknown',
+    startDate: backendBooking.pickupDate || '',
+    endDate: backendBooking.dropoffDate || '',
+    totalPrice: backendBooking.totalAmount || 0,
+    status: backendBooking.bookingStatus as 'pending' | 'confirmed' | 'cancelled' | 'completed' || 'pending',
+    paymentStatus: backendBooking.paymentStatus as 'pending' | 'paid' || 'pending',
+    pickupLocation: backendBooking.pickupLocation || '',
+    dropoffLocation: backendBooking.dropoffLocation || '',
     withDriver: false, // This info is not in the backend booking, might need to get it from vehicle
-    createdAt: backendBooking.createdAt,
+    createdAt: backendBooking.createdAt || new Date().toISOString(),
     car: car,
   };
 }

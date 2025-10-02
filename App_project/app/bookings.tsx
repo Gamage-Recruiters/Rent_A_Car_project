@@ -23,7 +23,8 @@ import {
   Edit3,
 } from 'lucide-react-native';
 import { useUserStore } from '@/stores/userStore';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -32,7 +33,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 export default function BookingsScreen() {
-  const { bookings, isLoadingBookings, bookingsError, fetchMyBookings, cancelBooking } = useUserStore();
+  const { bookings, isLoadingBookings, bookingsError, fetchMyBookings, cancelBooking, updateBooking } = useUserStore();
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -40,6 +41,14 @@ export default function BookingsScreen() {
     // Fetch bookings when component mounts
     fetchMyBookings();
   }, []);
+
+  // Refresh bookings when screen comes into focus (e.g., returning from edit)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Bookings screen focused, refreshing data...');
+      fetchMyBookings();
+    }, [fetchMyBookings])
+  );
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -70,30 +79,18 @@ export default function BookingsScreen() {
   };
 
   const handleEditBooking = (booking: typeof bookings[0]) => {
-    // Extract only the date part (YYYY-MM-DD) from the full date strings
-    const formatDateOnly = (dateString: string) => {
-      const date = new Date(dateString);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-
-    // Navigate to booking form with edit parameters
+    // Navigate to booking form with minimal parameters - the form will fetch fresh data
     router.push({
       pathname: '/booking/[carId]' as any,
       params: { 
         carId: booking.carId,
         editMode: 'true',
         bookingId: booking.id,
-        startDate: formatDateOnly(booking.startDate),
-        endDate: formatDateOnly(booking.endDate),
-        pickupLocation: booking.pickupLocation,
-        dropoffLocation: booking.dropoffLocation,
-        totalPrice: booking.totalPrice.toString()
       }
     });
   };
+
+
 
   const filteredBookings = bookings.filter(booking => {
     if (selectedFilter === 'all') return true;

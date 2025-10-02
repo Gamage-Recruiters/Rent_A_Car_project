@@ -10,7 +10,8 @@ router.post('/create', verifyCustomerToken,
           { name: 'customerLicenseImage', maxCount: 2 }
         ]), bookingController.createBooking);
 router.get('/my-bookings', verifyCustomerToken, bookingController.getCustomerBookings);
-router.get('/:id', verifyCustomerToken, bookingController.getBookingById);
+router.put('/update/:id', verifyCustomerToken, bookingController.updateBooking);
 router.put('/cancel/:id', verifyCustomerToken, bookingController.cancelBooking);
+router.get('/:id', verifyCustomerToken, bookingController.getBookingById);
 
 module.exports = router;

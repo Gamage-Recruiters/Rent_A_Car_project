@@ -244,6 +244,61 @@ class BookingService {
       );
     }
   }
+
+  // Update a booking
+  async updateBooking(
+    bookingId: string, 
+    updateData: {
+      pickupLocation?: string;
+      dropoffLocation?: string;
+      pickupDate?: string;
+      dropoffDate?: string;
+      totalAmount?: number;
+    }
+  ): Promise<BackendBooking> {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
+      const updateUrl = `${adjustedApiUrl}/customer/booking/update/${bookingId}`;
+      console.log('BookingService: Updating booking at URL:', updateUrl);
+      console.log('BookingService: Update data:', updateData);
+      console.log('BookingService: Token:', token ? 'Token exists' : 'No token');
+
+      const response = await axios.put(
+        updateUrl,
+        updateData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.data.success) {
+        return response.data.booking;
+      } else {
+        throw new Error(response.data.message || 'Failed to update booking');
+      }
+    } catch (error: any) {
+      console.error('Update booking error:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method
+      });
+      throw new Error(
+        error.response?.data?.message || 
+        error.message || 
+        'Failed to update booking'
+      );
+    }
+  }
 }
 
 export const bookingService = new BookingService();
