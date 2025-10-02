@@ -220,10 +220,18 @@ const BookingTab: React.FC = () => {
   };
 
   const filteredBookings = bookings.filter(booking => {
+    // Check if booking.vehicle exists
+    if (!booking.vehicle) {
+      // Return based on filter only if vehicle data is missing
+      return bookingFilter === 'all' || booking.bookingStatus === bookingFilter;
+    }
+
     const matchesFilter = bookingFilter === 'all' || booking.bookingStatus === bookingFilter;
-    const matchesSearch = booking.vehicle.vehicleName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.pickupLocation.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = 
+      booking.vehicle.vehicleName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.vehicle.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (booking.pickupLocation?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+    
     return matchesFilter && matchesSearch;
   });
 
@@ -462,16 +470,16 @@ const BookingTab: React.FC = () => {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center space-x-4">
                     <img
-                      src={constructImageUrl(booking.vehicle.images[0])}
-                      alt={booking.vehicle.vehicleName}
+                      src={booking.vehicle ? constructImageUrl(booking.vehicle.images?.[0]) : '/placeholder-car.jpg'}
+                      alt={booking.vehicle?.vehicleName || 'Vehicle'}
                       className="w-20 h-20 rounded-lg object-cover"
                     />
                     <div>
                       <h4 className="text-lg font-semibold text-gray-900">
-                        {booking.vehicle.vehicleName}
+                        {booking.vehicle?.vehicleName || 'Unknown Vehicle'}
                       </h4>
                       <p className="text-gray-600">
-                        {booking.vehicle.brand} {booking.vehicle.model} ({booking.vehicle.year})
+                         {booking.vehicle ? `${booking.vehicle.brand || ''} ${booking.vehicle.model || ''} (${booking.vehicle.year || ''})` : 'Details unavailable'}
                       </p>
                       <p className="text-gray-600 flex items-center mt-1">
                         <MapPin className="w-4 h-4 mr-1" />
