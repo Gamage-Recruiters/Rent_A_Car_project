@@ -416,23 +416,6 @@ export default function ReviewsScreen() {
           <ArrowLeft size={24} color="#1D1D1F" />
         </TouchableOpacity>
         <Text style={styles.title}>Reviews</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={styles.addButton} 
-            onPress={() => {
-              if (!user) {
-                Alert.alert('Login Required', 'Please log in to add a review', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Login', onPress: () => router.push('/auth/login') }
-                ]);
-                return;
-              }
-              setShowAddReview(!showAddReview);
-            }}
-          >
-            <Plus size={24} color="#007AFF" />
-          </TouchableOpacity>
-        </View>
       </Animated.View>
 
       {/* Add Review Form */}
@@ -620,7 +603,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 10,
@@ -642,19 +624,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: 'Poppins-Bold',
     color: '#1D1D1F',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#E3F2FD',
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginLeft: 16,
   },
   addReviewContainer: {
     backgroundColor: '#FFFFFF',
