@@ -327,201 +327,216 @@ export default function CustomerRentalHistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>My Booking History</Text>
-          <Text style={styles.headerSubtitle}>
-            Your complete rental transaction history
-          </Text>
-        </View>
-
-        {/* Search and Filters */}
-        <View style={styles.searchContainer}>
-          <View style={styles.searchInputContainer}>
-            <Ionicons name="search-outline" size={20} color="#8E8E93" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search rentals..."
-              value={searchTerm}
-              onChangeText={setSearchTerm}
-              placeholderTextColor="#8E8E93"
-            />
-          </View>
-          <TouchableOpacity 
-            style={styles.filterButton}
-            onPress={() => setShowFilters(!showFilters)}
-          >
-            <Ionicons name="options-outline" size={20} color="#2471F2" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Filter Options */}
-        {showFilters && (
-          <View style={styles.filtersContainer}>
-            <View style={styles.filterRow}>
-              <Text style={styles.filterLabel}>Payment Status:</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScrollView}>
-                {PAYMENT_FILTERS.map((filter) => (
-                  <TouchableOpacity
-                    key={filter}
-                    style={[
-                      styles.filterChip,
-                      paymentFilter === filter && styles.activeFilterChip
-                    ]}
-                    onPress={() => setPaymentFilter(filter)}
-                  >
-                    <Text style={[
-                      styles.filterChipText,
-                      paymentFilter === filter && styles.activeFilterChipText
-                    ]}>
-                      {filter}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-            
-            <View style={styles.filterRow}>
-              <Text style={styles.filterLabel}>Date Range:</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScrollView}>
-                {DATE_FILTERS.map((filter) => (
-                  <TouchableOpacity
-                    key={filter}
-                    style={[
-                      styles.filterChip,
-                      dateFilter === filter && styles.activeFilterChip
-                    ]}
-                    onPress={() => setDateFilter(filter)}
-                  >
-                    <Text style={[
-                      styles.filterChipText,
-                      dateFilter === filter && styles.activeFilterChipText
-                    ]}>
-                      {filter}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        )}
-
-        {/* Stats Cards */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{statusCounts.total}</Text>
-              <Text style={styles.statLabel}>Total</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{statusCounts.active}</Text>
-              <Text style={styles.statLabel}>Active</Text>
-            </View>
-          </View>
-          <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{statusCounts.completed}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{statusCounts.cancelled}</Text>
-              <Text style={styles.statLabel}>Cancelled</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Booking History */}
-        {filteredBookings.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="calendar-outline" size={64} color="#9CA3AF" style={styles.emptyIcon} />
-            <Text style={styles.emptyTitle}>No Booking History</Text>
-            <Text style={styles.emptyText}>
-              You haven't made any bookings yet. Start exploring and book your first ride!
+    <FlatList
+      data={filteredBookings}
+      keyExtractor={(item) => item._id}
+      ListHeaderComponent={() => (
+        <>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>My Booking History</Text>
+            <Text style={styles.headerSubtitle}>
+              Your complete rental transaction history
             </Text>
           </View>
-        ) : (
-          <View>
-            {filteredBookings.map((item) => (
-              <View key={item._id} style={styles.bookingCard}>
-                <View style={styles.bookingHeader}>
-                  <Image
-                    source={{ 
-                      uri: constructImageUrl(item.vehicle?.images?.[0] || '') || 'https://via.placeholder.com/150'
-                    }}
-                    style={styles.vehicleImage}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.bookingInfo}>
-                    <Text style={styles.vehicleName}>
-                      {item.vehicle?.brand || 'Unknown'} {item.vehicle?.model || 'Vehicle'}
-                    </Text>
-                    <Text style={styles.vehicleDetails}>
-                      {item.vehicle?.year || 'N/A'} • {item.vehicle?.transmission || 'Auto'}
-                    </Text>
-                    <Text style={styles.bookingId}>
-                      #{item._id?.slice(-8) || 'N/A'}
-                    </Text>
-                  </View>
-                  <View style={[
-                    styles.statusBadge,
-                    { backgroundColor: getStatusColor(item.bookingStatus || 'pending') }
-                  ]}>
-                    <Text style={[styles.statusText, { color: '#FFFFFF' }]}>
-                      {item.bookingStatus || 'pending'}
-                    </Text>
-                  </View>
-                </View>
 
-                <View style={styles.bookingDetails}>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Pickup Date:</Text>
-                    <Text style={styles.detailValue}>
-                      {item.pickupDate ? formatDate(item.pickupDate) : 'N/A'}
-                    </Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Return Date:</Text>
-                    <Text style={styles.detailValue}>
-                      {item.dropoffDate ? formatDate(item.dropoffDate) : 'N/A'}
-                    </Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Duration:</Text>
-                    <Text style={styles.detailValue}>
-                      {calculateDuration(item.pickupDate, item.dropoffDate)}
-                    </Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Payment Status:</Text>
-                    <View style={[
-                      styles.paymentBadge,
-                      { backgroundColor: getPaymentStatusColor(item.paymentStatus || 'pending') }
-                    ]}>
-                      <Text style={[styles.paymentText, { color: '#FFFFFF' }]}>
-                        {item.paymentStatus || 'pending'}
+          {/* Search and Filters */}
+          <View style={styles.searchContainer}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search-outline" size={20} color="#8E8E93" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search rentals..."
+                value={searchTerm}
+                onChangeText={setSearchTerm}
+                placeholderTextColor="#8E8E93"
+              />
+            </View>
+            <TouchableOpacity 
+              style={styles.filterButton}
+              onPress={() => setShowFilters(!showFilters)}
+            >
+              <Ionicons name="options-outline" size={20} color="#2471F2" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Filter Options */}
+          {showFilters && (
+            <View style={styles.filtersContainer}>
+              <View style={styles.filterRow}>
+                <Text style={styles.filterLabel}>Payment Status:</Text>
+                {/* Use View with flexDirection instead of horizontal ScrollView */}
+                <View style={styles.chipContainer}>
+                  {PAYMENT_FILTERS.map((filter) => (
+                    <TouchableOpacity
+                      key={filter}
+                      style={[
+                        styles.filterChip,
+                        paymentFilter === filter && styles.activeFilterChip
+                      ]}
+                      onPress={() => setPaymentFilter(filter)}
+                    >
+                      <Text style={[
+                        styles.filterChipText,
+                        paymentFilter === filter && styles.activeFilterChipText
+                      ]}>
+                        {filter}
                       </Text>
-                    </View>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Total Amount:</Text>
-                    <Text style={styles.totalAmount}>
-                      ${item.totalAmount || '0'}
-                    </Text>
-                  </View>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
-            ))}
+              
+              <View style={styles.filterRow}>
+                <Text style={styles.filterLabel}>Date Range:</Text>
+                {/* Use View with flexDirection instead of horizontal ScrollView */}
+                <View style={styles.chipContainer}>
+                  {DATE_FILTERS.map((filter) => (
+                    <TouchableOpacity
+                      key={filter}
+                      style={[
+                        styles.filterChip,
+                        dateFilter === filter && styles.activeFilterChip
+                      ]}
+                      onPress={() => setDateFilter(filter)}
+                    >
+                      <Text style={[
+                        styles.filterChipText,
+                        dateFilter === filter && styles.activeFilterChipText
+                      ]}>
+                        {filter}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Stats Cards */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>{statusCounts.total}</Text>
+                <Text style={styles.statLabel}>Total</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>{statusCounts.active}</Text>
+                <Text style={styles.statLabel}>Active</Text>
+              </View>
+            </View>
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>{statusCounts.completed}</Text>
+                <Text style={styles.statLabel}>Completed</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>{statusCounts.cancelled}</Text>
+                <Text style={styles.statLabel}>Cancelled</Text>
+              </View>
+            </View>
           </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+
+          {/* Empty State (if needed) */}
+          {filteredBookings.length === 0 && (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="calendar-outline" size={64} color="#9CA3AF" style={styles.emptyIcon} />
+              <Text style={styles.emptyTitle}>No Booking History</Text>
+              <Text style={styles.emptyText}>
+                You haven't made any bookings yet. Start exploring and book your first ride!
+              </Text>
+            </View>
+          )}
+        </>
+      )}
+      renderItem={({item}) => (
+        <View key={item._id} style={styles.bookingCard}>
+          <View style={styles.bookingHeader}>
+            <Image
+              source={{ 
+                uri: constructImageUrl(item.vehicle?.images?.[0] || '') || 'https://via.placeholder.com/150'
+              }}
+              style={styles.vehicleImage}
+              resizeMode="cover"
+            />
+            <View style={styles.bookingInfo}>
+              <Text style={styles.vehicleName}>
+                {item.vehicle?.brand || 'Unknown'} {item.vehicle?.model || 'Vehicle'}
+              </Text>
+              <Text style={styles.vehicleDetails}>
+                {item.vehicle?.year || 'N/A'} • {item.vehicle?.transmission || 'Auto'}
+              </Text>
+              <Text style={styles.bookingId}>
+                #{item._id?.slice(-8) || 'N/A'}
+              </Text>
+            </View>
+            <View style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(item.bookingStatus || 'pending') }
+            ]}>
+              <Text style={[styles.statusText, { color: '#FFFFFF' }]}>
+                {item.bookingStatus || 'pending'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.bookingDetails}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Pickup Date:</Text>
+              <Text style={styles.detailValue}>
+                {item.pickupDate ? formatDate(item.pickupDate) : 'N/A'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Return Date:</Text>
+              <Text style={styles.detailValue}>
+                {item.dropoffDate ? formatDate(item.dropoffDate) : 'N/A'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Duration:</Text>
+              <Text style={styles.detailValue}>
+                {calculateDuration(item.pickupDate, item.dropoffDate)}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Payment Status:</Text>
+              <View style={[
+                styles.paymentBadge,
+                { backgroundColor: getPaymentStatusColor(item.paymentStatus || 'pending') }
+              ]}>
+                <Text style={[styles.paymentText, { color: '#FFFFFF' }]}>
+                  {item.paymentStatus || 'pending'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Total Amount:</Text>
+              <Text style={styles.totalAmount}>
+                ${item.totalAmount || '0'}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+      contentContainerStyle={[
+        styles.scrollContent,
+        filteredBookings.length === 0 ? { flex: 1 } : {}
+      ]}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+      }
+      ListEmptyComponent={null}
+    />
+
+    {loading && (
+      <View style={styles.loadingOverlay}>
+        <ActivityIndicator size="large" color="#2471F2" />
+        <Text style={styles.loadingText}>Loading your booking history...</Text>
+      </View>
+    )}
+  </SafeAreaView>
   );
 }
 
@@ -811,5 +826,17 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
   },
 }); 

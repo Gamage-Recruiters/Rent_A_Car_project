@@ -34,7 +34,12 @@ import Animated, {
 } from 'react-native-reanimated';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import { bookingService } from '@/services/bookingService';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export default function BookingScreen() {
   const params = useLocalSearchParams();
@@ -262,7 +267,7 @@ export default function BookingScreen() {
   return total;
 };
 
-  const pickImage = async (
+const pickImage = async (
   setter: React.Dispatch<React.SetStateAction<string | null>>, 
   title: string
 ) => {
@@ -275,44 +280,68 @@ export default function BookingScreen() {
         {
           text: 'Take Photo',
           onPress: async () => {
-            const { status } = await ImagePicker.requestCameraPermissionsAsync();
-            if (status !== 'granted') {
-              Alert.alert('Permission needed', 'Please allow access to your camera');
-              return;
-            }
-            
-            const result = await ImagePicker.launchCameraAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              allowsEditing: true,
-              aspect: [4, 3],
-              quality: 0.8,
-            });
-            
-            if (!result.canceled && result.assets && result.assets.length > 0) {
-              setter(result.assets[0].uri);
-              console.log(`Captured ${title} image:`, result.assets[0].uri);
+            try {
+              const { status } = await ImagePicker.requestCameraPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert('Permission needed', 'Please allow access to your camera');
+                return;
+              }
+              
+              // Use the namespace import style and ImagePicker.MediaTypeOptions
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: "images" as any,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.5,
+                base64: false,
+                exif: false
+              });
+              
+              if (!result.canceled && result.assets && result.assets.length > 0) {
+                const imageUri = result.assets[0].uri;
+                if (imageUri) {
+                  const compressed = await compressImage(imageUri);
+                  setter(compressed);
+                  console.log(`Captured and compressed ${title} image`);
+                }
+              }
+            } catch (error) {
+              console.error('Camera error:', error);
+              Alert.alert('Camera Error', 'Failed to take photo. Please try again.');
             }
           }
         },
         {
           text: 'Choose from Library',
           onPress: async () => {
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (status !== 'granted') {
-              Alert.alert('Permission needed', 'Please allow access to your photo library');
-              return;
-            }
-            
-            const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              allowsEditing: true,
-              aspect: [4, 3],
-              quality: 0.8,
-            });
-            
-            if (!result.canceled && result.assets && result.assets.length > 0) {
-              setter(result.assets[0].uri);
-              console.log(`Selected ${title} image:`, result.assets[0].uri);
+            try {
+              const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert('Permission needed', 'Please allow access to your photo library');
+                return;
+              }
+              
+              // Use the namespace import style and ImagePicker.MediaTypeOptions
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: "images" as any,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.5,
+                base64: false,
+                exif: false
+              });
+              
+              if (!result.canceled && result.assets && result.assets.length > 0) {
+                const imageUri = result.assets[0].uri;
+                if (imageUri) {
+                  const compressed = await compressImage(imageUri);
+                  setter(compressed);
+                  console.log(`Selected and compressed ${title} image`);
+                }
+              }
+            } catch (error) {
+              console.error('Gallery error:', error);
+              Alert.alert('Gallery Error', 'Failed to select image. Please try again.');
             }
           }
         },
@@ -328,6 +357,21 @@ export default function BookingScreen() {
   }
 };
 
+const compressImage = async (uri: string): Promise<string> => {
+  try {
+    console.log('Starting image compression');
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 800 } }], // Resize to reasonable dimensions
+      { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG } // Medium compression
+    );
+    console.log('Image compressed successfully');
+    return result.uri;
+  } catch (error) {
+    console.error('Error compressing image:', error);
+    return uri; // Return original if compression fails
+  }
+};
 const calculateRentalDays = () => {
   if (!startDate || !endDate) return 0;
   
@@ -342,119 +386,147 @@ const calculateRentalDays = () => {
   return Math.max(1, diffDays);
 };
 
-  const handleBooking = async () => {
-    if (
-      !startDate ||
-      !endDate ||
-      !pickupLocation ||
-      !contactName ||
-      !contactPhone
-    ) {
-      Alert.alert('Error', 'Please fill in all required fields');
-      return;
-    }
+const handleBooking = async () => {
+  if (
+    !startDate ||
+    !endDate ||
+    !pickupLocation ||
+    !contactName ||
+    !contactPhone ||
+    !idFrontImage ||
+    !idBackImage ||
+    !licenseFrontImage ||
+    !licenseBackImage
+  ) {
+    Alert.alert('Error', 'Please fill in all required fields and upload all required documents');
+    return;
+  }
 
-    // Validate date order
-    if (selectedStartDate.getTime() >= selectedEndDate.getTime()) {
-      Alert.alert('Error', 'Start date must be before end date. Please correct your dates before proceeding.');
-      return;
-    }
+  const totalPrice = calculateTotalPrice();
+  if (totalPrice === 0) {
+    Alert.alert('Error', 'Please select valid dates for your rental period');
+    return;
+  }
 
-    // For new bookings, require documents
-    if (editMode !== 'true' && (
-      !idFrontImage ||
-      !idBackImage ||
-      !licenseFrontImage ||
-      !licenseBackImage
-    )) {
-      Alert.alert('Error', 'Please upload all required documents');
-      return;
-    }
-
-    const totalPrice = calculateTotalPrice();
-    if (totalPrice === 0) {
-      Alert.alert('Error', 'Please select valid dates for your rental period');
-      return;
-    }
-
-    setIsLoading(true);
+  setIsLoading(true);
+  
+  try {
+    // Get the token from storage
+    const accessToken = await AsyncStorage.getItem('accessToken');
     
+    if (!accessToken) {
+      Alert.alert('Error', 'Authentication token not found. Please log in again.');
+      router.push('/auth/login');
+      return;
+    }
+
+    console.log('=== STARTING BOOKING PROCESS ===');
+    console.log('API URL:', API_URL);
+    console.log('Token exists:', !!accessToken);
+
+    // Create FormData
+    const formData = new FormData();
+    const timestamp = Date.now();
+
+    // Add booking details FIRST
+    formData.append('vehicle', car.id);
+    formData.append('owner', car.ownerId);
+    formData.append('pickupLocation', pickupLocation);
+    formData.append('dropoffLocation', dropoffLocation || pickupLocation);
+    formData.append('pickupDate', selectedStartDate.toISOString());
+    formData.append('dropoffDate', selectedEndDate.toISOString());
+    formData.append('totalAmount', totalPrice.toString());
+
+    console.log('FormData text fields added');
+
+    // Add images with proper structure
+    if (idFrontImage) {
+      formData.append('customerIdImage', {
+        uri: idFrontImage,
+        type: 'image/jpeg',
+        name: `id_front_${timestamp}.jpg`
+      } as any);
+      console.log('ID Front image added');
+    }
+
+    if (idBackImage) {
+      formData.append('customerIdImage', {
+        uri: idBackImage,
+        type: 'image/jpeg',
+        name: `id_back_${timestamp}.jpg`
+      } as any);
+      console.log('ID Back image added');
+    }
+
+    if (licenseFrontImage) {
+      formData.append('customerLicenseImage', {
+        uri: licenseFrontImage,
+        type: 'image/jpeg',
+        name: `license_front_${timestamp}.jpg`
+      } as any);
+      console.log('License Front image added');
+    }
+
+    if (licenseBackImage) {
+      formData.append('customerLicenseImage', {
+        uri: licenseBackImage,
+        type: 'image/jpeg',
+        name: `license_back_${timestamp}.jpg`
+      } as any);
+      console.log('License Back image added');
+    }
+
+    console.log('All images added to FormData');
+
+    // Test connectivity first
     try {
-      // Prepare booking data
-      const bookingData = {
-        vehicle: car.id,
-        owner: car.ownerId,
-        pickupLocation,
-        dropoffLocation: dropoffLocation || pickupLocation,
-        pickupDate: selectedStartDate.toISOString(),
-        dropoffDate: selectedEndDate.toISOString(),
-        totalAmount: totalPrice,
-      };
-
-      console.log('Submitting booking with data:', bookingData);
+      console.log('Testing server connectivity...');
+      const testResponse = await fetch(`${API_URL}/test`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
       
-      if (editMode === 'true') {
-        // For edit mode, update the existing booking
-        try {
-          const startDateFormatted = selectedStartDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-          const endDateFormatted = selectedEndDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-          
-          const updateData = {
-            pickupLocation,
-            dropoffLocation: dropoffLocation || pickupLocation,
-            startDate: startDateFormatted,
-            endDate: endDateFormatted,
-            totalPrice,
-          };
-
-          console.log('=== DATE UPDATE DEBUG ===');
-          console.log('selectedStartDate object:', selectedStartDate);
-          console.log('selectedEndDate object:', selectedEndDate);
-          console.log('startDate string state:', startDate);
-          console.log('endDate string state:', endDate);
-          console.log('Formatted startDate for backend:', startDateFormatted);
-          console.log('Formatted endDate for backend:', endDateFormatted);
-          console.log('Complete updateData:', updateData);
-          console.log('========================');
-          
-          await updateBooking(bookingId as string, updateData);
-          
-          Alert.alert(
-            'Booking Updated!',
-            'Your booking has been successfully updated.',
-            [
-              {
-                text: 'OK',
-                onPress: () => router.back(),
-              },
-            ]
-          );
-        } catch (error: any) {
-          console.error('Error updating booking:', error);
-          Alert.alert('Update Failed', error.message || 'Failed to update booking');
-        }
-        return;
+      if (!testResponse.ok) {
+        throw new Error(`Connectivity test failed: ${testResponse.status}`);
       }
+      
+      console.log('Server connectivity test passed');
+    } catch (connectError) {
+      console.error('Connectivity test failed:', connectError);
+      Alert.alert('Connection Error', 'Cannot connect to server. Please check your network and try again.');
+      setIsLoading(false);
+      return;
+    }
 
-      // Prepare document images for new bookings
-      const idImages = [
-        { uri: idFrontImage!, type: 'image/jpeg', name: 'id_front.jpg' },
-        { uri: idBackImage!, type: 'image/jpeg', name: 'id_back.jpg' },
-      ];
+    // Make the booking request
+    console.log('Making booking request...');
+    const response = await fetch(`${API_URL}/customer/booking/create`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json',
+      },
+    });
 
-      const licenseImages = [
-        { uri: licenseFrontImage!, type: 'image/jpeg', name: 'license_front.jpg' },
-        { uri: licenseBackImage!, type: 'image/jpeg', name: 'license_back.jpg' },
-      ];
-      
-      // Use the booking service for new bookings
-      const backendBooking = await bookingService.createBooking(bookingData, idImages, licenseImages);
-      
-      console.log('Booking created successfully:', backendBooking);
-      
-      // Create local booking object for immediate UI update
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Response error:', errorText);
+      throw new Error(`Server error: ${response.status} - ${errorText}`);
+    }
+
+    const responseData = await response.json();
+    console.log('Booking response:', responseData);
+
+    if (responseData.success) {
+      // Create local booking object
       const newBooking = {
-        id: backendBooking._id,
+        id: responseData.booking._id,
         userId: user!.id,
         carId: car.id,
         ownerId: car.ownerId,
@@ -462,11 +534,10 @@ const calculateRentalDays = () => {
         endDate,
         totalPrice,
         status: 'pending' as const,
-        paymentStatus: 'pending' as const,
         pickupLocation,
         dropoffLocation: dropoffLocation || pickupLocation,
         withDriver,
-        createdAt: backendBooking.createdAt,
+        createdAt: new Date().toISOString(),
         car,
       };
 
@@ -475,21 +546,32 @@ const calculateRentalDays = () => {
 
       Alert.alert(
         'Booking Confirmed!',
-        'Your booking request has been submitted. You will receive a confirmation shortly.',
+        'Your booking request has been submitted successfully.',
         [
           {
             text: 'OK',
-            onPress: () => router.replace('/bookings'),
+            onPress: () => router.replace('/(tabs)/profile'),
           },
         ]
       );
-    } catch (error: any) {
-      console.error('Error creating booking:', error);
-      Alert.alert('Booking Failed', error.message);
-    } finally {
-      setIsLoading(false);
+    } else {
+      throw new Error(responseData.message || 'Failed to create booking');
     }
-  };
+    
+  } catch (error: any) {
+    console.error('Booking error:', error);
+    
+    let errorMessage = 'Failed to create booking. Please try again.';
+    
+    if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    Alert.alert('Booking Failed', errorMessage);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handlePressIn = () => {
     scaleValue.value = withSpring(0.95);

@@ -39,6 +39,8 @@ app.use(passport.initialize());
 app.use('/uploads/ownerProfileImages', express.static(path.join(__dirname, 'uploads/ownerProfileImages')));
 app.use('/uploads/vehicles', express.static(path.join(__dirname, 'uploads/vehicles')));
 app.use('/uploads/customerProfiles', express.static(path.join(__dirname, 'uploads/customerProfiles')));
+app.use('/uploads/customerIdImage', express.static(path.join(__dirname, 'uploads/customerIdImage')));
+app.use('/uploads/customerLicenseImage', express.static(path.join(__dirname, 'uploads/customerLicenseImage')));
 // ============================
 // ✅ Database Connection
 // ============================
