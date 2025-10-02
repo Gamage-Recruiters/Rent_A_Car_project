@@ -78,7 +78,7 @@ const Vehicle_component: React.FC = () => {
             {/* Vehicle Image and Availability */}
             <div className="relative">
             <img
-              src={`${import.meta.env.VITE_API_URL?.replace('/api', '')}${vehicle.images[0]}`}
+              src={`${(import.meta.env.VITE_API_URL || 'http://localhost:8000/api')?.replace('/api', '')}${vehicle.images[0]}`}
               alt={vehicle.name}
               className="w-full h-48 object-cover"
             />
