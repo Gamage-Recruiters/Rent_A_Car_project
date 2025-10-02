@@ -317,6 +317,8 @@ export default function HomeScreen() {
             snapToInterval={width * 0.75 + 16}
             snapToAlignment="start"
             decelerationRate="fast"
+            scrollEnabled={true}
+            nestedScrollEnabled={true}
           />
         </Animated.View>
 
@@ -339,14 +341,13 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <FlatList
-            data={allCars.slice(0, 4)}
-            renderItem={renderPopularCar}
-            numColumns={2}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.popularCarsList}
-            keyExtractor={(item) => item.id}
-          />
+          <View style={styles.popularCarsContainer}>
+            {allCars.slice(0, 4).map((item) => (
+              <View key={item.id} style={styles.popularCarWrapper}>
+                {renderPopularCar({item})}
+              </View>
+            ))}
+          </View>
         </Animated.View>
 
         {/* Categories */}
@@ -903,5 +904,14 @@ const styles = StyleSheet.create({
     top: 8,
     right: 8,
     zIndex: 10,
+  },
+  popularCarsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  popularCarWrapper: {
+    width: '48%',
+    marginBottom: 16,
   },
 });
