@@ -69,6 +69,10 @@ export default function BookingScreen() {
     return tomorrow;
   });
 
+  // Picker-specific date values to ensure proper synchronization
+  const [pickerStartDate, setPickerStartDate] = useState(selectedStartDate);
+  const [pickerEndDate, setPickerEndDate] = useState(selectedEndDate);
+
   // Document upload states
   const [idFrontImage, setIdFrontImage] = useState<string | null>(null);
   const [idBackImage, setIdBackImage] = useState<string | null>(null);
@@ -549,6 +553,7 @@ const calculateRentalDays = () => {
       }
       
       setSelectedStartDate(dateWithoutTime);
+      setPickerStartDate(dateWithoutTime);
       setStartDate(formatDate(dateWithoutTime));
 
       // Only auto-adjust end date for new bookings, not when editing
@@ -556,6 +561,7 @@ const calculateRentalDays = () => {
         const nextDay = new Date(dateWithoutTime);
         nextDay.setDate(nextDay.getDate() + 1);
         setSelectedEndDate(nextDay);
+        setPickerEndDate(nextDay);
         setEndDate(formatDate(nextDay));
         console.log('Auto-adjusted end date to:', formatDate(nextDay));
       }
@@ -603,6 +609,7 @@ const calculateRentalDays = () => {
       }
       
       setSelectedEndDate(dateWithoutTime);
+      setPickerEndDate(dateWithoutTime);
       setEndDate(formatDate(dateWithoutTime));
     }
   };
@@ -613,20 +620,29 @@ const calculateRentalDays = () => {
     console.log('Current selectedStartDate object:', selectedStartDate.toString());
     console.log('selectedStartDate components:', selectedStartDate.getFullYear(), selectedStartDate.getMonth() + 1, selectedStartDate.getDate());
     
-    // Sync selectedStartDate with the current startDate string before showing picker
+    // Sync picker date with the current startDate string
     if (startDate) {
       const [year, month, day] = startDate.split('-').map(Number);
       const syncedDate = new Date(year, month - 1, day, 12, 0, 0);
-      setSelectedStartDate(syncedDate);
+      
       console.log('Syncing start date picker:');
       console.log('  - Parsed from string:', startDate, '→', year, month, day);
       console.log('  - Created Date object:', syncedDate.toString());
       console.log('  - Date components:', syncedDate.getFullYear(), syncedDate.getMonth() + 1, syncedDate.getDate());
+      
+      // Update both the main state and picker-specific state
+      setSelectedStartDate(syncedDate);
+      setPickerStartDate(syncedDate);
+      
+      console.log('  - Updated pickerStartDate to:', syncedDate.toString());
     } else {
       console.log('No startDate string to sync, using current selectedStartDate');
+      setPickerStartDate(selectedStartDate);
     }
-    console.log('===================================');
+    
+    // Show picker immediately - no timeout needed with dedicated picker state
     setShowStartDatePicker(true);
+    console.log('===================================');
   };
 
   const showEndPicker = () => {
@@ -635,20 +651,29 @@ const calculateRentalDays = () => {
     console.log('Current selectedEndDate object:', selectedEndDate.toString());
     console.log('selectedEndDate components:', selectedEndDate.getFullYear(), selectedEndDate.getMonth() + 1, selectedEndDate.getDate());
     
-    // Sync selectedEndDate with the current endDate string before showing picker
+    // Sync picker date with the current endDate string
     if (endDate) {
       const [year, month, day] = endDate.split('-').map(Number);
       const syncedDate = new Date(year, month - 1, day, 12, 0, 0);
-      setSelectedEndDate(syncedDate);
+      
       console.log('Syncing end date picker:');
       console.log('  - Parsed from string:', endDate, '→', year, month, day);
       console.log('  - Created Date object:', syncedDate.toString());
       console.log('  - Date components:', syncedDate.getFullYear(), syncedDate.getMonth() + 1, syncedDate.getDate());
+      
+      // Update both the main state and picker-specific state
+      setSelectedEndDate(syncedDate);
+      setPickerEndDate(syncedDate);
+      
+      console.log('  - Updated pickerEndDate to:', syncedDate.toString());
     } else {
       console.log('No endDate string to sync, using current selectedEndDate');
+      setPickerEndDate(selectedEndDate);
     }
-    console.log('=================================');
+    
+    // Show picker immediately - no timeout needed with dedicated picker state
     setShowEndDatePicker(true);
+    console.log('=================================');
   };
 
   return (
@@ -977,13 +1002,15 @@ const calculateRentalDays = () => {
       {/* Date Pickers */}
       {showStartDatePicker && (
         <>
-          {console.log('Showing START DateTimePicker with value:', selectedStartDate.toString())}
+          {console.log('Showing START DateTimePicker with pickerStartDate:', pickerStartDate.toString())}
+          {console.log('START picker date components:', pickerStartDate.getFullYear(), pickerStartDate.getMonth() + 1, pickerStartDate.getDate())}
           <DateTimePicker
+            key={`start-picker-${pickerStartDate.getTime()}`}
             testID="startDatePicker"
-            value={selectedStartDate}
+            value={pickerStartDate}
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            minimumDate={(() => {
+            minimumDate={editMode === 'true' ? undefined : (() => {
               const today = new Date();
               return new Date(today.getFullYear(), today.getMonth(), today.getDate());
             })()}
@@ -994,10 +1021,12 @@ const calculateRentalDays = () => {
 
       {showEndDatePicker && (
         <>
-          {console.log('Showing END DateTimePicker with value:', selectedEndDate.toString())}
+          {console.log('Showing END DateTimePicker with pickerEndDate:', pickerEndDate.toString())}
+          {console.log('END picker date components:', pickerEndDate.getFullYear(), pickerEndDate.getMonth() + 1, pickerEndDate.getDate())}
           <DateTimePicker
+            key={`end-picker-${pickerEndDate.getTime()}`}
             testID="endDatePicker"
-            value={selectedEndDate}
+            value={pickerEndDate}
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             minimumDate={selectedStartDate}
