@@ -172,6 +172,8 @@ async function loginOwner(req, res) {
       email: existOwner.email,
       phone: existOwner.phone,
       token: accessToken,
+      accessToken,
+      refreshToken
     });
   } catch (error) {
     console.error("Login error:", error);

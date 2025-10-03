@@ -86,6 +86,8 @@ async function addUser(req, res) {
             return res.status(200).json({
                 message: "User Registration Successfull",
                 userRole: newUser.userRole,
+                accessToken,
+                refreshToken,
                 userId: newUser._id.toString(),
                 firstName: newUser.firstName,
                 lastName: newUser.lastName,
@@ -169,6 +171,8 @@ async function loginUser(req, res) {
         return res.status(200).json({ 
             message: "Login Successful", 
             userRole: existUser.userRole,
+             accessToken,
+            refreshToken,
             userId: existUser._id.toString(),
             firstName: existUser.firstName,
             lastName: existUser.lastName,
