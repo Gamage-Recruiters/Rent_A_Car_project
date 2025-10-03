@@ -70,8 +70,8 @@ export default function RegisterScreen() {
 
   try {
     const endpoint = userType === 'owner' 
-      ? '/auth/owner/register'
-      : '/auth/customer/register';
+      ? '/api/auth/owner/register'
+      : '/api/auth/customer/register';
       
     console.log(`Registering ${userType} with endpoint: ${API_URL}${endpoint}`);
     

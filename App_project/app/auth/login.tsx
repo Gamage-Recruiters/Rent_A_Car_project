@@ -45,7 +45,7 @@ export default function LoginScreen() {
   setIsLoading(true);
   try {
     // Api call
-    const endpoint = `/auth/${userType}/login`;
+    const endpoint = `/api/auth/${userType}/login`;
     console.log(`Making login request to: ${API_URL}${endpoint}`);
     
     const response = await axios.post(`${API_URL}${endpoint}`, {
