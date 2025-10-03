@@ -18,7 +18,7 @@ export const VehicleProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const ownerBaseUrl = 'http://localhost:8000/api/owner/'
 
   const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL + '/customer/vehicle', 
+    baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:8000/api') + '/customer/vehicle', 
     withCredentials: true,
   });
 
@@ -28,8 +28,16 @@ export const VehicleProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   const getAllVehicles = async (filters: any = {}) => {
-    const res = await api.get('/', { params: filters });
-    return res.data.data;
+    try {
+      console.log('VehicleContext: Making API call to:', api.defaults.baseURL);
+      console.log('VehicleContext: Filters:', filters);
+      const res = await api.get('/', { params: filters });
+      console.log('VehicleContext: API response:', res.data);
+      return res.data.data;
+    } catch (error) {
+      console.error('VehicleContext: Error in getAllVehicles:', error);
+      throw error;
+    }
   };
 
   const searchVehicles = async (query: string) => {

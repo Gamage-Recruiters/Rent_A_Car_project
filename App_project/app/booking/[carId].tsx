@@ -42,36 +42,41 @@ import * as ImageManipulator from 'expo-image-manipulator';
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export default function BookingScreen() {
-  const { carId } = useLocalSearchParams();
-  const { allCars, user, addBooking } = useUserStore();
+  const params = useLocalSearchParams();
+  const { carId, editMode, bookingId, startDate: editStartDate, endDate: editEndDate, 
+          pickupLocation: editPickupLocation, dropoffLocation: editDropoffLocation, 
+          totalPrice: editTotalPrice } = params;
+  const { allCars, user, addBooking, updateBooking, fetchBookingById } = useUserStore();
   
-  // Check if user is logged in
-  useEffect(() => {
-    if (!user) {
-      console.log("User not authenticated in booking screen, redirecting to login");
-      router.replace('/auth/login');
-    } else {
-      console.log("User authenticated:", user);
-    }
-  }, [user]);
-
+  // All useState hooks must be at the top level, before any early returns
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [pickupLocation, setPickupLocation] = useState('');
   const [dropoffLocation, setDropoffLocation] = useState('');
   const [withDriver, setWithDriver] = useState(false);
-  const [contactName, setContactName] = useState(user?.firstName || user?.lastName 
-    ? `${user?.firstName || ''} ${user?.lastName || ''}`.trim()
-    : '');
-  const [contactPhone, setContactPhone] = useState(user?.phone || user?.phoneNumber || '');
-  const [contactEmail, setContactEmail] = useState(user?.email || '');
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [currentBooking, setCurrentBooking] = useState<any>(null);
+  const [isLoadingBooking, setIsLoadingBooking] = useState(false);
 
   // Date picker states
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  const [selectedStartDate, setSelectedStartDate] = useState(new Date());
-  const [selectedEndDate, setSelectedEndDate] = useState(new Date());
+  const [selectedStartDate, setSelectedStartDate] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
+  });
+  const [selectedEndDate, setSelectedEndDate] = useState(() => {
+    const today = new Date();
+    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 12, 0, 0);
+    return tomorrow;
+  });
+
+  // Picker-specific date values to ensure proper synchronization
+  const [pickerStartDate, setPickerStartDate] = useState(selectedStartDate);
+  const [pickerEndDate, setPickerEndDate] = useState(selectedEndDate);
 
   // Document upload states
   const [idFrontImage, setIdFrontImage] = useState<string | null>(null);
@@ -79,14 +84,158 @@ export default function BookingScreen() {
   const [licenseFrontImage, setLicenseFrontImage] = useState<string | null>(null);
   const [licenseBackImage, setLicenseBackImage] = useState<string | null>(null);
 
-  const car = allCars.find((c) => c.id === carId);
+  // All useSharedValue and animation hooks
   const scaleValue = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scaleValue.value }],
+    };
+  });
+
+  // Check if user is logged in (moved to conditional render below to avoid hook issues)
+
+  // Fetch fresh booking data when in edit mode
+  useEffect(() => {
+    const fetchBookingData = async () => {
+      if (editMode === 'true' && bookingId) {
+        setIsLoadingBooking(true);
+        console.log('Fetching fresh booking data for ID:', bookingId);
+        
+        try {
+          const freshBooking = await fetchBookingById(bookingId as string);
+          if (freshBooking) {
+            console.log('Fresh booking data:', freshBooking);
+            setCurrentBooking(freshBooking);
+            
+            // Populate form with fresh data
+            const startDateOnly = freshBooking.startDate.split('T')[0]; // Extract YYYY-MM-DD
+            const endDateOnly = freshBooking.endDate.split('T')[0]; // Extract YYYY-MM-DD
+            
+            setStartDate(startDateOnly);
+            setEndDate(endDateOnly);
+            setPickupLocation(freshBooking.pickupLocation || '');
+            setDropoffLocation(freshBooking.dropoffLocation || '');
+            
+            // Set date picker values - use local date constructor with noon time to avoid timezone issues
+            const [startYear, startMonth, startDay] = startDateOnly.split('-').map(Number);
+            const [endYear, endMonth, endDay] = endDateOnly.split('-').map(Number);
+            
+            const startDateObj = new Date(startYear, startMonth - 1, startDay, 12, 0, 0); // Month is 0-indexed, noon time
+            const endDateObj = new Date(endYear, endMonth - 1, endDay, 12, 0, 0); // Month is 0-indexed, noon time
+            
+            console.log('Parsed start date:', startDateOnly, '→', startDateObj);
+            console.log('Parsed end date:', endDateOnly, '→', endDateObj);
+            
+            if (!isNaN(startDateObj.getTime())) {
+              setSelectedStartDate(startDateObj);
+              console.log('Set selectedStartDate to:', startDateObj);
+            }
+            if (!isNaN(endDateObj.getTime())) {
+              setSelectedEndDate(endDateObj);
+              console.log('Set selectedEndDate to:', endDateObj);
+            }
+            
+            // Set with driver option if available in booking data
+            if (freshBooking.withDriver !== undefined) {
+              setWithDriver(freshBooking.withDriver);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching booking data:', error);
+          // Fallback to route parameters if fresh data fetch fails
+          if (editStartDate && editEndDate) {
+            setStartDate(editStartDate as string);
+            setEndDate(editEndDate as string);
+            setPickupLocation(editPickupLocation as string || '');
+            setDropoffLocation(editDropoffLocation as string || '');
+            
+            const startDateObj = new Date(editStartDate as string);
+            const endDateObj = new Date(editEndDate as string);
+            
+            if (!isNaN(startDateObj.getTime())) {
+              setSelectedStartDate(startDateObj);
+            }
+            if (!isNaN(endDateObj.getTime())) {
+              setSelectedEndDate(endDateObj);
+            }
+          }
+        } finally {
+          setIsLoadingBooking(false);
+        }
+      }
+    };
+
+    fetchBookingData();
+  }, [editMode, bookingId, fetchBookingById]);
+
+  // Update contact info when user object changes
+  useEffect(() => {
+    if (user) {
+      // Update contact name
+      const fullName = user.firstName || user.lastName 
+        ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
+        : user.name || '';
+      setContactName(fullName);
+
+      // Update contact phone
+      const phoneValue = user.phone || user.phoneNumber || '';
+      setContactPhone(phoneValue);
+
+      // Update contact email
+      setContactEmail(user.email || '');
+    }
+  }, [user]);
+
+  // Initialize contact info on first load
+  useEffect(() => {
+    if (user && !contactName && !contactPhone && !contactEmail) {
+      const fullName = user.firstName || user.lastName 
+        ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
+        : user.name || '';
+      setContactName(fullName);
+      setContactPhone(user.phone || user.phoneNumber || '');
+      setContactEmail(user.email || '');
+    }
+  }, [user, contactName, contactPhone, contactEmail]);
+
+  // Initialize date strings for new bookings (non-edit mode)
+  useEffect(() => {
+    if (editMode !== 'true' && !startDate && !endDate) {
+      const formattedStartDate = formatDate(selectedStartDate);
+      const formattedEndDate = formatDate(selectedEndDate);
+      setStartDate(formattedStartDate);
+      setEndDate(formattedEndDate);
+      console.log('Initialized dates for new booking:', formattedStartDate, 'to', formattedEndDate);
+    }
+  }, [editMode, startDate, endDate, selectedStartDate, selectedEndDate]);
+
+  // Handle authentication redirect
+  if (!user) {
+    console.log("User not authenticated in booking screen, redirecting to login");
+    router.replace('/auth/login');
+    return null; // Return null while redirecting
+  }
+
+  console.log("User authenticated:", user);
+
+  const car = allCars.find((c) => c.id === carId);
 
   if (!car) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Car not found</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show loading while fetching booking data in edit mode
+  if (editMode === 'true' && isLoadingBooking) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Loading booking details...</Text>
         </View>
       </SafeAreaView>
     );
@@ -238,18 +387,26 @@ const calculateRentalDays = () => {
 };
 
 const handleBooking = async () => {
+  // Basic validation for all modes
   if (
     !startDate ||
     !endDate ||
     !pickupLocation ||
     !contactName ||
-    !contactPhone ||
+    !contactPhone
+  ) {
+    Alert.alert('Error', 'Please fill in all required fields');
+    return;
+  }
+
+  // Document validation only for new bookings (not edit mode)
+  if (editMode !== 'true' && (
     !idFrontImage ||
     !idBackImage ||
     !licenseFrontImage ||
     !licenseBackImage
-  ) {
-    Alert.alert('Error', 'Please fill in all required fields and upload all required documents');
+  )) {
+    Alert.alert('Error', 'Please upload all required documents');
     return;
   }
 
@@ -271,164 +428,189 @@ const handleBooking = async () => {
       return;
     }
 
-    console.log('=== STARTING BOOKING PROCESS ===');
+    console.log(`=== STARTING ${editMode === 'true' ? 'BOOKING UPDATE' : 'BOOKING CREATION'} PROCESS ===`);
     console.log('API URL:', API_URL);
     console.log('Token exists:', !!accessToken);
 
-    // Create FormData
-    const formData = new FormData();
-    const timestamp = Date.now();
+    let responseData;
 
-    // Add booking details FIRST
-    formData.append('vehicle', car.id);
-    formData.append('owner', car.ownerId);
-    formData.append('pickupLocation', pickupLocation);
-    formData.append('dropoffLocation', dropoffLocation || pickupLocation);
-    formData.append('pickupDate', selectedStartDate.toISOString());
-    formData.append('dropoffDate', selectedEndDate.toISOString());
-    formData.append('totalAmount', totalPrice.toString());
-
-    console.log('FormData text fields added');
-
-    // Add images with proper structure
-    if (idFrontImage) {
-      formData.append('customerIdImage', {
-        uri: idFrontImage,
-        type: 'image/jpeg',
-        name: `id_front_${timestamp}.jpg`
-      } as any);
-      console.log('ID Front image added');
-    }
-
-    if (idBackImage) {
-      formData.append('customerIdImage', {
-        uri: idBackImage,
-        type: 'image/jpeg',
-        name: `id_back_${timestamp}.jpg`
-      } as any);
-      console.log('ID Back image added');
-    }
-
-    if (licenseFrontImage) {
-      formData.append('customerLicenseImage', {
-        uri: licenseFrontImage,
-        type: 'image/jpeg',
-        name: `license_front_${timestamp}.jpg`
-      } as any);
-      console.log('License Front image added');
-    }
-
-    if (licenseBackImage) {
-      formData.append('customerLicenseImage', {
-        uri: licenseBackImage,
-        type: 'image/jpeg',
-        name: `license_back_${timestamp}.jpg`
-      } as any);
-      console.log('License Back image added');
-    }
-
-    console.log('All images added to FormData');
-
-    // Test connectivity first
-    try {
-      console.log('Testing server connectivity...');
-      const testResponse = await fetch(`${API_URL}/test`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-      
-      if (!testResponse.ok) {
-        throw new Error(`Connectivity test failed: ${testResponse.status}`);
-      }
-      
-      console.log('Server connectivity test passed');
-    } catch (connectError) {
-      console.error('Connectivity test failed:', connectError);
-      Alert.alert('Connection Error', 'Cannot connect to server. Please check your network and try again.');
-      setIsLoading(false);
-      return;
-    }
-
-    // Make the booking request
-    console.log('Making booking request...');
-    const response = await fetch(`${API_URL}/customer/booking/create`, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json',
-      },
-    });
-
-    console.log('Response status:', response.status);
-    console.log('Response headers:', response.headers);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Response error:', errorText);
-      throw new Error(`Server error: ${response.status} - ${errorText}`);
-    }
-
-    const responseData = await response.json();
-    console.log('Booking response:', responseData);
-
-    if (responseData.success) {
-      // Create local booking object
-      const newBooking = {
-        id: responseData.booking._id,
-        userId: user!.id,
-        carId: car.id,
-        ownerId: car.ownerId,
+    if (editMode === 'true' && bookingId) {
+      // Edit mode: Use updateBooking from userStore
+      console.log('Updating existing booking...');
+      const updatedBooking = await updateBooking(bookingId as string, {
+        pickupLocation,
+        dropoffLocation: dropoffLocation || pickupLocation,
         startDate,
         endDate,
         totalPrice,
-        status: 'pending' as const,
-        pickupLocation,
-        dropoffLocation: dropoffLocation || pickupLocation,
-        withDriver,
-        createdAt: new Date().toISOString(),
-        car,
-      };
+      });
 
-      // Add to local store
-      addBooking(newBooking);
-
-      Alert.alert(
-        'Booking Confirmed!',
-        'Your booking request has been submitted successfully.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(tabs)/profile'),
-          },
-        ]
-      );
+      responseData = { success: true, booking: updatedBooking };
     } else {
-      throw new Error(responseData.message || 'Failed to create booking');
+      // Create mode: Use existing FormData approach
+      const formData = new FormData();
+      const timestamp = Date.now();
+
+      // Add booking details FIRST
+      formData.append('vehicle', car.id);
+      formData.append('owner', car.ownerId);
+      formData.append('pickupLocation', pickupLocation);
+      formData.append('dropoffLocation', dropoffLocation || pickupLocation);
+      formData.append('pickupDate', selectedStartDate.toISOString());
+      formData.append('dropoffDate', selectedEndDate.toISOString());
+      formData.append('totalAmount', totalPrice.toString());
+
+      console.log('FormData text fields added');
+
+      // Add images with proper structure (only for create mode)
+      if (idFrontImage) {
+        formData.append('customerIdImage', {
+          uri: idFrontImage,
+          type: 'image/jpeg',
+          name: `id_front_${timestamp}.jpg`
+        } as any);
+        console.log('ID Front image added');
+      }
+
+      if (idBackImage) {
+        formData.append('customerIdImage', {
+          uri: idBackImage,
+          type: 'image/jpeg',
+          name: `id_back_${timestamp}.jpg`
+        } as any);
+        console.log('ID Back image added');
+      }
+
+      if (licenseFrontImage) {
+        formData.append('customerLicenseImage', {
+          uri: licenseFrontImage,
+          type: 'image/jpeg',
+          name: `license_front_${timestamp}.jpg`
+        } as any);
+        console.log('License Front image added');
+      }
+
+      if (licenseBackImage) {
+        formData.append('customerLicenseImage', {
+          uri: licenseBackImage,
+          type: 'image/jpeg',
+          name: `license_back_${timestamp}.jpg`
+        } as any);
+        console.log('License Back image added');
+      }
+
+      console.log('All images added to FormData');
+
+      // Test connectivity first
+      try {
+        console.log('Testing server connectivity...');
+        const testResponse = await fetch(`${API_URL}/test`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+        
+        if (!testResponse.ok) {
+          throw new Error(`Connectivity test failed: ${testResponse.status}`);
+        }
+        
+        console.log('Server connectivity test passed');
+      } catch (connectError) {
+        console.error('Connectivity test failed:', connectError);
+        Alert.alert('Connection Error', 'Cannot connect to server. Please check your network and try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Make the booking request
+      console.log('Making booking request...');
+      const response = await fetch(`${API_URL}/customer/booking/create`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`Server error: ${response.status} - ${errorText}`);
+      }
+
+      responseData = await response.json();
+      console.log('Booking response:', responseData);
+    }
+
+    if (responseData.success) {
+      if (editMode === 'true') {
+        // Edit mode success
+        Alert.alert(
+          'Booking Updated!',
+          'Your booking has been updated successfully.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.back(),
+            },
+          ]
+        );
+      } else {
+        // Create mode success
+        const newBooking = {
+          id: responseData.booking._id || responseData.booking.id,
+          userId: user!.id,
+          carId: car.id,
+          ownerId: car.ownerId,
+          startDate,
+          endDate,
+          totalPrice,
+          status: 'pending' as const,
+          paymentStatus: 'pending' as const,
+          pickupLocation,
+          dropoffLocation: dropoffLocation || pickupLocation,
+          withDriver,
+          createdAt: new Date().toISOString(),
+          car,
+        };
+
+        // Add to local store
+        addBooking(newBooking);
+
+        Alert.alert(
+          'Booking Confirmed!',
+          'Your booking request has been submitted successfully.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/(tabs)/profile'),
+            },
+          ]
+        );
+      }
+    } else {
+      throw new Error(responseData.message || `Failed to ${editMode === 'true' ? 'update' : 'create'} booking`);
     }
     
   } catch (error: any) {
-    console.error('Booking error:', error);
+    console.error(`${editMode === 'true' ? 'Update' : 'Booking'} error:`, error);
     
-    let errorMessage = 'Failed to create booking. Please try again.';
+    let errorMessage = `Failed to ${editMode === 'true' ? 'update' : 'create'} booking. Please try again.`;
     
     if (error.message) {
       errorMessage = error.message;
     }
     
-    Alert.alert('Booking Failed', errorMessage);
+    Alert.alert(`${editMode === 'true' ? 'Update' : 'Booking'} Failed`, errorMessage);
   } finally {
     setIsLoading(false);
   }
 };
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: scaleValue.value }],
-    };
-  });
 
   const handlePressIn = () => {
     scaleValue.value = withSpring(0.95);
@@ -442,23 +624,67 @@ const handleBooking = async () => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    const formatted = `${year}-${month}-${day}`;
+    
+    console.log('formatDate input:', date.toString());
+    console.log('formatDate components: year =', year, 'month =', month, 'day =', day);
+    console.log('formatDate output:', formatted);
+    
+    return formatted;
   };
 
   const handleStartDateChange = (event: any, selectedDate?: Date) => {
     setShowStartDatePicker(false);
     if (selectedDate) {
-      // Remove time component for consistent calculations
-      const dateWithoutTime = new Date(selectedDate.setHours(0, 0, 0, 0));
+      console.log('=== START DATE SELECTION DETAILED DEBUG ===');
+      console.log('Event type:', event?.type);
+      console.log('Original selectedDate from picker:', selectedDate);
+      console.log('selectedDate.toString():', selectedDate.toString());
+      console.log('selectedDate.toISOString():', selectedDate.toISOString());
+      console.log('selectedDate.toLocaleDateString():', selectedDate.toLocaleDateString());
+      console.log('Raw date components:');
+      console.log('  - getFullYear():', selectedDate.getFullYear());
+      console.log('  - getMonth():', selectedDate.getMonth(), '(0-indexed, so add 1)');
+      console.log('  - getDate():', selectedDate.getDate());
+      console.log('  - getDay():', selectedDate.getDay(), '(day of week, 0=Sunday)');
+      console.log('  - getTime():', selectedDate.getTime());
+      console.log('  - getTimezoneOffset():', selectedDate.getTimezoneOffset(), 'minutes');
+      
+      // Create a new date object at noon to avoid timezone issues
+      // Using noon (12:00) instead of midnight to avoid DST boundary issues
+      const dateWithoutTime = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 12, 0, 0);
+      
+      console.log('Created dateWithoutTime:', dateWithoutTime);
+      console.log('dateWithoutTime.toString():', dateWithoutTime.toString());
+      console.log('dateWithoutTime components:');
+      console.log('  - getFullYear():', dateWithoutTime.getFullYear());
+      console.log('  - getMonth():', dateWithoutTime.getMonth());
+      console.log('  - getDate():', dateWithoutTime.getDate());
+      console.log('Formatted string:', formatDate(dateWithoutTime));
+      console.log('==========================================');
+      
+      // For edit mode, validate but don't auto-adjust
+      if (editMode === 'true' && selectedEndDate && dateWithoutTime.getTime() >= selectedEndDate.getTime()) {
+        Alert.alert(
+          'Invalid Date Selection',
+          'Start date must be before the end date. Please adjust your dates accordingly.',
+          [{ text: 'OK' }]
+        );
+        // Still update the start date, let user adjust end date manually
+      }
+      
       setSelectedStartDate(dateWithoutTime);
+      setPickerStartDate(dateWithoutTime);
       setStartDate(formatDate(dateWithoutTime));
 
-      // If end date is before start date, reset it
-      if (selectedEndDate.getTime() <= dateWithoutTime.getTime()) {
+      // Only auto-adjust end date for new bookings, not when editing
+      if (editMode !== 'true' && selectedEndDate.getTime() <= dateWithoutTime.getTime()) {
         const nextDay = new Date(dateWithoutTime);
         nextDay.setDate(nextDay.getDate() + 1);
         setSelectedEndDate(nextDay);
+        setPickerEndDate(nextDay);
         setEndDate(formatDate(nextDay));
+        console.log('Auto-adjusted end date to:', formatDate(nextDay));
       }
     }
   };
@@ -466,19 +692,109 @@ const handleBooking = async () => {
   const handleEndDateChange = (event: any, selectedDate?: Date) => {
     setShowEndDatePicker(false);
     if (selectedDate) {
-      // Remove time component for consistent calculations
-      const dateWithoutTime = new Date(selectedDate.setHours(0, 0, 0, 0));
+      console.log('=== END DATE SELECTION DETAILED DEBUG ===');
+      console.log('Event type:', event?.type);
+      console.log('Original selectedDate from picker:', selectedDate);
+      console.log('selectedDate.toString():', selectedDate.toString());
+      console.log('selectedDate.toISOString():', selectedDate.toISOString());
+      console.log('selectedDate.toLocaleDateString():', selectedDate.toLocaleDateString());
+      console.log('Raw date components:');
+      console.log('  - getFullYear():', selectedDate.getFullYear());
+      console.log('  - getMonth():', selectedDate.getMonth(), '(0-indexed, so add 1)');
+      console.log('  - getDate():', selectedDate.getDate());
+      console.log('  - getDay():', selectedDate.getDay(), '(day of week, 0=Sunday)');
+      console.log('  - getTime():', selectedDate.getTime());
+      console.log('  - getTimezoneOffset():', selectedDate.getTimezoneOffset(), 'minutes');
+      
+      // Create a new date object at noon to avoid timezone issues
+      // Using noon (12:00) instead of midnight to avoid DST boundary issues
+      const dateWithoutTime = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 12, 0, 0);
+      
+      console.log('Created dateWithoutTime:', dateWithoutTime);
+      console.log('dateWithoutTime.toString():', dateWithoutTime.toString());
+      console.log('dateWithoutTime components:');
+      console.log('  - getFullYear():', dateWithoutTime.getFullYear());
+      console.log('  - getMonth():', dateWithoutTime.getMonth());
+      console.log('  - getDate():', dateWithoutTime.getDate());
+      console.log('Formatted string:', formatDate(dateWithoutTime));
+      console.log('========================================');
+      
+      // Validate that end date is after start date
+      if (selectedStartDate && dateWithoutTime.getTime() <= selectedStartDate.getTime()) {
+        Alert.alert(
+          'Invalid Date Selection',
+          'End date must be after the start date. Please select a valid end date.',
+          [{ text: 'OK' }]
+        );
+        return; // Don't update the date if it's invalid
+      }
+      
       setSelectedEndDate(dateWithoutTime);
+      setPickerEndDate(dateWithoutTime);
       setEndDate(formatDate(dateWithoutTime));
     }
   };
 
   const showStartPicker = () => {
+    console.log('=== OPENING START DATE PICKER ===');
+    console.log('Current startDate string:', startDate);
+    console.log('Current selectedStartDate object:', selectedStartDate.toString());
+    console.log('selectedStartDate components:', selectedStartDate.getFullYear(), selectedStartDate.getMonth() + 1, selectedStartDate.getDate());
+    
+    // Sync picker date with the current startDate string
+    if (startDate) {
+      const [year, month, day] = startDate.split('-').map(Number);
+      const syncedDate = new Date(year, month - 1, day, 12, 0, 0);
+      
+      console.log('Syncing start date picker:');
+      console.log('  - Parsed from string:', startDate, '→', year, month, day);
+      console.log('  - Created Date object:', syncedDate.toString());
+      console.log('  - Date components:', syncedDate.getFullYear(), syncedDate.getMonth() + 1, syncedDate.getDate());
+      
+      // Update both the main state and picker-specific state
+      setSelectedStartDate(syncedDate);
+      setPickerStartDate(syncedDate);
+      
+      console.log('  - Updated pickerStartDate to:', syncedDate.toString());
+    } else {
+      console.log('No startDate string to sync, using current selectedStartDate');
+      setPickerStartDate(selectedStartDate);
+    }
+    
+    // Show picker immediately - no timeout needed with dedicated picker state
     setShowStartDatePicker(true);
+    console.log('===================================');
   };
 
   const showEndPicker = () => {
+    console.log('=== OPENING END DATE PICKER ===');
+    console.log('Current endDate string:', endDate);
+    console.log('Current selectedEndDate object:', selectedEndDate.toString());
+    console.log('selectedEndDate components:', selectedEndDate.getFullYear(), selectedEndDate.getMonth() + 1, selectedEndDate.getDate());
+    
+    // Sync picker date with the current endDate string
+    if (endDate) {
+      const [year, month, day] = endDate.split('-').map(Number);
+      const syncedDate = new Date(year, month - 1, day, 12, 0, 0);
+      
+      console.log('Syncing end date picker:');
+      console.log('  - Parsed from string:', endDate, '→', year, month, day);
+      console.log('  - Created Date object:', syncedDate.toString());
+      console.log('  - Date components:', syncedDate.getFullYear(), syncedDate.getMonth() + 1, syncedDate.getDate());
+      
+      // Update both the main state and picker-specific state
+      setSelectedEndDate(syncedDate);
+      setPickerEndDate(syncedDate);
+      
+      console.log('  - Updated pickerEndDate to:', syncedDate.toString());
+    } else {
+      console.log('No endDate string to sync, using current selectedEndDate');
+      setPickerEndDate(selectedEndDate);
+    }
+    
+    // Show picker immediately - no timeout needed with dedicated picker state
     setShowEndDatePicker(true);
+    console.log('=================================');
   };
 
   return (
@@ -492,7 +808,9 @@ const handleBooking = async () => {
           >
             <ArrowLeft size={24} color="#1D1D1F" />
           </TouchableOpacity>
-          <Text style={styles.title}>Book Now</Text>
+          <Text style={styles.title}>
+            {editMode === 'true' ? 'Edit Booking' : 'Book Now'}
+          </Text>
         </Animated.View>
 
         {/* Car Summary */}
@@ -527,7 +845,7 @@ const handleBooking = async () => {
                     startDate ? styles.inputFilled : styles.inputPlaceholder,
                   ]}
                 >
-                  {startDate || 'Start Date'}
+                  {startDate ? `From ${startDate}` : 'From - Start Date'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -541,7 +859,7 @@ const handleBooking = async () => {
                     endDate ? styles.inputFilled : styles.inputPlaceholder,
                   ]}
                 >
-                  {endDate || 'End Date'}
+                  {endDate ? `To ${endDate}` : 'To - End Date'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -554,9 +872,13 @@ const handleBooking = async () => {
               <MapPin size={20} color="#8E8E93" />
               <TextInput
                 style={styles.input}
-                placeholder="Pickup Location *"
-                value={pickupLocation}
-                onChangeText={setPickupLocation}
+                placeholder="From - Pickup Location *"
+                value={pickupLocation ? `From ${pickupLocation}` : ''}
+                onChangeText={(text) => {
+                  // Remove "From " prefix if it exists when user types
+                  const cleanText = text.startsWith('From ') ? text.substring(5) : text;
+                  setPickupLocation(cleanText);
+                }}
                 placeholderTextColor="#8E8E93"
               />
             </View>
@@ -564,9 +886,13 @@ const handleBooking = async () => {
               <MapPin size={20} color="#8E8E93" />
               <TextInput
                 style={styles.input}
-                placeholder="Dropoff Location (optional)"
-                value={dropoffLocation}
-                onChangeText={setDropoffLocation}
+                placeholder="To - Dropoff Location (optional)"
+                value={dropoffLocation ? `To ${dropoffLocation}` : ''}
+                onChangeText={(text) => {
+                  // Remove "To " prefix if it exists when user types
+                  const cleanText = text.startsWith('To ') ? text.substring(3) : text;
+                  setDropoffLocation(cleanText);
+                }}
                 placeholderTextColor="#8E8E93"
               />
             </View>
@@ -642,12 +968,13 @@ const handleBooking = async () => {
             </View>
           </View>
 
-          {/* Document Upload */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Required Documents</Text>
-            <Text style={styles.documentDescription}>
-              Please upload clear images of both sides of your ID card and driver's license
-            </Text>
+          {/* Document Upload - Only show for new bookings */}
+          {editMode !== 'true' && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Required Documents</Text>
+              <Text style={styles.documentDescription}>
+                Please upload clear images of both sides of your ID card and driver's license
+              </Text>
             
             {/* ID Document */}
             <View style={styles.documentSection}>
@@ -718,7 +1045,19 @@ const handleBooking = async () => {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+            </View>
+          )}
+
+          {/* Edit Mode Notice */}
+          {editMode === 'true' && (
+            <View style={styles.section}>
+              <View style={styles.editNotice}>
+                <Text style={styles.editNoticeText}>
+                  📝 You're editing an existing booking. Documents are already on file.
+                </Text>
+              </View>
+            </View>
+          )}
 
           {/* Price Summary */}
           <View style={styles.priceSection}>
@@ -773,7 +1112,9 @@ const handleBooking = async () => {
             <Text style={styles.bookButtonText}>
               {isLoading
                 ? 'Processing...'
-                : `Book for $${calculateTotalPrice()}`}
+                : editMode === 'true' 
+                  ? `Update Booking - $${calculateTotalPrice()}`
+                  : `Book for $${calculateTotalPrice()}`}
             </Text>
           </Animated.View>
         </TouchableOpacity>
@@ -781,25 +1122,38 @@ const handleBooking = async () => {
 
       {/* Date Pickers */}
       {showStartDatePicker && (
-        <DateTimePicker
-          testID="startDatePicker"
-          value={selectedStartDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          minimumDate={new Date()}
-          onChange={handleStartDateChange}
-        />
+        <>
+          {console.log('Showing START DateTimePicker with pickerStartDate:', pickerStartDate.toString())}
+          {console.log('START picker date components:', pickerStartDate.getFullYear(), pickerStartDate.getMonth() + 1, pickerStartDate.getDate())}
+          <DateTimePicker
+            key={`start-picker-${pickerStartDate.getTime()}`}
+            testID="startDatePicker"
+            value={pickerStartDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            minimumDate={editMode === 'true' ? undefined : (() => {
+              const today = new Date();
+              return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            })()}
+            onChange={handleStartDateChange}
+          />
+        </>
       )}
 
       {showEndDatePicker && (
-        <DateTimePicker
-          testID="endDatePicker"
-          value={selectedEndDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          minimumDate={selectedStartDate}
-          onChange={handleEndDateChange}
-        />
+        <>
+          {console.log('Showing END DateTimePicker with pickerEndDate:', pickerEndDate.toString())}
+          {console.log('END picker date components:', pickerEndDate.getFullYear(), pickerEndDate.getMonth() + 1, pickerEndDate.getDate())}
+          <DateTimePicker
+            key={`end-picker-${pickerEndDate.getTime()}`}
+            testID="endDatePicker"
+            value={pickerEndDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            minimumDate={selectedStartDate}
+            onChange={handleEndDateChange}
+          />
+        </>
       )}
     </SafeAreaView>
   );
@@ -1121,11 +1475,24 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   noDateText: {
-  fontSize: 14,
-  fontFamily: 'Inter-Regular',
-  color: '#8E8E93',
-  fontStyle: 'italic',
-  textAlign: 'center',
-  marginTop: 10,
-},
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#8E8E93',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  editNotice: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+  },
+  editNoticeText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#007AFF',
+    textAlign: 'center',
+  },
 });

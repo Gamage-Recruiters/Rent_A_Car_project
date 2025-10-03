@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 const getAdjustedUrl = (url: string) => {
   if (Platform.OS === 'android' && url && url.includes('localhost')) {
@@ -10,7 +10,12 @@ const getAdjustedUrl = (url: string) => {
   return url;
 };
 
-const adjustedApiUrl = getAdjustedUrl(API_URL || '');
+const adjustedApiUrl = getAdjustedUrl(API_URL);
+
+console.log('🌐 ReviewService API Configuration:');
+console.log('📍 Original API_URL:', API_URL);
+console.log('📍 Adjusted API URL:', adjustedApiUrl);
+console.log('📱 Platform:', Platform.OS);
 
 export interface BackendReview {
   _id: string;
@@ -41,6 +46,7 @@ export interface CreateReviewRequest {
   vehicle: string;
   rating: number;
   comment: string;
+  booking?: string; // Optional booking ID for booking-specific reviews
 }
 
 export interface UpdateReviewRequest {
@@ -74,6 +80,35 @@ class ReviewService {
         error.response?.data?.message || 
         error.message || 
         'Failed to create review'
+      );
+    }
+  }
+
+  // Create a booking-specific review
+  async createBookingReview(bookingId: string, reviewData: CreateReviewRequest, token: string): Promise<BackendReview> {
+    try {
+      const response = await axios.post(
+        `${adjustedApiUrl}/customer/review/booking/${bookingId}`,
+        reviewData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        throw new Error(response.data.message || 'Failed to create booking review');
+      }
+    } catch (error: any) {
+      console.error('Create booking review error:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        error.message || 
+        'Failed to create booking review'
       );
     }
   }
@@ -148,6 +183,12 @@ class ReviewService {
   // Update a review
   async updateReview(reviewId: string, reviewData: UpdateReviewRequest, token: string): Promise<BackendReview> {
     try {
+      console.log('🔄 ReviewService: Starting update review');
+      console.log('🆔 Review ID:', reviewId);
+      console.log('📝 Review Data:', reviewData);
+      console.log('🔑 Token (first 20 chars):', token.substring(0, 20) + '...');
+      console.log('🌐 API URL:', `${adjustedApiUrl}/customer/review/${reviewId}`);
+
       const response = await axios.put(
         `${adjustedApiUrl}/customer/review/${reviewId}`,
         reviewData,
@@ -159,13 +200,20 @@ class ReviewService {
         }
       );
 
+      console.log('📡 API Response Status:', response.status);
+      console.log('📡 API Response Data:', response.data);
+
       if (response.data.success) {
+        console.log('✅ Review updated successfully');
         return response.data.data;
       } else {
+        console.log('❌ API returned success=false:', response.data.message);
         throw new Error(response.data.message || 'Failed to update review');
       }
     } catch (error: any) {
-      console.error('Update review error:', error);
+      console.error('❌ Update review error:', error);
+      console.error('❌ Error response status:', error.response?.status);
+      console.error('❌ Error response data:', error.response?.data);
       throw new Error(
         error.response?.data?.message || 
         error.message || 

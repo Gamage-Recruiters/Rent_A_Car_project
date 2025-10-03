@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
@@ -18,9 +20,11 @@ import {
   Phone,
   Mail,
   Filter,
+  Edit3,
 } from 'lucide-react-native';
 import { useUserStore } from '@/stores/userStore';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -29,8 +33,64 @@ import Animated, {
 } from 'react-native-reanimated';
 
 export default function BookingsScreen() {
-  const { bookings } = useUserStore();
+  const { bookings, isLoadingBookings, bookingsError, fetchMyBookings, cancelBooking, updateBooking } = useUserStore();
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    // Fetch bookings when component mounts
+    fetchMyBookings();
+  }, []);
+
+  // Refresh bookings when screen comes into focus (e.g., returning from edit)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Bookings screen focused, refreshing data...');
+      fetchMyBookings();
+    }, [fetchMyBookings])
+  );
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchMyBookings();
+    setRefreshing(false);
+  };
+
+  const handleCancelBooking = (bookingId: string) => {
+    Alert.alert(
+      'Cancel Booking',
+      'Are you sure you want to cancel this booking?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelBooking(bookingId);
+              Alert.alert('Success', 'Booking cancelled successfully');
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to cancel booking');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleEditBooking = (booking: typeof bookings[0]) => {
+    // Navigate to booking form with minimal parameters - the form will fetch fresh data
+    router.push({
+      pathname: '/booking/[carId]' as any,
+      params: { 
+        carId: booking.carId,
+        editMode: 'true',
+        bookingId: booking.id,
+      }
+    });
+  };
+
+
 
   const filteredBookings = bookings.filter(booking => {
     if (selectedFilter === 'all') return true;
@@ -108,23 +168,73 @@ export default function BookingsScreen() {
           <Text style={styles.detailValue}>{item.withDriver ? 'Yes' : 'No'}</Text>
         </View>
         <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Payment Status:</Text>
+          <Text style={[
+            styles.detailValue,
+            { color: item.paymentStatus === 'paid' ? '#4CAF50' : '#FF9800' }
+          ]}>
+            {item.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
+          </Text>
+        </View>
+        <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Booking ID:</Text>
           <Text style={styles.detailValue}>#{item.id}</Text>
         </View>
       </View>
 
       <View style={styles.bookingActions}>
-        <TouchableOpacity style={styles.actionButton}>
-          <Phone size={16} color="#007AFF" />
-          <Text style={styles.actionButtonText}>Contact</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
-          <Star size={16} color="#FFD700" />
-          <Text style={styles.actionButtonText}>Review</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.primaryActionButton}>
-          <Text style={styles.primaryActionButtonText}>View Details</Text>
-        </TouchableOpacity>
+        <View style={styles.leftActions}>
+          {item.status === 'pending' && (
+            <TouchableOpacity 
+              style={styles.editButton}
+              onPress={() => handleEditBooking(item)}
+            >
+              <Edit3 size={16} color="#007AFF" />
+              <Text style={styles.editButtonText}>Edit</Text>
+            </TouchableOpacity>
+          )}
+          
+          {item.status === 'completed' && item.paymentStatus === 'paid' && (
+            <TouchableOpacity 
+              style={styles.reviewButton}
+              onPress={() => router.push({
+                pathname: '/reviews',
+                params: {
+                  bookingId: item.id,
+                  vehicleId: item.carId,
+                  carName: `${item.car.make} ${item.car.model}`,
+                  addReview: 'true'
+                }
+              })}
+            >
+              <Star size={16} color="#FFD700" />
+              <Text style={styles.reviewButtonText}>Add Review</Text>
+            </TouchableOpacity>
+          )}
+          
+          {item.status === 'completed' && item.paymentStatus === 'pending' && (
+            <View style={styles.paymentPendingButton}>
+              <Text style={styles.paymentPendingText}>Complete Payment to Review</Text>
+            </View>
+          )}
+        </View>
+        
+        <View style={styles.rightActions}>
+          {(item.status === 'pending' || item.status === 'confirmed') && (
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={() => handleCancelBooking(item.id)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          )}
+          
+          {(item.status === 'cancelled' || item.status === 'completed') && (
+            <TouchableOpacity style={styles.primaryActionButton}>
+              <Text style={styles.primaryActionButtonText}>View Details</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </Animated.View>
   );
@@ -177,7 +287,20 @@ export default function BookingsScreen() {
 
       {/* Bookings List */}
       <View style={styles.content}>
-        {filteredBookings.length === 0 ? (
+        {isLoadingBookings ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading your bookings...</Text>
+          </View>
+        ) : bookingsError ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorTitle}>Error Loading Bookings</Text>
+            <Text style={styles.errorMessage}>{bookingsError}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
+              <Text style={styles.retryButtonText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        ) : filteredBookings.length === 0 ? (
           <Animated.View style={styles.emptyState} entering={FadeIn.delay(300)}>
             <Calendar size={60} color="#8E8E93" />
             <Text style={styles.emptyTitle}>No Bookings Found</Text>
@@ -201,6 +324,8 @@ export default function BookingsScreen() {
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.bookingsList}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
           />
         )}
       </View>
@@ -390,6 +515,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  leftActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -414,5 +548,104 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#8E8E93',
+    marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontFamily: 'Poppins-Bold',
+    color: '#F44336',
+    marginBottom: 8,
+  },
+  errorMessage: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+  },
+  cancelButton: {
+    backgroundColor: '#F44336',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  cancelButtonText: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: '#FFFFFF',
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#E3F2FD',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  editButtonText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#007AFF',
+    marginLeft: 4,
+  },
+  reviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFF9E6',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  reviewButtonText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#B8860B',
+    marginLeft: 4,
+  },
+  paymentPendingButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#FFF3E0',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FF9800',
+  },
+  paymentPendingText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Medium',
+    color: '#E65100',
+    textAlign: 'center',
   },
 });

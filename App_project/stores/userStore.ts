@@ -2,8 +2,9 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Platform } from 'react-native';
+import { bookingService, BackendBooking } from '../services/bookingService';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
 const BASE_URL = API_URL?.replace(/\/api$/, "");
 
 const getAdjustedUrl = (url: string) => {
@@ -71,6 +72,7 @@ export interface Booking {
   endDate: string;
   totalPrice: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  paymentStatus: 'pending' | 'paid';
   pickupLocation: string;
   dropoffLocation: string;
   withDriver: boolean;
@@ -199,9 +201,18 @@ interface UserStore {
   addCar: (car: Car) => void;
   updateCar: (carId: string, updates: Partial<Car>) => void;
   addBooking: (booking: Booking) => void;
-  updateBooking: (bookingId: string, updates: Partial<Booking>) => void;
+  updateBooking: (bookingId: string, updates: {
+    pickupLocation?: string;
+    dropoffLocation?: string;
+    startDate?: string;
+    endDate?: string;
+    totalPrice?: number;
+  }) => Promise<Booking>;
   logout: () => void;
   fetchAllVehicles: () => Promise<Car[]>;
+  fetchMyBookings: () => Promise<void>;
+  fetchBookingById: (bookingId: string) => Promise<Booking | null>;
+  cancelBooking: (bookingId: string) => Promise<void>;
   initializeStore: () => Promise<void>;
   setFavorites: (favorites: Favorite[]) => void;
   addToFavorites: (carId: string) => Promise<boolean>;
@@ -221,6 +232,11 @@ export const useUserStore = create<UserStore>((set, get) => ({
     set({ user });
     if (user) {
       AsyncStorage.setItem('user', JSON.stringify(user));
+      // If user is a customer, fetch their bookings
+      const { userType, fetchMyBookings } = get();
+      if (userType === 'user') {
+        fetchMyBookings();
+      }
     } else {
       AsyncStorage.removeItem('user');
     }
@@ -250,13 +266,44 @@ export const useUserStore = create<UserStore>((set, get) => ({
     const { bookings } = get();
     set({ bookings: [...bookings, booking] });
   },
-  updateBooking: (bookingId, updates) => {
-    const { bookings } = get();
-    set({ 
-      bookings: bookings.map(booking => 
-        booking.id === bookingId ? { ...booking, ...updates } : booking
-      )
-    });
+  updateBooking: async (bookingId: string, updates: {
+    pickupLocation?: string;
+    dropoffLocation?: string;
+    startDate?: string;
+    endDate?: string;
+    totalPrice?: number;
+  }) => {
+    try {
+      // Map frontend updates to backend format
+      const backendUpdates: any = {};
+      if (updates.pickupLocation) backendUpdates.pickupLocation = updates.pickupLocation;
+      if (updates.dropoffLocation) backendUpdates.dropoffLocation = updates.dropoffLocation;
+      if (updates.startDate) backendUpdates.pickupDate = updates.startDate;
+      if (updates.endDate) backendUpdates.dropoffDate = updates.endDate;
+      if (updates.totalPrice) backendUpdates.totalAmount = updates.totalPrice;
+
+      console.log('=== USERSTORE UPDATE DEBUG ===');
+      console.log('Frontend updates received:', updates);
+      console.log('Backend updates mapped:', backendUpdates);
+      console.log('================================');
+
+      const updatedBackendBooking = await bookingService.updateBooking(bookingId, backendUpdates);
+      console.log('Backend response:', updatedBackendBooking);
+      
+      const updatedBooking = mapBackendBookingToFrontend(updatedBackendBooking);
+      console.log('Mapped frontend booking:', updatedBooking);
+      
+      const { bookings } = get();
+      const updatedBookings = bookings.map(booking => 
+        booking.id === bookingId ? updatedBooking : booking
+      );
+      set({ bookings: updatedBookings });
+      
+      return updatedBooking;
+    } catch (error: any) {
+      console.error('Error updating booking:', error);
+      throw error;
+    }
   },
   logout: () => {
     set({ user: null, userType: null, cars: [], bookings: [] });
@@ -275,6 +322,86 @@ export const useUserStore = create<UserStore>((set, get) => ({
     } catch (error) {
       console.error('Error fetching vehicles:', error);
       return [];
+    }
+  },
+
+  fetchMyBookings: async () => {
+    try {
+      const backendBookings = await bookingService.getMyBookings();
+      
+      // Filter and map bookings, handling corrupted data
+      const mappedBookings: Booking[] = [];
+      let skippedCount = 0;
+      
+      backendBookings.forEach((backendBooking, index) => {
+        try {
+          if (backendBooking && backendBooking._id) {
+            const mappedBooking = mapBackendBookingToFrontend(backendBooking);
+            mappedBookings.push(mappedBooking);
+          } else {
+            console.warn(`⚠️  Skipping null booking at index ${index}`);
+            skippedCount++;
+          }
+        } catch (mappingError: any) {
+          // Clean logging without stack traces for known data issues
+          console.warn(`⚠️  Skipped booking ${backendBooking?._id || 'unknown'}: ${mappingError.message}`);
+          skippedCount++;
+          // Continue processing other bookings instead of failing completely
+        }
+      });
+      
+      if (skippedCount > 0) {
+        console.log(`📊 Booking fetch result: ${mappedBookings.length} valid, ${skippedCount} skipped (corrupted data)`);
+      } else {
+        console.log(`✅ Successfully loaded ${mappedBookings.length} bookings`);
+      }
+      set({ bookings: mappedBookings });
+    } catch (error: any) {
+      console.error('Error fetching bookings:', error);
+      // Just log the error, don't crash the app
+      set({ bookings: [] });
+    }
+  },
+
+  fetchBookingById: async (bookingId: string) => {
+    try {
+      const backendBooking = await bookingService.getBookingById(bookingId);
+      
+      if (!backendBooking || !backendBooking._id) {
+        console.error('Invalid booking data received for ID:', bookingId);
+        return null;
+      }
+      
+      const mappedBooking = mapBackendBookingToFrontend(backendBooking);
+      
+      // Update the booking in the local bookings array if it exists
+      const { bookings } = get();
+      const updatedBookings = bookings.map(booking => 
+        booking.id === bookingId ? mappedBooking : booking
+      );
+      set({ bookings: updatedBookings });
+      
+      return mappedBooking;
+    } catch (error: any) {
+      console.error('Error fetching booking by ID:', error);
+      console.error('Booking ID that caused error:', bookingId);
+      return null;
+    }
+  },
+
+  cancelBooking: async (bookingId: string) => {
+    try {
+      const updatedBackendBooking = await bookingService.cancelBooking(bookingId);
+      const updatedBooking = mapBackendBookingToFrontend(updatedBackendBooking);
+      
+      const { bookings } = get();
+      const updatedBookings = bookings.map(booking => 
+        booking.id === bookingId ? updatedBooking : booking
+      );
+      set({ bookings: updatedBookings });
+    } catch (error: any) {
+      console.error('Error cancelling booking:', error);
+      throw error;
     }
   },
 
@@ -392,8 +519,8 @@ export const useUserStore = create<UserStore>((set, get) => ({
       
       if (response.data) {
         return { 
-          isFavorited: response.data.isFavorited, 
-          favoriteId: response.data.favoriteId 
+          isFavorited: response.data.isFavorited || false, 
+          favoriteId: response.data.favoriteId || null
         };
       }
       return { isFavorited: false, favoriteId: null };
@@ -416,17 +543,34 @@ export const useUserStore = create<UserStore>((set, get) => ({
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      if (response.data && response.data.success) {
-        const favorites = response.data.favorites.map((favorite: any) => ({
-          id: favorite._id,
-          carId: favorite.vehicle._id,
-          car: mapVehicleToCar(favorite.vehicle)
-        }));
+      if (response.data && response.data.success && response.data.favorites) {
+        // Filter out null/undefined favorites and add null checks
+        const validFavorites = response.data.favorites
+          .filter((favorite: any) => favorite && favorite._id && favorite.vehicle && favorite.vehicle._id)
+          .map((favorite: any) => {
+            try {
+              return {
+                id: favorite._id,
+                carId: favorite.vehicle._id,
+                car: mapVehicleToCar(favorite.vehicle)
+              };
+            } catch (error) {
+              console.warn('Error mapping favorite vehicle:', error);
+              return null;
+            }
+          })
+          .filter((favorite: any) => favorite !== null); // Remove any failed mappings
         
-        set({ favorites });
+        console.log(`Successfully loaded ${validFavorites.length} favorites`);
+        set({ favorites: validFavorites });
+      } else {
+        console.log('No favorites data found or invalid response');
+        set({ favorites: [] });
       }
     } catch (error) {
       console.error('Error fetching favorites:', error);
+      // Set empty array on error to prevent undefined issues
+      set({ favorites: [] });
     }
   },
 
@@ -460,6 +604,76 @@ export const useUserStore = create<UserStore>((set, get) => ({
     }
   },
 }));
+
+function mapBackendBookingToFrontend(backendBooking: BackendBooking): Booking {
+  const BASE_URL = API_URL?.replace(/\/api$/, "");
+  const adjustedBaseUrl = getAdjustedUrl(BASE_URL || '');
+  
+  // Add null checks for all required nested objects
+  if (!backendBooking) {
+    throw new Error('Backend booking is null or undefined');
+  }
+
+  if (!backendBooking.vehicle) {
+    console.warn(`⚠️  Skipping booking ${backendBooking._id}: Vehicle data is missing (likely deleted)`);
+    throw new Error('Vehicle data is missing from booking');
+  }
+
+  if (!backendBooking.owner) {
+    console.warn(`⚠️  Skipping booking ${backendBooking._id}: Owner data is missing (likely deleted)`);
+    throw new Error('Owner data is missing from booking');
+  }
+
+  if (!backendBooking.customer) {
+    console.warn(`⚠️  Skipping booking ${backendBooking._id}: Customer data is missing`);
+    throw new Error('Customer data is missing from booking');
+  }
+  
+  // Map the car data from the vehicle in the booking
+  const car: Car = {
+    id: backendBooking.vehicle._id || 'unknown',
+    ownerId: backendBooking.owner._id || 'unknown',
+    make: backendBooking.vehicle.brand || 'Unknown',
+    model: backendBooking.vehicle.model || 'Unknown',
+    year: parseInt(backendBooking.vehicle.year) || new Date().getFullYear(),
+    image: backendBooking.vehicle.images && backendBooking.vehicle.images.length > 0
+      ? `${adjustedBaseUrl}/uploads/vehicles/${backendBooking.vehicle.images[0]}`
+      : 'https://via.placeholder.com/400x300?text=No+Image',
+    pricePerDay: backendBooking.vehicle.pricePerDay || 0,
+    pricePerKm: backendBooking.vehicle.pricePerDistance || 0,
+    location: backendBooking.vehicle.location || backendBooking.vehicle.pickupAddress || 'Unknown',
+    available: true,
+    unavailableDates: [],
+    features: ['AC', 'GPS', 'Bluetooth'],
+    withDriver: false,
+    driverIncluded: false,
+    rating: 0,
+    reviews: 0,
+    fuel: '',
+    transmission: 'Automatic',
+    seats: 5,
+    description: 'No description provided',
+    contactPhone: backendBooking.owner.phoneNumber || '',
+    contactEmail: backendBooking.owner.email || '',
+  };
+
+  return {
+    id: backendBooking._id || 'unknown',
+    userId: backendBooking.customer._id || 'unknown',
+    carId: backendBooking.vehicle._id || 'unknown',
+    ownerId: backendBooking.owner._id || 'unknown',
+    startDate: backendBooking.pickupDate || '',
+    endDate: backendBooking.dropoffDate || '',
+    totalPrice: backendBooking.totalAmount || 0,
+    status: backendBooking.bookingStatus as 'pending' | 'confirmed' | 'cancelled' | 'completed' || 'pending',
+    paymentStatus: backendBooking.paymentStatus as 'pending' | 'paid' || 'pending',
+    pickupLocation: backendBooking.pickupLocation || '',
+    dropoffLocation: backendBooking.dropoffLocation || '',
+    withDriver: false, // This info is not in the backend booking, might need to get it from vehicle
+    createdAt: backendBooking.createdAt || new Date().toISOString(),
+    car: car,
+  };
+}
 
 function mapVehicleToCar(vehicle: any): Car {
   let imageUrl = 'https://via.placeholder.com/400x300?text=No+Image';
