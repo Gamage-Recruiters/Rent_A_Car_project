@@ -7,6 +7,8 @@ interface VehicleContextType {
   searchVehicles: (query: string) => Promise<Vehicle[]>;
   getVehicleById: (id: string) => Promise<Vehicle | null>;
   getVehiclesByOwner: () => Promise<Vehicle[]>;
+  getOwnerVehicleById: (id: string) => Promise<Vehicle | null>;
+  updateVehicle: (id: string, data: FormData) => Promise<any>;
   deleteVehicle: (id: string) => Promise<void>;
   registerVehicle: (data: FormData) => Promise<any>;
 }
@@ -55,6 +57,17 @@ export const VehicleProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return res.data.data;
   };
 
+  const getOwnerVehicleById = async (id: string) => {
+    const res = await ownerapi.get(`/${id}`);
+    return res.data.data;
+  };
+
+  const updateVehicle = async (id: string, data: FormData) => {
+    return await ownerapi.put(`/${id}`, data, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  };
+
   const deleteVehicle = async (id: string) => {
     await ownerapi.delete(`/${id}`);
   };
@@ -66,7 +79,7 @@ export const VehicleProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   return (
-    <VehicleContext.Provider value={{ getAllVehicles, searchVehicles, getVehicleById,registerVehicle, getVehiclesByOwner, deleteVehicle  }}>
+    <VehicleContext.Provider value={{ getAllVehicles, searchVehicles, getVehicleById, registerVehicle, getVehiclesByOwner, deleteVehicle, getOwnerVehicleById, updateVehicle }}>
       {children}
     </VehicleContext.Provider>
   );

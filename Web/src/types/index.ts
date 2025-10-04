@@ -51,6 +51,7 @@ export interface Vehicle {
   pricePerKm?: number; // Changed from pricePerDistance
   location: string;
   phoneNumber?: string | number;
+  email: string;
   ownerId?: string;
   owner?: {
     _id?: string;
