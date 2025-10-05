@@ -37,7 +37,8 @@ type Rental = {
 
 export default function OwnerProfileScreen() {
   const router = useRouter();
-  const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/api';
+  const API_URL =
+    process.env.EXPO_PUBLIC_API_URL;
 
   const [user, setUser] = useState<User | null>(null);
   const [rentals, setRentals] = useState<Rental[]>([]);
@@ -51,7 +52,7 @@ export default function OwnerProfileScreen() {
       setLoading(true);
       setError(null);
       setImageError(false);
-      
+
       const accessToken = await AsyncStorage.getItem('accessToken');
       if (!accessToken) {
         setError('User not logged in.');
@@ -59,28 +60,32 @@ export default function OwnerProfileScreen() {
       }
 
       console.log('Fetching profile data...');
-      
+
       const [profileResponse, rentalsResponse] = await Promise.all([
         axios.get(`${API_URL}/owner/profile`, {
           headers: { Authorization: `Bearer ${accessToken}` },
           timeout: 10000,
         }),
-        axios.get(`${API_URL}/owner/bookings`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          timeout: 10000,
-        }).catch(err => {
-          console.log('Rentals fetch failed, using empty array:', err.message);
-          return { data: { data: [] } }; // Return empty array if rentals fail
-        })
+        axios
+          .get(`${API_URL}/owner/bookings`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            timeout: 10000,
+          })
+          .catch((err) => {
+            console.log(
+              'Rentals fetch failed, using empty array:',
+              err.message
+            );
+            return { data: { data: [] } }; // Return empty array if rentals fail
+          }),
       ]);
 
       console.log('Profile data received:', profileResponse.data);
       setUser(profileResponse.data.data);
       setRentals(rentalsResponse.data.data || []);
-      
     } catch (err: any) {
       console.error('Profile fetch error:', err);
-      
+
       if (err.response?.status === 401) {
         await AsyncStorage.clear();
         router.replace('/auth/login');
@@ -111,7 +116,6 @@ export default function OwnerProfileScreen() {
     setRefreshing(true);
     fetchProfile();
   }, []);
-
   const handleEditProfile = () => {
     router.push('/editProfile/edit-profile');
   };
@@ -136,15 +140,16 @@ export default function OwnerProfileScreen() {
   };
 
   const getImageUrl = () => {
-    if (!user?.image || imageError) {
-      return 'https://via.placeholder.com/100';
-    }
-    
-    // Construct the image URL with cache busting
-    const imageUrl = `${API_URL}/uploads/ownerProfileImages/${user.image}?t=${Date.now()}`;
-    console.log('Loading image from:', imageUrl);
-    return imageUrl;
-  };
+  if (!user?.image || imageError) {
+    return 'https://via.placeholder.com/100';
+  }
+
+  // CORRECT: Use base URL without /api for images
+  const baseUrl = API_URL.replace('/api', '');
+  const imageUrl = `${baseUrl}/uploads/ownerProfileImages/${user.image}?t=${Date.now()}`;
+  console.log('Loading image from:', imageUrl);
+  return imageUrl;
+};
 
   if (loading && !refreshing) {
     return (
@@ -158,18 +163,13 @@ export default function OwnerProfileScreen() {
   if (error || !user) {
     return (
       <SafeAreaView style={styles.centeredContainer}>
-        <Text style={styles.errorText}>
-          {error || 'No user data found'}
-        </Text>
+        <Text style={styles.errorText}>{error || 'No user data found'}</Text>
         <View style={styles.errorButtons}>
-          <TouchableOpacity 
-            style={styles.retryButton} 
-            onPress={fetchProfile}
-          >
+          <TouchableOpacity style={styles.retryButton} onPress={fetchProfile}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.loginButton} 
+          <TouchableOpacity
+            style={styles.loginButton}
             onPress={() => router.replace('/auth/login')}
           >
             <Text style={styles.loginButtonText}>Go to Login</Text>
@@ -184,8 +184,8 @@ export default function OwnerProfileScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
+          <RefreshControl
+            refreshing={refreshing}
             onRefresh={onRefresh}
             colors={['#007AFF']}
             tintColor="#007AFF"
@@ -208,7 +208,7 @@ export default function OwnerProfileScreen() {
                 <User size={40} color="#666" />
               </View>
             )}
-            
+
             <TouchableOpacity
               style={styles.editIcon}
               onPress={handleEditProfile}
@@ -216,19 +216,17 @@ export default function OwnerProfileScreen() {
               <Pencil size={18} color="#fff" />
             </TouchableOpacity>
           </View>
-          
+
           <Text style={styles.name}>
             {user.firstName} {user.lastName}
           </Text>
           <Text style={styles.username}>
             {user.username ? `@${user.username}` : '@username'}
           </Text>
-          
+
           {/* Debug info - remove in production */}
           {__DEV__ && user.image && (
-            <Text style={styles.debugText}>
-              Image: {user.image}
-            </Text>
+            <Text style={styles.debugText}>Image: {user.image}</Text>
           )}
         </View>
 
@@ -281,8 +279,11 @@ export default function OwnerProfileScreen() {
                     styles.statusBadge,
                     {
                       backgroundColor:
-                        rental.status === 'Completed' ? '#d1f7c4' : 
-                        rental.status === 'Active' ? '#c4e1f7' : '#ffe8b3',
+                        rental.status === 'Completed'
+                          ? '#d1f7c4'
+                          : rental.status === 'Active'
+                          ? '#c4e1f7'
+                          : '#ffe8b3',
                     },
                   ]}
                 >
@@ -291,8 +292,11 @@ export default function OwnerProfileScreen() {
                       styles.statusText,
                       {
                         color:
-                          rental.status === 'Completed' ? '#2e8b57' : 
-                          rental.status === 'Active' ? '#007AFF' : '#ff9500',
+                          rental.status === 'Completed'
+                            ? '#2e8b57'
+                            : rental.status === 'Active'
+                            ? '#007AFF'
+                            : '#ff9500',
                       },
                     ]}
                   >
@@ -305,10 +309,7 @@ export default function OwnerProfileScreen() {
         </View>
 
         {/* Logout Button */}
-        <TouchableOpacity 
-          style={styles.logoutButton} 
-          onPress={handleLogout}
-        >
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <LogOut size={20} color="#fff" />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
@@ -326,14 +327,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#f6faff',
     padding: 20,
   },
-  scrollContent: { 
-    paddingBottom: 60, 
+  scrollContent: {
+    paddingBottom: 60,
     paddingHorizontal: 16,
     paddingTop: 10,
   },
-  profileSection: { 
-    alignItems: 'center', 
-    marginTop: 20, 
+  profileSection: {
+    alignItems: 'center',
+    marginTop: 20,
     marginBottom: 25,
   },
   avatarWrapper: {
@@ -376,16 +377,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3,
   },
-  name: { 
-    fontSize: 22, 
-    fontWeight: '700', 
-    marginTop: 12, 
+  name: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginTop: 12,
     color: '#1e1e1e',
     textAlign: 'center',
   },
-  username: { 
-    fontSize: 14, 
-    color: '#666', 
+  username: {
+    fontSize: 14,
+    color: '#666',
     marginTop: 2,
     textAlign: 'center',
   },
@@ -417,8 +418,8 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 12,
   },
-  infoText: { 
-    fontSize: 15, 
+  infoText: {
+    fontSize: 15,
     color: '#333',
     flex: 1,
   },
@@ -428,9 +429,9 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginBottom: 12,
   },
-  noData: { 
-    color: '#777', 
-    fontSize: 14, 
+  noData: {
+    color: '#777',
+    fontSize: 14,
     textAlign: 'center',
     marginBottom: 4,
   },
@@ -455,23 +456,23 @@ const styles = StyleSheet.create({
   rentalInfo: {
     flex: 1,
   },
-  carName: { 
-    fontSize: 16, 
-    fontWeight: '600', 
+  carName: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#1a1a1a',
     marginBottom: 2,
   },
-  rentalDetails: { 
-    fontSize: 13, 
+  rentalDetails: {
+    fontSize: 13,
     color: '#555',
   },
-  statusBadge: { 
-    paddingVertical: 5, 
-    paddingHorizontal: 12, 
+  statusBadge: {
+    paddingVertical: 5,
+    paddingHorizontal: 12,
     borderRadius: 20,
   },
-  statusText: { 
-    fontSize: 12, 
+  statusText: {
+    fontSize: 12,
     fontWeight: '600',
   },
   logoutButton: {
@@ -500,7 +501,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   errorText: {
-    color: 'red', 
+    color: 'red',
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 20,
