@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Phone, MapPin, Pencil, LogOut, Calendar, CarFront, User as UserIcon } from 'lucide-react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import axios from 'axios';
 import { useUserStore } from '../../stores/userStore';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -39,7 +40,14 @@ export default function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
   const logout = useUserStore(state => state.logout);
   
-  const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
+  // Normalize API base URL with sensible defaults and Android emulator support
+  const rawApi = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/api';
+  const adjustedApi = (() => {
+    if (Platform.OS === 'android' && rawApi.includes('localhost')) {
+      return rawApi.replace('localhost', '10.0.2.2');
+    }
+    return rawApi;
+  })().replace(/\/+$/, '');
 
   useEffect(() => {
     fetchProfileData();
@@ -56,11 +64,13 @@ export default function ProfileScreen() {
         router.push('/auth/login');
         return;
       }
-      
-      const response = await axios.get(`${API_URL}/customer/profile/with-stats`, {
+      const url = `${adjustedApi}/customer/profile/with-stats`;
+      console.log('Fetching customer profile from:', url);
+      const response = await axios.get(url, {
         headers: {
           Authorization: `Bearer ${token}`
-        }
+        },
+        timeout: 10000
       });
       
       if (response.data.success) {
@@ -78,9 +88,38 @@ export default function ProfileScreen() {
         
         // If unauthorized, redirect to login
         if (err.response.status === 401) {
-          await AsyncStorage.removeItem('customerToken');
+          // Clear the actual token key we store
+          await AsyncStorage.removeItem('accessToken');
           router.push('/auth/login');
           return;
+        }
+        // If we got a 404, try the alternate common port automatically (5000 <-> 8000)
+        if (err.response.status === 404) {
+          try {
+            const tried = adjustedApi;
+            const alt = tried.includes(':5000')
+              ? tried.replace(':5000', ':8000')
+              : tried.includes(':8000')
+              ? tried.replace(':8000', ':5000')
+              : tried; // if neither, keep same
+
+            if (alt !== tried) {
+              const altUrl = `${alt}/customer/profile/with-stats`;
+              console.log('Retrying customer profile at alternate URL:', altUrl);
+              const token2 = await AsyncStorage.getItem('accessToken');
+              const res2 = await axios.get(altUrl, {
+                headers: { Authorization: `Bearer ${token2}` },
+                timeout: 8000,
+              });
+              if (res2.data?.success) {
+                setProfileData(res2.data.data);
+                setError(null);
+                return; // success via fallback
+              }
+            }
+          } catch (altErr: any) {
+            console.warn('Alternate URL attempt failed:', (altErr && (altErr as any).message) || String(altErr));
+          }
         }
       }
       
@@ -137,7 +176,7 @@ export default function ProfileScreen() {
   const getImageUrl = (photoPath: string | null | undefined): string | null => {
     if (!photoPath) return null;
     if (photoPath.startsWith('http')) return photoPath;
-    return `${API_URL?.replace('/api', '') ?? ''}${photoPath}`;
+    return `${adjustedApi.replace(/\/api$/, '')}${photoPath}`;
   };
 
   const getInitials = (firstName: string | undefined, lastName: string | undefined) => {

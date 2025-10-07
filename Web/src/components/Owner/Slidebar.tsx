@@ -73,7 +73,7 @@ const Slidebar: React.FC<SlidebarProps> = ({ activeTab, setActiveTab }) => {
         {/* Profile section */}
         <div className="flex items-center space-x-3 mb-6">
           <img
-              src={typeof preview === "string" && preview.startsWith("blob:") ? preview : `${BASE_URL}${user?.image ?? ""}`}
+              src={typeof preview === "string" && preview.startsWith("blob:") ? preview : `${BASE_URL}/uploads/ownerProfileImages/${user?.image ?? ""}`}
               alt="Profile"
               className="w-28 h-28 rounded-full object-cover border-2 border-green-500"
               />

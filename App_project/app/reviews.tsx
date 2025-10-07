@@ -14,6 +14,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuthToken } from '../services/authToken';
 import { 
   ArrowLeft, 
   Star,
@@ -185,7 +186,8 @@ export default function ReviewsScreen() {
       setSubmitting(true);
       
       // Get the stored token
-      const token = await AsyncStorage.getItem('customerToken');
+      const token = await getAuthToken();
+      if (__DEV__) console.log('[reviews] addReview token exists:', !!token);
       if (!token) {
         Alert.alert('Error', 'Please log in again');
         return;
@@ -217,8 +219,13 @@ export default function ReviewsScreen() {
         }, 1500);
       }
     } catch (error: any) {
-      console.error('Error adding review:', error);
-      Alert.alert('Error', error.message || 'Failed to add review');
+      if (error?.message === 'ALREADY_REVIEWED') {
+        // Keep user-facing popup without noisy terminal error
+        Alert.alert('Already reviewed', 'You have already reviewed this booking.');
+      } else {
+        console.error('Error adding review:', error);
+        Alert.alert('Error', error.message || 'Failed to add review');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -268,7 +275,8 @@ export default function ReviewsScreen() {
     try {
       setDeletingReviewId(reviewId);
       
-      const token = await AsyncStorage.getItem('customerToken');
+      const token = await getAuthToken();
+      if (__DEV__) console.log('[reviews] deleteReview token exists:', !!token);
       if (!token) {
         Alert.alert('Error', 'Please log in again');
         return;
