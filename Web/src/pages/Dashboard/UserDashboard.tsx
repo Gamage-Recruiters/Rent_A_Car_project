@@ -210,20 +210,24 @@ const UserDashboard: React.FC = () => {
                 <div className="relative w-16 h-16 rounded-full overflow-hidden border border-gray-300 bg-gray-100">
                   {user?.photo || user?.image?.url ? (
                     <img
-                      src={user.googleId ? user.photo : (
+                      src={
+                        // First check if it's a full URL (Google photo or other external URL)
                         user.photo?.startsWith('http')
                           ? user.photo
-                          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'}${user.photo?.startsWith('/uploads')
-                            ? user.photo
-                            : `/uploads/customerProfiles/${user.photo}`
-                          }`
-                      )}
+                          // For local files, construct the proper URL
+                          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'}${
+                              user.photo?.startsWith('/uploads')
+                                ? user.photo // If it already includes the /uploads prefix
+                                : `/uploads/customerProfiles/${user.photo}` // If it's just the filename
+                            }`
+                      }
                       alt="Profile"
                       className="w-full h-full object-cover"
                       onError={(e) => {
+                        console.error('Failed to load profile image:', e);
                         e.currentTarget.style.display = 'none';
                       }}
-                      referrerPolicy="no-referrer" 
+                      referrerPolicy="no-referrer"
                     />
                   ) : null}
 
