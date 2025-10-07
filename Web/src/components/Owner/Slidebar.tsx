@@ -33,9 +33,9 @@ const Slidebar: React.FC<SlidebarProps> = ({ activeTab, setActiveTab }) => {
     { id: "overview", label: "Overview", icon: Car },
     { id: "vehicles", label: "My Vehicles", icon: Car },
     { id: "bookings", label: "Bookings", icon: Calendar },
-    { id: "earnings", label: "Earnings", icon: DollarSign },
-    { id: "analytics", label: "Analytics", icon: BarChart3 },
-    { id: "messages", label: "Messages", icon: MessageCircle },
+    // { id: "earnings", label: "Earnings", icon: DollarSign },
+    // { id: "analytics", label: "Analytics", icon: BarChart3 },
+    // { id: "messages", label: "Messages", icon: MessageCircle },
     { id: "profile", label: "Profile", icon: Settings },
   ];
 
