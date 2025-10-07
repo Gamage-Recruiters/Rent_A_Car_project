@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,160 +8,361 @@ import {
   FlatList,
   Image,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Car, Calendar, DollarSign, Eye, CreditCard as Edit, Trash2, Star, MapPin, Users, Fuel } from 'lucide-react-native';
+import { Plus, Car, Calendar, DollarSign, Eye, CreditCard as Edit, Trash2, MapPin, Fuel } from 'lucide-react-native';
 import { useUserStore } from '@/stores/userStore';
 import { router } from 'expo-router';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  FadeIn,
-} from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.8.191:8000/api';
+
+// Define proper TypeScript interfaces for the API response
+interface OwnerVehicle {
+  _id: string;
+  brand: string;
+  model: string;
+  year: string;
+  images: string[];
+  pricePerDay: number;
+  pricePerDistance?: number;
+  location: string;
+  isAvailable: boolean;
+  fuelType: string;
+  transmission: string;
+  noSeats: number;
+  description?: string;
+  isDriverAvailable: boolean;
+  phoneNumber: string;
+  email: string;
+  pickupAddress: string;
+  createdAt: string;
+  updatedAt: string;
+  isApproved: boolean;
+}
+
+interface OwnerBooking {
+  _id: string;
+  vehicle: {
+    _id: string;
+    brand: string;
+    model: string;
+  };
+  customer: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  pickupDate: string;
+  dropoffDate: string;
+  totalAmount: number;
+  bookingStatus: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  paymentStatus: 'pending' | 'paid';
+  pickupLocation: string;
+  dropoffLocation: string;
+  createdAt: string;
+}
 
 export default function DashboardScreen() {
-  const { user, userType, cars, bookings, updateCar } = useUserStore();
-  const [selectedTab, setSelectedTab] = useState('overview');
+  const { user, userType } = useUserStore();
+  const [selectedTab, setSelectedTab] = useState('vehicles');
+  const [ownerVehicles, setOwnerVehicles] = useState<OwnerVehicle[]>([]);
+  const [bookings, setBookings] = useState<OwnerBooking[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const scaleValue = useSharedValue(1);
+  // Fetch owner's vehicles from API
+  const fetchOwnerVehicles = async () => {
+    try {
+      const token = await AsyncStorage.getItem('ownerAccessToken') || await AsyncStorage.getItem('accessToken');
+      
+      if (!token) {
+        Alert.alert('Error', 'Please login again');
+        return;
+      }
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: scaleValue.value }],
-    };
-  });
+      console.log('Fetching vehicles from:', `${API_BASE}/owner/vehicle/all`);
+      
+      const response = await axios.get(`${API_BASE}/owner/vehicle/all`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
 
-  const handlePressIn = () => {
-    scaleValue.value = withSpring(0.95);
+      console.log('Owner vehicles response:', JSON.stringify(response.data, null, 2));
+
+      // Check if data exists in response
+      if (response.data && response.data.data) {
+        const vehicles: OwnerVehicle[] = response.data.data || [];
+        console.log(`Found ${vehicles.length} vehicles`);
+        setOwnerVehicles(vehicles);
+      } else {
+        console.log('No vehicles data found in response');
+        setOwnerVehicles([]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching vehicles:', error);
+      console.error('Error details:', error.response?.data);
+      Alert.alert('Error', 'Failed to load vehicles');
+    }
   };
 
-  const handlePressOut = () => {
-    scaleValue.value = withSpring(1);
+  // Fetch owner's bookings
+  const fetchOwnerBookings = async () => {
+    try {
+      const token = await AsyncStorage.getItem('ownerAccessToken') || await AsyncStorage.getItem('accessToken');
+      
+      const response = await axios.get(`${API_BASE}/owner/bookings`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.data && response.data.data) {
+        const ownerBookings: OwnerBooking[] = response.data.data || [];
+        setBookings(ownerBookings);
+      }
+    } catch (error: any) {
+      console.error('Error fetching bookings:', error);
+      // Don't show alert for bookings as it might not be critical
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    setIsLoading(true);
+    await Promise.all([fetchOwnerVehicles(), fetchOwnerBookings()]);
+    setIsLoading(false);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadDashboardData();
+    setRefreshing(false);
   };
 
   const handleAddCar = () => {
     router.push('/add-car');
   };
 
-  const handleEditCar = (carId: string) => {
-    router.push({ pathname: '/edit-car', params: { carId } });
+  const handleEditCar = (vehicleId: string) => {
+    router.push({ pathname: '/edit-car', params: { vehicleId } });
   };
 
-  const handleDeleteCar = (carId: string) => {
+  const handleDeleteCar = async (vehicleId: string) => {
     Alert.alert(
-      'Delete Car',
-      'Are you sure you want to delete this car?',
+      'Delete Vehicle',
+      'Are you sure you want to delete this vehicle?',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => {
-            // In a real app, you'd make an API call here
-            console.log('Deleting car:', carId);
+          onPress: async () => {
+            try {
+              const token = await AsyncStorage.getItem('ownerAccessToken') || await AsyncStorage.getItem('accessToken');
+              
+              await axios.delete(`${API_BASE}/owner/vehicle/${vehicleId}`, {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+
+              // Remove vehicle from local state
+              setOwnerVehicles(prev => prev.filter(vehicle => vehicle._id !== vehicleId));
+              Alert.alert('Success', 'Vehicle deleted successfully');
+            } catch (error: any) {
+              console.error('Error deleting vehicle:', error);
+              Alert.alert('Error', 'Failed to delete vehicle');
+            }
           }
         },
       ]
     );
   };
 
-  const handleToggleAvailability = (carId: string, currentStatus: boolean) => {
-    updateCar(carId, { available: !currentStatus });
+  const handleToggleAvailability = async (vehicleId: string, currentStatus: boolean) => {
+    try {
+      const token = await AsyncStorage.getItem('ownerAccessToken') || await AsyncStorage.getItem('accessToken');
+      
+      const response = await axios.patch(
+        `${API_BASE}/owner/vehicle/${vehicleId}/availability`,
+        { available: !currentStatus },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data && response.data.success) {
+        // Update local state
+        setOwnerVehicles(prev => 
+          prev.map(vehicle => 
+            vehicle._id === vehicleId 
+              ? { ...vehicle, isAvailable: !currentStatus }
+              : vehicle
+          )
+        );
+      }
+    } catch (error: any) {
+      console.error('Error updating availability:', error);
+      Alert.alert('Error', 'Failed to update availability');
+    }
   };
 
-  const renderCarItem = ({ item }: { item: typeof cars[0] }) => (
-    <Animated.View entering={FadeIn.delay(100)} style={styles.carCard}>
-      <Image source={{ uri: item.image }} style={styles.carImage} />
-      <View style={styles.carInfo}>
-        <View style={styles.carHeader}>
-          <Text style={styles.carName}>{item.make} {item.model}</Text>
-          <View style={[
-            styles.availabilityBadge,
-            { backgroundColor: item.available ? '#E8F5E8' : '#FFE8E8' }
-          ]}>
-            <Text style={[
-              styles.availabilityText,
-              { color: item.available ? '#4CAF50' : '#F44336' }
-            ]}>
-              {item.available ? 'Available' : 'Unavailable'}
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.carDetails}>
-          <View style={styles.detailItem}>
-            <MapPin size={14} color="#8E8E93" />
-            <Text style={styles.detailText}>{item.location}</Text>
-          </View>
-          <View style={styles.detailItem}>
-            <DollarSign size={14} color="#8E8E93" />
-            <Text style={styles.detailText}>${item.pricePerDay}/day</Text>
-          </View>
-          <View style={styles.detailItem}>
-            <Star size={14} color="#FFD700" fill="#FFD700" />
-            <Text style={styles.detailText}>{item.rating}</Text>
-          </View>
-        </View>
-        
-        <View style={styles.carActions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleToggleAvailability(item.id, item.available)}
-          >
-            <Eye size={16} color="#007AFF" />
-            <Text style={styles.actionButtonText}>
-              {item.available ? 'Hide' : 'Show'}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleEditCar(item.id)}
-          >
-            <Edit size={16} color="#007AFF" />
-            <Text style={styles.actionButtonText}>Edit</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleDeleteCar(item.id)}
-          >
-            <Trash2 size={16} color="#F44336" />
-            <Text style={[styles.actionButtonText, { color: '#F44336' }]}>Delete</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Animated.View>
-  );
+  // Helper function to get full image URL
+  const getImageUrl = (imagePath: string) => {
+    if (!imagePath) return null;
+    
+    // If it's already a full URL, return as is
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    // If it's a relative path, construct full URL
+    if (imagePath.startsWith('/uploads/')) {
+      return `${API_BASE.replace('/api', '')}${imagePath}`;
+    }
+    
+    // If it's just a filename, construct the path
+    return `${API_BASE.replace('/api', '')}/uploads/vehicles/${imagePath}`;
+  };
 
-  const renderBookingItem = ({ item }: { item: typeof bookings[0] }) => (
+  const renderVehicleItem = ({ item }: { item: OwnerVehicle }) => {
+    console.log('Rendering vehicle:', item.brand, item.model, 'Images:', item.images);
+    
+    const imageUrl = item.images && item.images.length > 0 
+      ? getImageUrl(item.images[0]) 
+      : null;
+
+    return (
+      <Animated.View entering={FadeIn.delay(100)} style={styles.vehicleCard}>
+        {imageUrl ? (
+          <Image 
+            source={{ uri: imageUrl }} 
+            style={styles.vehicleImage} 
+            onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
+          />
+        ) : (
+          <View style={styles.vehicleImagePlaceholder}>
+            <Car size={40} color="#8E8E93" />
+            <Text style={styles.placeholderText}>No Image</Text>
+          </View>
+        )}
+        
+        <View style={styles.vehicleInfo}>
+          <View style={styles.vehicleHeader}>
+            <Text style={styles.vehicleName}>{item.brand} {item.model}</Text>
+            <View style={styles.statusContainer}>
+              <View style={[
+                styles.availabilityBadge,
+                { backgroundColor: item.isAvailable ? '#E8F5E8' : '#FFE8E8' }
+              ]}>
+                <Text style={[
+                  styles.availabilityText,
+                  { color: item.isAvailable ? '#4CAF50' : '#F44336' }
+                ]}>
+                  {item.isAvailable ? 'Available' : 'Unavailable'}
+                </Text>
+              </View>
+              <View style={[
+                styles.approvalBadge,
+                { backgroundColor: item.isApproved ? '#E8F5E8' : '#FFF3E0' }
+              ]}>
+                <Text style={[
+                  styles.approvalText,
+                  { color: item.isApproved ? '#4CAF50' : '#FF9800' }
+                ]}>
+                  {item.isApproved ? 'Approved' : 'Pending'}
+                </Text>
+              </View>
+            </View>
+          </View>
+          
+          <View style={styles.vehicleDetails}>
+            <View style={styles.detailItem}>
+              <MapPin size={14} color="#8E8E93" />
+              <Text style={styles.detailText}>{item.location}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <DollarSign size={14} color="#8E8E93" />
+              <Text style={styles.detailText}>${item.pricePerDay}/day</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Fuel size={14} color="#8E8E93" />
+              <Text style={styles.detailText}>{item.fuelType}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.vehicleActions}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleToggleAvailability(item._id, item.isAvailable)}
+            >
+              <Eye size={16} color="#007AFF" />
+              <Text style={styles.actionButtonText}>
+                {item.isAvailable ? 'Hide' : 'Show'}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleEditCar(item._id)}
+            >
+              <Edit size={16} color="#007AFF" />
+              <Text style={styles.actionButtonText}>Edit</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleDeleteCar(item._id)}
+            >
+              <Trash2 size={16} color="#F44336" />
+              <Text style={[styles.actionButtonText, { color: '#F44336' }]}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Animated.View>
+    );
+  };
+
+  const renderBookingItem = ({ item }: { item: OwnerBooking }) => (
     <Animated.View entering={FadeIn.delay(100)} style={styles.bookingCard}>
       <View style={styles.bookingHeader}>
-        <Text style={styles.bookingCarName}>{item.car.make} {item.car.model}</Text>
+        <Text style={styles.bookingCarName}>{item.vehicle.brand} {item.vehicle.model}</Text>
         <View style={[
           styles.bookingStatusBadge,
-          { backgroundColor: getStatusColor(item.status) }
+          { backgroundColor: getStatusColor(item.bookingStatus) }
         ]}>
-          <Text style={styles.bookingStatusText}>{item.status}</Text>
+          <Text style={styles.bookingStatusText}>{item.bookingStatus}</Text>
         </View>
       </View>
       
       <View style={styles.bookingDetails}>
         <Text style={styles.bookingDate}>
-          {new Date(item.startDate).toLocaleDateString()} - {new Date(item.endDate).toLocaleDateString()}
+          {new Date(item.pickupDate).toLocaleDateString()} - {new Date(item.dropoffDate).toLocaleDateString()}
         </Text>
-        <Text style={styles.bookingPrice}>${item.totalPrice}</Text>
+        <Text style={styles.bookingPrice}>${item.totalAmount}</Text>
       </View>
       
-      <TouchableOpacity style={styles.bookingAction}>
-        <Text style={styles.bookingActionText}>View Details</Text>
-      </TouchableOpacity>
+      <Text style={styles.customerInfo}>
+        Customer: {item.customer?.name || 'Unknown'}
+      </Text>
     </Animated.View>
   );
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case 'confirmed': return '#E8F5E8';
       case 'pending': return '#FFF3E0';
       case 'cancelled': return '#FFE8E8';
@@ -195,6 +396,17 @@ export default function DashboardScreen() {
     );
   }
 
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Loading your vehicles...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -206,12 +418,8 @@ export default function DashboardScreen() {
         <TouchableOpacity
           style={styles.addButton}
           onPress={handleAddCar}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
         >
-          <Animated.View style={animatedStyle}>
-            <Plus size={24} color="#FFFFFF" />
-          </Animated.View>
+          <Plus size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -219,8 +427,8 @@ export default function DashboardScreen() {
       <Animated.View style={styles.statsContainer} entering={FadeIn}>
         <View style={styles.statCard}>
           <Car size={24} color="#007AFF" />
-          <Text style={styles.statNumber}>{cars.length}</Text>
-          <Text style={styles.statLabel}>Cars</Text>
+          <Text style={styles.statNumber}>{ownerVehicles.length}</Text>
+          <Text style={styles.statLabel}>Vehicles</Text>
         </View>
         <View style={styles.statCard}>
           <Calendar size={24} color="#4CAF50" />
@@ -229,74 +437,92 @@ export default function DashboardScreen() {
         </View>
         <View style={styles.statCard}>
           <DollarSign size={24} color="#FF9800" />
-          <Text style={styles.statNumber}>$2,450</Text>
-          <Text style={styles.statLabel}>Earnings</Text>
+          <Text style={styles.statNumber}>
+            ${ownerVehicles.reduce((total, vehicle) => total + (vehicle.pricePerDay || 0), 0)}
+          </Text>
+          <Text style={styles.statLabel}>Daily Potential</Text>
         </View>
       </Animated.View>
 
       {/* Tab Navigation */}
       <View style={styles.tabContainer}>
         <TabButton
-          title="Overview"
-          isActive={selectedTab === 'overview'}
-          onPress={() => setSelectedTab('overview')}
+          title={`Vehicles (${ownerVehicles.length})`}
+          isActive={selectedTab === 'vehicles'}
+          onPress={() => setSelectedTab('vehicles')}
         />
         <TabButton
-          title="Cars"
-          isActive={selectedTab === 'cars'}
-          onPress={() => setSelectedTab('cars')}
-        />
-        <TabButton
-          title="Bookings"
+          title={`Bookings (${bookings.length})`}
           isActive={selectedTab === 'bookings'}
           onPress={() => setSelectedTab('bookings')}
         />
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {selectedTab === 'overview' && (
-          <View style={styles.overviewContainer}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <View style={styles.activityCard}>
-              <Text style={styles.activityText}>
-                Your BMW X3 was booked for $145/day
-              </Text>
-              <Text style={styles.activityTime}>2 hours ago</Text>
-            </View>
-            <View style={styles.activityCard}>
-              <Text style={styles.activityText}>
-                Toyota Camry booking confirmed
-              </Text>
-              <Text style={styles.activityTime}>5 hours ago</Text>
-            </View>
-          </View>
-        )}
-
-        {selectedTab === 'cars' && (
-          <View style={styles.carsContainer}>
-            <FlatList
-              data={cars}
-              renderItem={renderCarItem}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.carsList}
-            />
+      <View style={styles.content}>
+        {selectedTab === 'vehicles' && (
+          <View style={styles.tabContent}>
+            {ownerVehicles.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Car size={60} color="#8E8E93" />
+                <Text style={styles.emptyStateText}>No vehicles added yet</Text>
+                <Text style={styles.emptyStateSubtext}>
+                  Start by adding your first vehicle to rent
+                </Text>
+                <TouchableOpacity style={styles.addFirstButton} onPress={handleAddCar}>
+                  <Text style={styles.addFirstButtonText}>Add Your First Vehicle</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <FlatList
+                data={ownerVehicles}
+                renderItem={renderVehicleItem}
+                keyExtractor={(item) => item._id}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    colors={['#007AFF']}
+                    tintColor={'#007AFF'}
+                  />
+                }
+                contentContainerStyle={styles.listContent}
+              />
+            )}
           </View>
         )}
 
         {selectedTab === 'bookings' && (
-          <View style={styles.bookingsContainer}>
-            <FlatList
-              data={bookings}
-              renderItem={renderBookingItem}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.bookingsList}
-            />
+          <View style={styles.tabContent}>
+            {bookings.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Calendar size={60} color="#8E8E93" />
+                <Text style={styles.emptyStateText}>No bookings yet</Text>
+                <Text style={styles.emptyStateSubtext}>
+                  Your bookings will appear here
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={bookings}
+                renderItem={renderBookingItem}
+                keyExtractor={(item) => item._id}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    colors={['#007AFF']}
+                    tintColor={'#007AFF'}
+                  />
+                }
+                contentContainerStyle={styles.listContent}
+              />
+            )}
           </View>
         )}
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -314,14 +540,13 @@ const styles = StyleSheet.create({
   },
   notOwnerTitle: {
     fontSize: 24,
-    fontFamily: 'Poppins-Bold',
+    fontWeight: 'bold',
     color: '#1D1D1F',
     marginTop: 16,
     marginBottom: 8,
   },
   notOwnerSubtitle: {
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
     color: '#8E8E93',
     textAlign: 'center',
   },
@@ -334,13 +559,12 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   greeting: {
-    fontSize: 28,
-    fontFamily: 'Poppins-Bold',
+    fontSize: 24,
+    fontWeight: 'bold',
     color: '#1D1D1F',
   },
   subtitle: {
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
     color: '#8E8E93',
     marginTop: 4,
   },
@@ -351,39 +575,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   statsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    marginTop: 20,
+    marginTop: 10,
   },
   statCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
     marginRight: 10,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
   },
   statNumber: {
-    fontSize: 24,
-    fontFamily: 'Poppins-Bold',
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#1D1D1F',
     marginTop: 8,
   },
   statLabel: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
     color: '#8E8E93',
     marginTop: 4,
   },
@@ -406,7 +619,7 @@ const styles = StyleSheet.create({
   },
   tabButtonText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontWeight: '500',
     color: '#8E8E93',
   },
   activeTabButtonText: {
@@ -415,74 +628,51 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    marginTop: 20,
+    marginTop: 10,
   },
-  overviewContainer: {
+  tabContent: {
+    flex: 1,
+  },
+  listContent: {
     paddingBottom: 20,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#1D1D1F',
-    marginBottom: 16,
-  },
-  activityCard: {
+  vehicleCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  activityText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#1D1D1F',
-    marginBottom: 4,
-  },
-  activityTime: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    color: '#8E8E93',
-  },
-  carsContainer: {
-    paddingBottom: 20,
-  },
-  carsList: {
-    paddingBottom: 20,
-  },
-  carCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    overflow: 'hidden',
   },
-  carImage: {
+  vehicleImage: {
     width: '100%',
     height: 200,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
   },
-  carInfo: {
+  vehicleImagePlaceholder: {
+    width: '100%',
+    height: 200,
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  vehicleInfo: {
     padding: 16,
   },
-  carHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  vehicleHeader: {
     marginBottom: 12,
   },
-  carName: {
+  vehicleName: {
     fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
+    fontWeight: '600',
     color: '#1D1D1F',
+    marginBottom: 8,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    gap: 8,
   },
   availabilityBadge: {
     paddingHorizontal: 8,
@@ -491,9 +681,18 @@ const styles = StyleSheet.create({
   },
   availabilityText: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontWeight: '500',
   },
-  carDetails: {
+  approvalBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  approvalText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  vehicleDetails: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 16,
@@ -504,11 +703,10 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 12,
-    fontFamily: 'Inter-Regular',
     color: '#8E8E93',
     marginLeft: 4,
   },
-  carActions: {
+  vehicleActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
@@ -522,26 +720,15 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontWeight: '500',
     color: '#007AFF',
     marginLeft: 4,
-  },
-  bookingsContainer: {
-    paddingBottom: 20,
-  },
-  bookingsList: {
-    paddingBottom: 20,
   },
   bookingCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
   bookingHeader: {
     flexDirection: 'row',
@@ -551,7 +738,7 @@ const styles = StyleSheet.create({
   },
   bookingCarName: {
     fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
+    fontWeight: '600',
     color: '#1D1D1F',
   },
   bookingStatusBadge: {
@@ -561,30 +748,64 @@ const styles = StyleSheet.create({
   },
   bookingStatusText: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: '#1D1D1F',
+    fontWeight: '500',
   },
   bookingDetails: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   bookingDate: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
     color: '#8E8E93',
   },
   bookingPrice: {
     fontSize: 16,
-    fontFamily: 'Poppins-Bold',
+    fontWeight: 'bold',
     color: '#007AFF',
   },
-  bookingAction: {
-    alignSelf: 'flex-start',
-  },
-  bookingActionText: {
+  customerInfo: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#007AFF',
+    color: '#8E8E93',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#8E8E93',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1D1D1F',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  addFirstButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  addFirstButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
