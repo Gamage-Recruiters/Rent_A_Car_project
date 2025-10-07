@@ -52,18 +52,17 @@ const ProfileTab = () => {
   const constructImageUrl = (photoPath: string) => {
     if (!photoPath) return null;
     
-    console.log('Original photo path:', photoPath);
+    console.log('Constructing image URL for path:', photoPath);
     
-    // If it's already a full URL, return as is
+    // If it's already a full URL, return as is (Google photos)
     if (photoPath.startsWith('http')) {
-      console.log('Already full URL:', photoPath);
       return photoPath;
     }
     
     // If it starts with /uploads, construct the full URL
     if (photoPath.startsWith('/uploads')) {
       const fullUrl = `${BASE_URL}${photoPath}`;
-      console.log('Constructed URL from /uploads:', fullUrl);
+      console.log('Constructed full URL:', fullUrl);
       return fullUrl;
     }
     
@@ -89,18 +88,22 @@ const ProfileTab = () => {
       });
 
       // Handle the image preview from different possible sources
-      let imageUrl = null;
-      
-      if (user.googleId && user.photo) {
-        imageUrl = user.photo;
-      } else if (user.photo) {
-        imageUrl = constructImageUrl(user.photo);
-      } else if (user.image?.url) {
-        imageUrl = user.image.url;
+      if (!profileImage) {
+      // Handle the image preview from different possible sources
+        let imageUrl = null;
+        
+        if (user.photo) {
+          // Check if this is a Google photo or local photo
+          imageUrl = user.photo.startsWith('http') 
+            ? user.photo  // Google photo
+            : constructImageUrl(user.photo);  // Local photo
+        } else if (user.image?.url) {
+          imageUrl = user.image.url;
+        }
+        
+        console.log('Setting image preview URL:', imageUrl);
+        setImagePreview(imageUrl);
       }
-      
-      console.log('Final image URL set:', imageUrl);
-      setImagePreview(imageUrl);
     }
   }, [user]);
 
@@ -184,6 +187,18 @@ const ProfileTab = () => {
           // Normalize the data format to match what the rest of the app expects
           if (userData.phoneNumber && !userData.phone) {
             userData.phone = userData.phoneNumber;
+          }
+          if (profileImage) {
+
+          } else {
+            // If not uploading a new image, update preview from the response
+            let newImageUrl = null;
+            
+            if (userData.photo) {
+              newImageUrl = constructImageUrl(userData.photo);
+              console.log('New image URL from update:', newImageUrl);
+              setImagePreview(newImageUrl);
+            }
           }
           
           updateUserData(userData);

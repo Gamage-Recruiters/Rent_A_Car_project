@@ -48,7 +48,7 @@ async function updateProfile(req, res) {
                     else console.log('Old photo deleted successfully:', oldPhotoPath);
                 });
             }
-            photoPath = `uploads/customerProfiles/${req.file.filename}`;
+            photoPath = `/uploads/customerProfiles/${req.file.filename}`;
         }
 
         const updateData = {};
