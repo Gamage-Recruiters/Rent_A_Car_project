@@ -73,6 +73,7 @@ export interface Vehicle {
   noSeats?: number; // Keep for backward compatibility
   mileage?: number;
   status?: 'pending' | 'approved' | 'rejected';
+  views?: number;
 }
 
 export interface Booking {
