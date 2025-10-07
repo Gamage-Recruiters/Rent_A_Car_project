@@ -75,12 +75,14 @@ class ReviewService {
         throw new Error(response.data.message || 'Failed to create review');
       }
     } catch (error: any) {
+      const message = error.response?.data?.message || error.message || 'Failed to create review';
+      const isDuplicate = /already reviewed/i.test(message);
+      if (isDuplicate) {
+        // Throw a special marker to allow UI to handle silently
+        throw new Error('ALREADY_REVIEWED');
+      }
       console.error('Create review error:', error);
-      throw new Error(
-        error.response?.data?.message || 
-        error.message || 
-        'Failed to create review'
-      );
+      throw new Error(message);
     }
   }
 
@@ -104,12 +106,14 @@ class ReviewService {
         throw new Error(response.data.message || 'Failed to create booking review');
       }
     } catch (error: any) {
+      const message = error.response?.data?.message || error.message || 'Failed to create booking review';
+      const isDuplicate = /already reviewed/i.test(message);
+      if (isDuplicate) {
+        // Throw a special marker to allow UI to handle silently
+        throw new Error('ALREADY_REVIEWED');
+      }
       console.error('Create booking review error:', error);
-      throw new Error(
-        error.response?.data?.message || 
-        error.message || 
-        'Failed to create booking review'
-      );
+      throw new Error(message);
     }
   }
 

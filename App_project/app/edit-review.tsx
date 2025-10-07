@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuthToken } from '../services/authToken';
 import { reviewService } from '../services/reviewService';
 
 export default function EditReviewScreen() {
@@ -82,8 +83,8 @@ export default function EditReviewScreen() {
     try {
       setIsSubmitting(true);
       
-      const token = await AsyncStorage.getItem('customerToken');
-      console.log('🔑 Token exists:', !!token);
+  const token = await getAuthToken();
+  console.log('🔑 Token exists (any key):', !!token);
       
       if (!token) {
         Alert.alert('Error', 'Please log in again');
