@@ -1,77 +1,241 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { Filter, SortAsc } from 'lucide-react';
-import SearchForm from '../components/SearchForm';
-import VehicleCard from '../components/VehicleCard';
-import { SearchFilters, Vehicle } from '../types';
-import { mockVehicles } from '../data/mockData';
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import { Filter, SortAsc } from "lucide-react";
+import SearchForm from "../components/SearchForm";
+import VehicleCard from "../components/VehicleCard";
+import { SearchFilters, Vehicle } from "../types";
+import { useVehicle } from "../context/VehicleContext";
 
 const SearchPage: React.FC = () => {
   const location = useLocation();
+  const { getAllVehicles } = useVehicle();
+
   const initialFilters = location.state?.filters || {};
-  
+
   const [filters, setFilters] = useState<SearchFilters>({
-    location: '',
-    vehicleType: '',
-    priceRange: [0, 1000],
+    location: "",
+    startDate: "",
+    endDate: "",
+    vehicleType: "",
+    priceRange: [0, 10000],
     hasDriver: null,
-    transmission: '',
-    fuelType: '',
-    ...initialFilters
+    transmission: "",
+    fuelType: "",
+    ...initialFilters,
   });
-  const [vehicles, setVehicles] = useState<Vehicle[]>(mockVehicles);
-  const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>(mockVehicles);
-  const [sortBy, setSortBy] = useState<'price' | 'rating' | 'name'>('price');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
+  const [sortBy, setSortBy] = useState<"price" | "rating" | "name">("price");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [showFilters, setShowFilters] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    applyFilters();
-  }, [filters, vehicles, sortBy, sortOrder]);
+    fetchVehicles();
+  }, []);
 
-  const applyFilters = () => {
-    let filtered = vehicles.filter(vehicle => {
-      const matchesLocation = !filters.location || vehicle.location === filters.location;
-      const matchesType = !filters.vehicleType || vehicle.type === filters.vehicleType;
-      const matchesPrice = vehicle.pricePerDay >= filters.priceRange[0] && 
-                          vehicle.pricePerDay <= filters.priceRange[1];
-      const matchesDriver = filters.hasDriver === null || vehicle.hasDriver === filters.hasDriver;
-      const matchesTransmission = !filters.transmission || vehicle.transmission === filters.transmission;
-      const matchesFuel = !filters.fuelType || vehicle.fuelType === filters.fuelType;
-      
-      return matchesLocation && matchesType && matchesPrice && 
-             matchesDriver && matchesTransmission && matchesFuel;
+  useEffect(() => {
+    applyFiltersAndSort();
+    // eslint-disable-next-line
+  }, [vehicles, filters, sortBy, sortOrder]);
+
+  const fetchVehicles = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      // Pass current filters to the backend for server-side filtering if supported
+      const backendFilters = {
+        location: filters.location || undefined,
+        vehicleType: filters.vehicleType || undefined,
+        fuelType: filters.fuelType || undefined,
+        transmission: filters.transmission || undefined,
+        hasDriver: filters.hasDriver !== null ? filters.hasDriver : undefined,
+        minPrice: filters.priceRange[0] || undefined,
+        maxPrice: filters.priceRange[1] || undefined,
+        startDate: filters.startDate || undefined,
+        endDate: filters.endDate || undefined,
+      };
+
+      // Remove undefined values
+      const cleanedFilters = Object.fromEntries(
+        Object.entries(backendFilters).filter(([_, value]) => value !== undefined)
+      );
+
+      console.log("Fetching vehicles with filters:", cleanedFilters);
+      const data = await getAllVehicles(cleanedFilters);
+      console.log("Received vehicle data:", data);
+      setVehicles(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.error("Error fetching vehicles:", err);
+      console.error("Error details:", err.response || err.message);
+      setError(err.response?.data?.message || "Failed to load vehicles. Please try again.");
+      setVehicles([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- VALIDATION FUNCTION ---
+  const validateFilters = (filters: SearchFilters): string | null => {
+    // Price validations
+    if (filters.priceRange[0] < 0 || filters.priceRange[1] < 0) {
+      return "Price cannot be negative.";
+    }
+    if (filters.priceRange[0] > filters.priceRange[1]) {
+      return "Minimum price cannot be greater than maximum price.";
+    }
+
+    // Date validations
+    if (filters.startDate && isNaN(Date.parse(filters.startDate))) {
+      return "Start date is invalid.";
+    }
+    if (filters.endDate && isNaN(Date.parse(filters.endDate))) {
+      return "End date is invalid.";
+    }
+    if (
+      filters.startDate &&
+      filters.endDate &&
+      new Date(filters.startDate) > new Date(filters.endDate)
+    ) {
+      return "Start date cannot be after end date.";
+    }
+
+    // Prevent past dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (filters.startDate && new Date(filters.startDate) < today) {
+      return "Start date cannot be in the past.";
+    }
+    if (filters.endDate && new Date(filters.endDate) < today) {
+      return "End date cannot be in the past.";
+    }
+
+    return null;
+  };
+
+  const isVehicleAvailableForDates = (
+    vehicle: Vehicle,
+    startDate: string,
+    endDate: string
+  ): boolean => {
+    if (!startDate || !endDate) return true;
+    if (!vehicle.unavailableDates || vehicle.unavailableDates.length === 0) {
+      return true;
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    return !vehicle.unavailableDates.some((unavailableDate) => {
+      const unavailable = new Date(unavailableDate);
+      return unavailable >= start && unavailable <= end;
     });
+  };
 
-    // Apply sorting
+  const applyFiltersAndSort = () => {
+    // --- VALIDATION CHECK ---
+    const validationError = validateFilters(filters);
+    if (validationError) {
+      setError(validationError);
+      setFilteredVehicles([]);
+      return;
+    } else {
+      setError("");
+    }
+
+    let filtered = [...(vehicles || [])];
+
+    // Client-side filtering (in case backend doesn't handle all filters)
+    // Location filter
+    if (filters.location) {
+      filtered = filtered.filter((vehicle) =>
+        vehicle.pickupAddress
+          ?.toLowerCase()
+          .includes(filters.location.toLowerCase())
+      );
+    }
+
+    // Vehicle Type
+    if (filters.vehicleType) {
+      filtered = filtered.filter(
+        (vehicle) =>
+          vehicle.vehicleType?.toLowerCase() ===
+          filters.vehicleType.toLowerCase()
+      );
+    }
+
+    // Fuel Type
+    if (filters.fuelType) {
+      filtered = filtered.filter(
+        (vehicle) =>
+          vehicle.fuelType?.toLowerCase() === filters.fuelType.toLowerCase()
+      );
+    }
+
+    // Auto OR Manual
+    if (filters.transmission) {
+      filtered = filtered.filter(
+        (vehicle) =>
+          vehicle.transmission?.toLowerCase() ===
+          filters.transmission.toLowerCase()
+      );
+    }
+
+    // isDriverAvailable
+    if (filters.hasDriver !== null) {
+      filtered = filtered.filter(
+        (vehicle) => vehicle.isDriverAvailable === filters.hasDriver
+      );
+    }
+
+    // Price Range
+    filtered = filtered.filter(
+      (vehicle) =>
+        vehicle.pricePerDay >= filters.priceRange[0] &&
+        vehicle.pricePerDay <= filters.priceRange[1]
+    );
+
+    // Date availability filter
+    if (filters.startDate && filters.endDate) {
+      filtered = filtered.filter((vehicle) =>
+        isVehicleAvailableForDates(vehicle, filters.startDate, filters.endDate)
+      );
+    }
+
+    // Sort
     filtered.sort((a, b) => {
       let aValue: number | string;
       let bValue: number | string;
 
       switch (sortBy) {
-        case 'price':
+        case "price":
           aValue = a.pricePerDay;
           bValue = b.pricePerDay;
           break;
-        case 'rating':
-          aValue = a.rating;
-          bValue = b.rating;
+        case "rating":
+          aValue = a.rating || 0;
+          bValue = b.rating || 0;
           break;
-        case 'name':
-          aValue = a.name;
-          bValue = b.name;
+        case "name":
+          aValue = a.vehicleName || "";
+          bValue = b.vehicleName || "";
           break;
         default:
           aValue = a.pricePerDay;
           bValue = b.pricePerDay;
       }
 
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        return sortOrder === "asc"
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
       } else {
-        return sortOrder === 'asc' ? 
-          (aValue as number) - (bValue as number) : 
-          (bValue as number) - (aValue as number);
+        return sortOrder === "asc"
+          ? (aValue as number) - (bValue as number)
+          : (bValue as number) - (aValue as number);
       }
     });
 
@@ -79,14 +243,51 @@ const SearchPage: React.FC = () => {
   };
 
   const handleSearch = (newFilters: SearchFilters) => {
+    // Save search to localStorage
+    const searchData = {
+      filters: newFilters,
+      location: newFilters.location,
+      vehicleType: newFilters.vehicleType,
+      searchDate: new Date().toISOString(),
+      id: Date.now()
+    };
+    
+    const existingSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+    const updatedSearches = [searchData, ...existingSearches.slice(0, 9)]; // Keep last 10
+    localStorage.setItem('recentSearches', JSON.stringify(updatedSearches));
+    
     setFilters(newFilters);
+    // Re-fetch vehicles with new filters
+    fetchVehicles();
+  };
+
+  const clearFilters = () => {
+    const clearedFilters = {
+      location: "",
+      startDate: "",
+      endDate: "",
+      vehicleType: "",
+      priceRange: [0, 10000] as [number, number],
+      hasDriver: null,
+      transmission: "",
+      fuelType: "",
+    };
+    setFilters(clearedFilters);
+    // Re-fetch vehicles without filters
+    setError("");
+  };
+
+  const retryFetch = () => {
+    fetchVehicles();
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Search Vehicles</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            Search Vehicles
+          </h1>
           <SearchForm onSearch={handleSearch} initialFilters={filters} />
         </div>
 
@@ -95,84 +296,197 @@ const SearchPage: React.FC = () => {
           <div className="lg:hidden">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center space-x-2 bg-white px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+              className="flex items-center space-x-2 bg-white px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors mb-4"
             >
               <Filter className="w-5 h-5" />
-              <span>Filters</span>
+              <span>{showFilters ? "Hide Filters" : "Show Filters"}</span>
             </button>
           </div>
 
           {/* Filters Sidebar */}
-          <div className={`lg:w-64 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Sort By</h3>
-              <div className="space-y-2">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="sortBy"
-                    value="price"
-                    checked={sortBy === 'price'}
-                    onChange={(e) => setSortBy(e.target.value as 'price')}
-                    className="mr-2"
-                  />
-                  Price
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="sortBy"
-                    value="rating"
-                    checked={sortBy === 'rating'}
-                    onChange={(e) => setSortBy(e.target.value as 'rating')}
-                    className="mr-2"
-                  />
-                  Rating
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="sortBy"
-                    value="name"
-                    checked={sortBy === 'name'}
-                    onChange={(e) => setSortBy(e.target.value as 'name')}
-                    className="mr-2"
-                  />
-                  Name
-                </label>
+          <div
+            className={`lg:w-64 ${showFilters ? "block" : "hidden lg:block"}`}
+          >
+            <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold text-gray-900">Filters & Sort</h3>
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  Clear All
+                </button>
               </div>
 
-              <div className="mt-4">
-                <button
-                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                  className="flex items-center space-x-2 text-blue-600 hover:text-blue-700"
-                >
-                  <SortAsc className="w-4 h-4" />
-                  <span>{sortOrder === 'asc' ? 'Ascending' : 'Descending'}</span>
-                </button>
+              {/* Sort Options */}
+              <div className="mb-6">
+                <h4 className="font-medium text-gray-700 mb-3">Sort By</h4>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="sortBy"
+                      value="price"
+                      checked={sortBy === "price"}
+                      onChange={(e) => setSortBy(e.target.value as "price")}
+                      className="mr-2"
+                    />
+                    Price
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="sortBy"
+                      value="rating"
+                      checked={sortBy === "rating"}
+                      onChange={(e) => setSortBy(e.target.value as "rating")}
+                      className="mr-2"
+                    />
+                    Rating
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="sortBy"
+                      value="name"
+                      checked={sortBy === "name"}
+                      onChange={(e) => setSortBy(e.target.value as "name")}
+                      className="mr-2"
+                    />
+                    Name
+                  </label>
+                </div>
+
+                <div className="mt-3">
+                  <button
+                    onClick={() =>
+                      setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+                    }
+                    className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 text-sm"
+                  >
+                    <SortAsc
+                      className={`w-4 h-4 ${
+                        sortOrder === "desc" ? "transform rotate-180" : ""
+                      }`}
+                    />
+                    <span>
+                      {sortOrder === "asc" ? "Ascending" : "Descending"}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Active Filters Display */}
+              <div>
+                <h4 className="font-medium text-gray-700 mb-3">
+                  Active Filters
+                </h4>
+                <div className="space-y-1 text-sm">
+                  {filters.location && (
+                    <div className="text-gray-600">
+                      <strong>Location:</strong> {filters.location}
+                    </div>
+                  )}
+                  {filters.vehicleType && (
+                    <div className="text-gray-600">
+                      <strong>Type:</strong> {filters.vehicleType}
+                    </div>
+                  )}
+                  {filters.fuelType && (
+                    <div className="text-gray-600">
+                      <strong>Fuel:</strong> {filters.fuelType}
+                    </div>
+                  )}
+                  {filters.transmission && (
+                    <div className="text-gray-600">
+                      <strong>Transmission:</strong> {filters.transmission}
+                    </div>
+                  )}
+                  {filters.hasDriver !== null && (
+                    <div className="text-gray-600">
+                      <strong>Driver:</strong>{" "}
+                      {filters.hasDriver ? "With Driver" : "Self Drive"}
+                    </div>
+                  )}
+                  <div className="text-gray-600">
+                    <strong>Price:</strong> ${filters.priceRange[0]} - $
+                    {filters.priceRange[1]}
+                  </div>
+                  {filters.startDate && filters.endDate && (
+                    <div className="text-gray-600">
+                      <strong>Dates:</strong> {filters.startDate} to{" "}
+                      {filters.endDate}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
           {/* Results */}
           <div className="flex-1">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">
-                {filteredVehicles.length} Vehicle{filteredVehicles.length !== 1 ? 's' : ''} Found
-              </h2>
-            </div>
-
-            {filteredVehicles.length === 0 ? (
+            {loading && (
               <div className="text-center py-12">
-                <div className="text-gray-500 text-lg">No vehicles found matching your criteria</div>
-                <p className="text-gray-400 mt-2">Try adjusting your filters to see more results</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-500">Loading vehicles...</p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredVehicles.map((vehicle) => (
-                  <VehicleCard key={vehicle.id} vehicle={vehicle} />
-                ))}
+            )}
+
+            {/* Show validation or fetch error */}
+            {error && (
+              <div className="text-center py-4">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                  <p className="text-red-600">{error}</p>
+                  {!loading && error.includes("Failed to load vehicles") && (
+                    <button
+                      onClick={retryFetch}
+                      className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Try Again
+                    </button>
+                  )}
+                </div>
               </div>
+            )}
+
+            {!loading && !error && (
+              <>
+                <div className="mb-6 flex justify-between items-center">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {filteredVehicles.length} Vehicle
+                    {filteredVehicles.length !== 1 ? "s" : ""} Found
+                  </h2>
+
+                  {filteredVehicles.length > 0 && (
+                    <div className="text-sm text-gray-500">
+                      Sorted by {sortBy} ({sortOrder})
+                    </div>
+                  )}
+                </div>
+
+                {filteredVehicles.length === 0 ? (
+                  <div className="text-center py-12 bg-white rounded-lg shadow-md">
+                    <div className="text-gray-500 text-lg mb-2">
+                      No vehicles found matching your criteria
+                    </div>
+                    <p className="text-gray-400 mb-4">
+                      Try adjusting your filters to see more results
+                    </p>
+                    <button
+                      onClick={clearFilters}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Clear All Filters
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {filteredVehicles.map((vehicle) => (
+                      <VehicleCard key={vehicle._id} vehicle={vehicle} />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

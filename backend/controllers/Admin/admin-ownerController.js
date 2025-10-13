@@ -16,13 +16,17 @@ const getPendingOwners = async (req, res) => {
 const approveOwner = async (req, res) => {
     const ownerId = req.params.id;
     try {
-        const owner = await Owner.findById(ownerId);
+        // update approval flag without re-running full document validation
+        const owner = await Owner.findByIdAndUpdate(
+          ownerId,
+          { $set: { isApproved: true } },
+          { new: true, runValidators: false }
+        );
+
         if (!owner) return res.status(404).json({ message: 'Owner not found' });
 
-        if (owner.isApproved) return res.status(400).json({ message: 'Owner already approved' });
-
-        owner.isApproved = true;
-        await owner.save();
+        // log owner approval (non-blocking)
+      try { logActivity({ action: 'Owner approved', user: req.user?.email || 'system', type: 'owner', meta: { ownerId: owner._id.toString() } }); } catch (e) {}
 
         res.status(200).json({ message: 'Owner approved successfully', owner });
     } catch (error) {
@@ -36,6 +40,10 @@ const rejectOwner = async (req, res) => {
                 const owner = await Owner.findByIdAndDelete(ownerId);
 
         if (!owner) return res.status(404).json({ message: 'Owner not found or already deleted' });
+
+        // log owner rejection/deletion (non-blocking)
+       try { logActivity({ action: 'Owner rejected', user: req.user?.email || 'system', type: 'owner', meta: { ownerId: ownerId, ownerEmail: owner.email } }); } catch (e) {}
+
 
          res.status(200).json({ message: 'Owner rejected and deleted successfully' });
     } catch (error) {

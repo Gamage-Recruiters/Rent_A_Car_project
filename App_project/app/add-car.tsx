@@ -8,6 +8,9 @@ import {
   TextInput,
   Alert,
   Switch,
+  Image,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -23,21 +26,27 @@ import {
   Plus,
   X,
 } from 'lucide-react-native';
-import { useUserStore } from '@/stores/userStore';
-import { router } from 'expo-router';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   FadeIn,
 } from 'react-native-reanimated';
+import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { router } from 'expo-router';
+import { useUserStore } from '@/stores/userStore';
+
+// NOTE: ensure EXPO_PUBLIC_API_URL is available in your env or fallback
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.8.191:8000/api';
+const REGISTER_ENDPOINT = `${API_BASE}/owner/vehicle/register`;
 
 export default function AddCarScreen() {
-  const { user, addCar } = useUserStore();
+  const { user } = useUserStore();
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
   const [pricePerDay, setPricePerDay] = useState('');
   const [pricePerKm, setPricePerKm] = useState('');
   const [location, setLocation] = useState('');
@@ -47,14 +56,26 @@ export default function AddCarScreen() {
   const [seats, setSeats] = useState('');
   const [contactPhone, setContactPhone] = useState(user?.phone || '');
   const [contactEmail, setContactEmail] = useState(user?.email || '');
+  const [pickupAddress, setPickupAddress] = useState('');
   const [withDriver, setWithDriver] = useState(false);
   const [driverIncluded, setDriverIncluded] = useState(false);
   const [features, setFeatures] = useState<string[]>([]);
   const [newFeature, setNewFeature] = useState('');
+  const [images, setImages] = useState<
+    Array<{ uri: string; name: string; type: string }>
+  >([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const scaleValue = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scaleValue.value }],
+  }));
 
+  const handlePressIn = () => (scaleValue.value = withSpring(0.95));
+  const handlePressOut = () => (scaleValue.value = withSpring(1));
+
+
+  // ✅ Add features
   const handleAddFeature = () => {
     if (newFeature.trim() && !features.includes(newFeature.trim())) {
       setFeatures([...features, newFeature.trim()]);
@@ -66,74 +87,119 @@ export default function AddCarScreen() {
     setFeatures(features.filter(f => f !== feature));
   };
 
-  const handleSubmit = async () => {
-    if (!make || !model || !year || !pricePerDay || !location || !fuel || !transmission || !seats) {
-      Alert.alert('Error', 'Please fill in all required fields');
+
+  // ✅ Pick multiple images
+  const pickImages = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Access to gallery is required.');
       return;
     }
 
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      const selected = result.assets.map((asset: any, idx: number) => ({
+        uri: asset.uri,
+        name:
+          asset.fileName ||
+          (asset.uri ? asset.uri.split('/').pop() : `image_${Date.now()}_${idx}.jpg`),
+        type: 'image/jpeg',
+      }));
+      setImages((prev) => [...prev, ...selected]);
+    }
+  };
+
+  const validateFields = () => {
+    if (!make || !model || !year || !pricePerDay || !location || !fuel || !transmission || !seats) {
+      Alert.alert('Missing fields', 'Please fill all required fields.');
+      return false;
+    }
+    return true;
+  };
+
+  // ✅ Submit vehicle
+  const handleSubmit = async () => {
+    if (!validateFields()) return;
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const newCar = {
-        id: Date.now().toString(),
-        ownerId: user!.id,
-        make,
-        model,
-        year: parseInt(year),
-        image: imageUrl || 'https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260',
-        pricePerDay: parseFloat(pricePerDay),
-        pricePerKm: pricePerKm ? parseFloat(pricePerKm) : undefined,
-        location,
-        available: true,
-        unavailableDates: [],
-        features,
-        withDriver,
-        driverIncluded,
-        rating: 4.5,
-        reviews: 0,
-        fuel,
-        transmission,
-        seats: parseInt(seats),
-        description,
-        contactPhone,
-        contactEmail,
-      };
+    try {
+      const token = await AsyncStorage.getItem('ownerAccessToken');
+      if (!token) {
+        Alert.alert('Authentication Error', 'Please log in as an owner first.');
+        setIsLoading(false);
+        return;
+      }
 
-      addCar(newCar);
-      setIsLoading(false);
-
-      Alert.alert(
-        'Success!',
-        'Your car has been added successfully.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(tabs)/dashboard'),
-          },
-        ]
+      const formData = new FormData();
+      formData.append('vehicleName', `${make} ${model}`);
+      formData.append(
+        'vehicleLicenseNumber',
+        `${(make + model + Date.now()).slice(0, 20)}`
       );
-    }, 1000);
-  };
+      formData.append('brand', make);
+      formData.append('model', model);
+      formData.append('year', year.toString());
+      formData.append('vehicleType', 'car');
+      formData.append('description', description);
+      formData.append('noSeats', seats.toString());
+      formData.append('fuelType', fuel);
+      formData.append('transmission', transmission);
+      formData.append('mileage', '');
+      formData.append('isDriverAvailable', withDriver ? 'true' : 'false');
+      formData.append('pricePerDay', pricePerDay.toString());
+      formData.append(
+        'pricePerDistance',
+        pricePerKm ? pricePerKm.toString() : '0'
+      );
+      formData.append('location', location);
+      formData.append('phoneNumber', contactPhone);
+      formData.append('email', contactEmail);
+      formData.append('pickupAddress', pickupAddress || location);
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: scaleValue.value }],
-    };
-  });
+      if (features.length > 0)
+        formData.append('features', JSON.stringify(features));
 
-  const handlePressIn = () => {
-    scaleValue.value = withSpring(0.95);
-  };
+      images.forEach((img) => {
+        formData.append('vehicleImages', {
+          uri:
+            Platform.OS === 'ios' && !img.uri.startsWith('file://')
+              ? `file://${img.uri}`
+              : img.uri,
+          name: img.name,
+          type: img.type,
+        } as any);
+      });
 
-  const handlePressOut = () => {
-    scaleValue.value = withSpring(1);
+      // axios post
+       const response = await axios.post(REGISTER_ENDPOINT, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      Alert.alert('Success', response.data.message || 'Vehicle added successfully', [
+        { text: 'OK', onPress: () => router.replace('/(tabs)/dashboard') },
+      ]);
+    } catch (error: any) {
+      console.error('Vehicle register error:', error.response?.data || error.message);
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || 'Failed to add vehicle.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         {/* Header */}
         <Animated.View style={styles.header} entering={FadeIn}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -178,17 +244,6 @@ export default function AddCarScreen() {
                 value={year}
                 onChangeText={setYear}
                 keyboardType="numeric"
-                placeholderTextColor="#8E8E93"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <ImageIcon size={20} color="#8E8E93" />
-              <TextInput
-                style={styles.input}
-                placeholder="Image URL (optional)"
-                value={imageUrl}
-                onChangeText={setImageUrl}
                 placeholderTextColor="#8E8E93"
               />
             </View>
@@ -346,6 +401,43 @@ export default function AddCarScreen() {
             </View>
           </View>
 
+          {/* Images & Contact */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Vehicle Images</Text>
+            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+              <TouchableOpacity style={styles.addImageBtn} onPress={pickImages}>
+                <ImageIcon size={20} color="#007AFF" />
+                <Text style={{ color: '#007AFF', marginLeft: 8 }}>Pick Images</Text>
+              </TouchableOpacity>
+
+              <Text style={{ color: '#8E8E93' }}>{images.length} selected</Text>
+            </View>
+
+            <View style={{ marginTop: 12, flexDirection: 'row', flexWrap: 'wrap' }}>
+              {images.map((img, idx) => (
+                <View key={idx} style={{ position: 'relative', marginRight: 8, marginBottom: 8 }}>
+                  <Image source={{ uri: img.uri }} style={{ width: 90, height: 70, borderRadius: 8 }} />
+                  <TouchableOpacity
+                    onPress={() => setImages(prev => prev.filter((_, i) => i !== idx))}
+                    style={{
+                      position: 'absolute',
+                      top: -6,
+                      right: -6,
+                      backgroundColor: '#FF3B30',
+                      width: 22,
+                      height: 22,
+                      borderRadius: 11,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text style={{ color: 'white', fontSize: 12 }}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+
           {/* Contact Information */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Contact Information</Text>
@@ -371,6 +463,17 @@ export default function AddCarScreen() {
                 placeholderTextColor="#8E8E93"
               />
             </View>
+
+            <View style={styles.inputContainer}>
+              <MapPin size={20} color="#8E8E93" />
+              <TextInput
+                style={styles.input}
+                placeholder="Pickup Address"
+                value={pickupAddress}
+                onChangeText={setPickupAddress}
+                placeholderTextColor="#8E8E93"
+              />
+            </View>
           </View>
         </Animated.View>
       </ScrollView>
@@ -385,9 +488,11 @@ export default function AddCarScreen() {
           onPressOut={handlePressOut}
         >
           <Animated.View style={animatedStyle}>
-            <Text style={styles.submitButtonText}>
-              {isLoading ? 'Adding Car...' : 'Add Car'}
-            </Text>
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitButtonText}>Add Car</Text>
+            )}
           </Animated.View>
         </TouchableOpacity>
       </Animated.View>
@@ -543,6 +648,20 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     color: '#007AFF',
     marginRight: 6,
+  },
+  addImageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
   },
   bottomActions: {
     backgroundColor: '#FFFFFF',

@@ -4,6 +4,15 @@ const Owner = require('../../Models/ownerModel');
 const Customer = require('../../Models/customerModel');
 const SuperAdmin = require('../../Models/superAdminModel');
 
+// Helper: extract Bearer token from Authorization header
+function getBearerToken(req) {
+    const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+    if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+        return authHeader.slice(7).trim();
+    }
+    return null;
+}
+
 async function verifySuperAdminToken(req, res, next) {
 
     const accessToken = req.cookies[process.env.SUPERADMIN_COOKIE_NAME];
@@ -80,12 +89,32 @@ async function verifySuperAdminToken(req, res, next) {
 }
 
 async function verifyCustomerToken(req, res, next) {
+    // 1) Prefer Authorization header for mobile/SPA clients
+    const headerToken = getBearerToken(req);
+    if (headerToken) {
+        try {
+            const decoded = jwt.verify(headerToken, process.env.JWT_SECRET);
+            if (decoded?.userRole && decoded.userRole !== 'customer') {
+                return res.status(403).json({ message: 'Invalid token for this route (customer only).' });
+            }
+            req.user = decoded;
+            return next();
+        } catch (error) {
+            // If header token invalid/expired, fall through to cookie-based refresh below
+            console.log("Customer's bearer token invalid/expired. Falling back to cookies.");
+        }
+    }
+
+    // 2) Cookie-based flow (for web dashboards)
     const accessToken = req.cookies[process.env.CUSTOMER_COOKIE_NAME];
     const refreshToken = req.cookies[process.env.CUSTOMER_REFRESH_COOKIE_NAME];
 
     if (accessToken) {
         try{
             const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
+            if (decoded?.userRole && decoded.userRole !== 'customer') {
+                return res.status(403).json({ message: 'Invalid token for this route (customer only).' });
+            }
             req.user = decoded;
             return next();
         } catch (error) {
@@ -155,12 +184,32 @@ async function verifyCustomerToken(req, res, next) {
 }
 
 async function verifyOwnerToken(req, res, next) {
+    // 1) Prefer Authorization header for mobile/SPA clients
+    const headerToken = getBearerToken(req);
+    if (headerToken) {
+        try {
+            const decoded = jwt.verify(headerToken, process.env.JWT_SECRET);
+            if (decoded?.userRole && decoded.userRole !== 'owner') {
+                return res.status(403).json({ message: 'Invalid token for this route (owner only).' });
+            }
+            req.user = decoded;
+            return next();
+        } catch (error) {
+            // If header token invalid/expired, fall through to cookie-based refresh below
+            console.log("Owner's bearer token invalid/expired. Falling back to cookies.");
+        }
+    }
+
+    // 2) Cookie-based flow (for web dashboards)
     const accessToken = req.cookies[process.env.OWNER_COOKIE_NAME];
     const refreshToken = req.cookies[process.env.OWNER_REFRESH_COOKIE_NAME];
 
     if (accessToken) {
         try{
             const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
+            if (decoded?.userRole && decoded.userRole !== 'owner') {
+                return res.status(403).json({ message: 'Invalid token for this route (owner only).' });
+            }
             req.user = decoded;
             return next();
         } catch (error) {
