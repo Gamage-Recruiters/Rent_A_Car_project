@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { verifyRefreshToken, createToken } = require('../../Utils/jwtUtil');
+const { verifyRefreshToken, createToken } = require('../../utils/jwtUtil');
 const Owner = require('../../Models/ownerModel');
 const Customer = require('../../Models/customerModel');
 const SuperAdmin = require('../../Models/superAdminModel');
