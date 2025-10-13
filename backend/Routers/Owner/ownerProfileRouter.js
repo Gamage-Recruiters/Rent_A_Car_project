@@ -4,7 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-const { getOwnerProfile, updateOwnerProfile, deleteOwnerProfile } = require('../../Controllers/Owner/ownerProfileController');
+const { getOwnerProfile, updateOwnerProfile, deleteOwnerProfile } = require('../../controllers/Owner/ownerProfileController');
 const { verifyOwnerToken } = require('../../middleware/Auth/verifyToken');
 
 // ✅ Ensure upload folder exists
