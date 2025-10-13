@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { hashPassword, checkPassword } = require('../../../utils/bcryptUtil');
 const { createToken,createRefreshToken } = require('../../../utils/jwtUtil');
-const { isSuperAdmin ,isSuperAdminUser } = require('../../../middleware/auth/authorization');
+const { isSuperAdmin ,isSuperAdminUser } = require('../../../middleware/Auth/authorization');
 
 
 
