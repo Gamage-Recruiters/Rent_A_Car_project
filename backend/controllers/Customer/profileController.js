@@ -29,11 +29,6 @@ async function updateProfile(req, res) {
     try {
         const { firstName, lastName, email, phoneNumber, dateOfBirth, driversLicense, emergencyContact, address, isNewsletterSubscribed } = req.body;
 
-        let photoPath = null;
-        if (req.file) {
-            photoPath = `/uploads/customerProfiles/${req.file.filename}`;
-        }
-
         // Get current customer
         const currentCustomer = await Customer.findById(req.user.id);
         if (!currentCustomer) {
@@ -41,6 +36,19 @@ async function updateProfile(req, res) {
                 success: false,
                 message: 'Customer not found' 
             });
+        }
+
+        let photoPath = null;
+        if (req.file) {
+            // If there's an existing photo, delete it first
+            if (currentCustomer.photo) {
+                const oldPhotoPath = path.join(__dirname, '../../', currentCustomer.photo);
+                fs.unlink(oldPhotoPath, (err) => {
+                    if (err) console.error('Failed to delete old photo:', err);
+                    else console.log('Old photo deleted successfully:', oldPhotoPath);
+                });
+            }
+            photoPath = `/uploads/customerProfiles/${req.file.filename}`;
         }
 
         const updateData = {};

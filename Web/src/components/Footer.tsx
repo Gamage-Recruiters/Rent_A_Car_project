@@ -1,9 +1,115 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Car, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Car, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin, CheckCircle, X } from 'lucide-react';
+import axios from 'axios';
+import { toast } from 'react-toastify';
+import { useAuth } from '../context/AuthContext';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 const Footer: React.FC = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const currentYear = new Date().getFullYear();
+  
+  const [email, setEmail] = useState('');
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState<boolean | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  
+  useEffect(() => {
+    if (user) {
+      checkSubscriptionStatus();
+    }
+  }, [user]);
+  
+  const checkSubscriptionStatus = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/customer/newsletter/status`, {
+        withCredentials: true
+      });
+      
+      if (response.data?.success) {
+        setIsSubscribed(response.data.data.isNewsletterSubscribed);
+        
+        if (user?.email) {
+          setEmail(user.email);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking newsletter status:', error);
+    }
+  };
+  
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    
+    setIsSubscribing(true);
+    
+    try {
+      if (user) {
+        const response = await axios.post(
+          `${API_URL}/customer/newsletter/subscribe`, 
+          {}, 
+          { withCredentials: true }
+        );
+        
+        if (response.data?.success) {
+          setIsSubscribed(true);
+          setShowSuccess(true);
+          toast.success('Successfully subscribed to our newsletter!');
+          
+          // Hide success message after 5 seconds
+          setTimeout(() => {
+            setShowSuccess(false);
+          }, 5000);
+        }
+      } else {
+        sessionStorage.setItem('newsletterEmail', email);
+        toast.info('Please sign up or log in to complete your newsletter subscription');
+        navigate('/login');
+      }
+    } catch (error) {
+      console.error('Error subscribing to newsletter:', error);
+      
+      if (axios.isAxiosError(error) && error.response) {
+        toast.error(error.response.data?.message || 'Failed to subscribe. Please try again.');
+      } else {
+        toast.error('Something went wrong. Please try again later.');
+      }
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
+  
+  // Handle newsletter unsubscribe
+  const handleUnsubscribe = async () => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/customer/newsletter/unsubscribe`, 
+        {}, 
+        { withCredentials: true }
+      );
+      
+      if (response.data?.success) {
+        setIsSubscribed(false);
+        toast.success('Successfully unsubscribed from our newsletter');
+      }
+    } catch (error) {
+      console.error('Error unsubscribing from newsletter:', error);
+      
+      if (axios.isAxiosError(error) && error.response) {
+        toast.error(error.response.data?.message || 'Failed to unsubscribe. Please try again.');
+      } else {
+        toast.error('Something went wrong. Please try again later.');
+      }
+    }
+  };
 
   const footerLinks = {
     company: [
@@ -69,7 +175,7 @@ const Footer: React.FC = () => {
                 <MapPin className="w-4 h-4 text-blue-400" />
                 <span className="text-gray-400">123 Main St, Downtown</span>
               </div>
-              <Link to="/admin-login" className="flex items-center space-x-3">Login as an Admin</Link>
+              
             </div>
           </div>
 
@@ -151,15 +257,63 @@ const Footer: React.FC = () => {
                 Get the latest news, updates, and exclusive offers delivered to your inbox.
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
-              />
-              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium">
-                Subscribe
-              </button>
+            
+            {/* Newsletter Form */}
+            <div>
+              {showSuccess ? (
+                <div className="bg-green-800 bg-opacity-20 border border-green-700 rounded-lg p-4 flex items-start justify-between">
+                  <div className="flex">
+                    <CheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
+                    <div>
+                      <p className="text-green-400 font-medium">Successfully subscribed!</p>
+                      <p className="text-gray-400 text-sm mt-1">Thank you for subscribing to our newsletter.</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setShowSuccess(false)}
+                    className="text-gray-400 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : isSubscribed ? (
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white flex items-center justify-between">
+                    <span className="flex items-center">
+                      <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
+                      <span className="text-green-400">You're subscribed with {user?.email}</span>
+                    </span>
+                    <button 
+                      onClick={handleUnsubscribe}
+                      className="text-gray-400 hover:text-white text-sm underline ml-2"
+                    >
+                      Unsubscribe
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-4">
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={isSubscribing}
+                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {isSubscribing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Processing...
+                      </>
+                    ) : 'Subscribe'}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>

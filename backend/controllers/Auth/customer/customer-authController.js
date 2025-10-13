@@ -1,3 +1,19 @@
+// Get current authenticated user info
+async function getCurrentUser(req, res) {
+    try {
+        // req.user is set by verifyCustomerToken middleware
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({ message: 'Not authenticated' });
+        }
+        const user = await User.findById(req.user.id).select('-password -refreshToken -resetPasswordToken -resetPasswordExpires');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        return res.status(200).json({ user });
+    } catch (error) {
+        return res.status(500).json({ message: 'Server error', error: error.message });
+    }
+}
 const User = require('../../../Models/customerModel');
 const { hashPassword, checkPassword } = require('../../../utils/bcryptUtil');
 const { createToken, createRefreshToken, verifyRefreshToken, createResetToken, verifyResetToken } = require('../../../utils/jwtUtil');
@@ -8,7 +24,7 @@ async function addUser(req, res) {
 
 
     try {
-        const { email, password, firstName, lastName } = req.body;
+        const { email, password, firstName, lastName, phoneNumber, phone } = req.body;
 
         if (!email || !password || !firstName) {
             return res.status(400).json({ message: 'All Fields Required' });
@@ -21,7 +37,13 @@ async function addUser(req, res) {
 
         const hashedPassword = await hashPassword(password);
 
-        const newUser = await User.create({ email, password: hashedPassword, firstName, lastName });
+        const newUser = await User.create({ 
+            email, 
+            password: hashedPassword, 
+            firstName, 
+            lastName,
+            phoneNumber: phoneNumber || phone || ''
+        });
         if (newUser) {
             const payload = {
                 id: newUser._id.toString(),
@@ -42,23 +64,36 @@ async function addUser(req, res) {
             const accessCookieName = process.env.CUSTOMER_COOKIE_NAME;
             const refreshCookieName = process.env.CUSTOMER_REFRESH_COOKIE_NAME;
 
+
+            // Use 'None' for sameSite in production (cross-site), 'Lax' in development
+            const isProd = process.env.NODE_ENV === 'production';
+            const sameSiteValue = isProd ? 'None' : 'Lax';
+
             res.cookie(accessCookieName, accessToken, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'Strict',
+                secure: isProd, // must be true for 'None'
+                sameSite: sameSiteValue,
                 maxAge: 1000 * 60 * 15 // 15 minutes
             });
 
             res.cookie(refreshCookieName, refreshToken, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'Strict',
+                secure: isProd,
+                sameSite: sameSiteValue,
                 maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
             });
 
             return res.status(200).json({
                 message: "User Registration Successfull",
-                userRole: newUser.userRole
+                userRole: newUser.userRole,
+                accessToken,
+                refreshToken,
+                userId: newUser._id.toString(),
+                firstName: newUser.firstName,
+                lastName: newUser.lastName,
+                email: newUser.email,
+                phoneNumber: newUser.phoneNumber,
+                phone: newUser.phoneNumber
             });
         }
 
@@ -133,7 +168,19 @@ async function loginUser(req, res) {
             maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
         });
 
-        return res.status(200).json({ message: "Login Successful", userRole: existUser.userRole });
+        return res.status(200).json({ 
+            message: "Login Successful", 
+            userRole: existUser.userRole,
+             accessToken,
+            refreshToken,
+            userId: existUser._id.toString(),
+            firstName: existUser.firstName,
+            lastName: existUser.lastName,
+            email: existUser.email,
+            phoneNumber: existUser.phoneNumber,
+            phone: existUser.phoneNumber, // Include both for compatibility
+            token: accessToken // Also return token for mobile app
+        });
 
     } catch (error) {
         if (error.name === "ValidationError") {
@@ -202,7 +249,7 @@ async function loginUser(req, res) {
 // }
 
 async function logoutUser(req, res) {
-    
+
     try {
         // Clear refresh token from database if user is authenticated
         if (req.user && req.user.id) {
@@ -258,12 +305,17 @@ async function findOrCreateGoogleUser(profile) {
 async function googleLoginUser(req, res) {
 
     try {
+        console.log('googleLoginUser called');
+        console.log('req.user:', req.user);
+        if (!req.user) {
+            return res.status(400).json({ message: 'Google authentication failed: req.user is undefined.' });
+        }
         const payload = {
-            id: req.user._id.toString(),
+            id: req.user._id?.toString(),
             googleId: req.user.googleId,
             email: req.user.email,
             userRole: req.user.userRole
-        }
+        };
 
         const accessToken = createToken(payload);
         const refreshToken = createRefreshToken(payload);
@@ -276,22 +328,21 @@ async function googleLoginUser(req, res) {
 
         res.cookie(accessCookieName, accessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'Strict',
-            maxAge: 1000 * 60 * 15 // 15 minutes
+            secure: process.env.NODE_ENV === 'production', // or true for localhost testing
+            sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+            maxAge: 1000 * 60 * 15
         });
-
         res.cookie(refreshCookieName, refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'Strict',
-            maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
+            secure: process.env.NODE_ENV === 'production', // or true for localhost testing
+            sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+            maxAge: 1000 * 60 * 60 * 24 * 7
         });
 
+        console.log('Google login successful, redirecting to:', process.env.CLIENT_URL);
         return res.redirect(process.env.CLIENT_URL);
-    
     } catch (error) {
-
+        console.error('Google login error:', error);
         // Email Validation
         if (error.name === "ValidationError") {
             return res.status(400).json({ message: "Invalid Email format" });
@@ -306,7 +357,7 @@ async function requestPasswordReset(req, res) {
     try {
         const { email } = req.body;
 
-        if(!email) {
+        if (!email) {
             return res.status(400).json({ message: "Email is required" });
         }
 
@@ -337,7 +388,7 @@ async function requestPasswordReset(req, res) {
         }
 
         const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-        
+
         // Save reset token to database
         await User.findByIdAndUpdate(user._id, {
             resetPasswordToken: resetToken,
@@ -352,7 +403,7 @@ async function requestPasswordReset(req, res) {
             resetLink,
             process.env.WEBSITE_LINK
         );
-        
+
         if (!emailSent) {
             return res.status(500).json({
                 success: false,
@@ -381,7 +432,7 @@ async function resetPassword(req, res) {
         if (!token || !newPassword || !confirmPassword) {
             return res.status(400).json({
                 success: false,
-                message: "All fields are required" 
+                message: "All fields are required"
             });
         }
 
@@ -445,4 +496,4 @@ async function resetPassword(req, res) {
     }
 }
 
-module.exports = { addUser, loginUser, logoutUser, findOrCreateGoogleUser, googleLoginUser, requestPasswordReset, resetPassword }
+module.exports = { addUser, loginUser, logoutUser, findOrCreateGoogleUser, googleLoginUser, requestPasswordReset, resetPassword, getCurrentUser }
