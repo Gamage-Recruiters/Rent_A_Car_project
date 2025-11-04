@@ -43,10 +43,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const checkAuthStatus = async (): Promise<boolean> => {
     try {
       setIsLoading(true);
-      // Always try to check /me endpoint for customer (user) type
+      
       let userType: 'user' | 'owner' | 'admin' = 'user';
       let endpoint = '';
-      // Try to get user type from localStorage, fallback to 'user'
+      
+      // Try to get user type from localStorage
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         try {
@@ -56,6 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.removeItem('user');
         }
       }
+      
       if (userType === 'admin') {
         endpoint = `${API_URL}/admin/profile`;
       } else if (userType === 'owner') {
@@ -63,9 +65,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         endpoint = `${API_URL}/auth/customer/me`;
       }
+      
       try {
-        const response = await axios.get(endpoint, { withCredentials: true });
-        // For /me endpoint, user is in response.data.user
+        // ✅ Add a small delay to ensure cookies are set
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const response = await axios.get(endpoint, { 
+          withCredentials: true,
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+        
         const userData = response.data.user || response.data.data;
         if (userData) {
           const updatedUser: User = {
@@ -88,21 +99,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             userRole: userData.userRole,
             image: userData.image
           };
+          
           setUser(updatedUser);
           localStorage.setItem('user', JSON.stringify(updatedUser));
+          console.log('✅ User authenticated successfully:', updatedUser.email);
           return true;
         }
         return false;
       } catch (error) {
-        if (axios.isAxiosError(error) && error.response?.status === 401) {
-          localStorage.removeItem('user');
-          setUser(null);
-          return false;
+        if (axios.isAxiosError(error)) {
+          console.error('Auth check failed:', error.response?.status, error.response?.data);
+          if (error.response?.status === 401) {
+            localStorage.removeItem('user');
+            setUser(null);
+          }
         }
-        setUser(null);
-        localStorage.removeItem('user');
         return false;
       }
+    } catch (error) {
+      console.error('checkAuthStatus error:', error);
+      setUser(null);
+      localStorage.removeItem('user');
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -158,7 +176,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   // ...existing code for login, signup, logout, forgotPassword...
-  const login = async (email: string, password: string, userType: 'user' | 'owner' | 'admin'): Promise<boolean> => {
+  const login = async (email: string, password: string, userType: 'user' | 'owner'|'admin'): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
 
@@ -177,13 +195,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (response.data) {
         // Store the user type in localStorage before checking auth status
-        // This ensures checkAuthStatus knows which profile endpoint to use
         const baseUser = { type: userType };
         localStorage.setItem('user', JSON.stringify(baseUser));
         
-        // Now fetch complete profile data
-        await checkAuthStatus();
-        return true;
+        // ✅ Wait for auth status check to complete
+        const authSuccess = await checkAuthStatus();
+        
+        // ✅ Only return true if auth status was successfully verified
+        return authSuccess;
       }
       return false;
     } catch (error) {
