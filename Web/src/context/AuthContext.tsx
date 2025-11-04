@@ -39,8 +39,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   
   // Initialize axios with credentials
   axios.defaults.withCredentials = true;
-  axios.defaults.baseURL = API_URL.replace('/api', ''); 
-
+  
   const checkAuthStatus = async (): Promise<boolean> => {
     try {
       setIsLoading(true);
