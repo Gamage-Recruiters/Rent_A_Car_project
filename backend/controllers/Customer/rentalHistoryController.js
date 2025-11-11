@@ -11,7 +11,7 @@ async function getCustomerRentalHistory (req, res) {
         }
 
         const bookings = await Booking.find({ customer: req.user.id })
-            .populate('vehicle', 'vehicleName vehicleLicenseNumber')
+            .populate('vehicle', 'vehicleName vehicleLicenseNumber images pricePerDay vehicleType brand model year fuelType transmission isDriverAvailable pickupAddress')
             .populate('owner', 'firstName lastName email')
             .populate('customer', 'firstName lastName email')
             .sort({createdAt: -1});

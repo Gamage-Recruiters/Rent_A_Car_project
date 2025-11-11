@@ -39,7 +39,7 @@ const ownerSchema = new mongoose.Schema(
 
     isApproved: {
       type: Boolean,
-      default: true,
+      default: false,
       description: "Indicates whether the owner is approved by super admin",
     },
 

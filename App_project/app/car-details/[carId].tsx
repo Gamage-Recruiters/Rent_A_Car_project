@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ import {
   Heart,
   Share,
 } from 'lucide-react-native';
-import { useUserStore } from '@/stores/userStore';
+import { useUserStore } from '../../stores/userStore';
 import { router, useLocalSearchParams } from 'expo-router';
 import Animated, {
   useSharedValue,
@@ -31,52 +31,120 @@ import Animated, {
   withSpring,
   FadeIn,
 } from 'react-native-reanimated';
+import { ActivityIndicator } from 'react-native-paper';
+import FavoriteButton from '@/components/FavoriteButton';
+
+// ...other imports remain the same
 
 const { width } = Dimensions.get('window');
 
+// Move FeatureItem component outside of the main component
+const FeatureItem = ({ icon: Icon, text }: { icon: any, text: string }) => (
+  <View style={{
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '50%',
+    marginBottom: 8,
+  }}>
+    <Icon size={16} color="#007AFF" />
+    <Text style={{
+      fontSize: 14,
+      fontFamily: 'Inter-Regular',
+      color: '#1D1D1F',
+      marginLeft: 8,
+    }}>{text}</Text>
+  </View>
+);
+
 export default function CarDetailsScreen() {
   const { carId } = useLocalSearchParams();
-  const { allCars, user } = useUserStore();
-  const [isFavorited, setIsFavorited] = useState(false);
+  const { user, fetchVehicleById } = useUserStore();
   
-  const car = allCars.find(c => c.id === carId);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [car, setCar] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [imageLoadError, setImageLoadError] = useState(false);
+  
+  const featureIconRef = useRef(Star);
+  const animationRef = useRef(null);
+  
+  // useSharedValue is a hook from Reanimated, so must be unconditional
   const scaleValue = useSharedValue(1);
 
-  if (!car) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Car not found</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // Load car details
+  useEffect(() => {
+    let isMounted = true;
+    
+    async function loadCarDetails() {
+      try {
+        setLoading(true);
+        const carData = await fetchVehicleById(carId as string);
+        
+        if (isMounted) {
+          if (carData) {
+            console.log('Car data loaded:', carData.id);
+            setCar(carData);
+          } else {
+            setError('Car not found');
+          }
+        }
+      } catch (err) {
+        console.error('Error loading car details:', err);
+        if (isMounted) {
+          setError('Failed to load car details');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+    
+    loadCarDetails();
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+  }, [carId, fetchVehicleById]);
 
+  // Define UI handlers
   const handleBack = () => {
     router.back();
   };
 
   const handleBookNow = () => {
+    // Log the user state to debug
+    console.log("Current user state:", user);
+    
+    // Simplified check - if user exists, consider them logged in
     if (!user) {
+      console.log("No user detected, redirecting to login");
       router.push('/auth/login');
       return;
     }
     
-    router.push({
-      pathname: '/booking/[carId]',
-      params: { carId: car.id },
-    });
+    if (car) {
+      console.log("User authenticated, navigating to booking page with car ID:", car.id);
+      router.push({
+        pathname: '/booking/[carId]',
+        params: { carId: car.id },
+      });
+    } else {
+      console.log("Car data is missing");
+    }
   };
 
   const handleContact = (type: 'phone' | 'email') => {
-    if (!user) {
+    if (!user || !car) {
       router.push('/auth/login');
       return;
     }
 
-    if (type === 'phone') {
+    if (type === 'phone' && car.contactPhone) {
       Linking.openURL(`tel:${car.contactPhone}`);
-    } else {
+    } else if (type === 'email' && car.contactEmail) {
       Linking.openURL(`mailto:${car.contactEmail}`);
     }
   };
@@ -86,10 +154,12 @@ export default function CarDetailsScreen() {
   };
 
   const handleShare = () => {
-    // In a real app, you would use react-native-share
-    console.log('Share car:', car.make, car.model);
+    if (car) {
+      console.log('Share car:', car.make, car.model);
+    }
   };
 
+  // Animation styles
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: scaleValue.value }],
@@ -104,12 +174,34 @@ export default function CarDetailsScreen() {
     scaleValue.value = withSpring(1);
   };
 
-  const FeatureItem = ({ icon: Icon, text }: any) => (
-    <View style={styles.featureItem}>
-      <Icon size={16} color="#007AFF" />
-      <Text style={styles.featureText}>{text}</Text>
-    </View>
-  );
+  // Loading state
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Loading car details...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Error state
+  if (error || !car) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error || 'Car not found'}</Text>
+          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Ensure car.features is an array
+  const features = Array.isArray(car.features) ? car.features : [];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -120,13 +212,7 @@ export default function CarDetailsScreen() {
             <ArrowLeft size={24} color="#1D1D1F" />
           </TouchableOpacity>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerButton} onPress={handleFavorite}>
-              <Heart 
-                size={24} 
-                color={isFavorited ? "#F44336" : "#1D1D1F"}
-                fill={isFavorited ? "#F44336" : "none"}
-              />
-            </TouchableOpacity>
+            <FavoriteButton carId={carId as string} style={styles.headerButton} />
             <TouchableOpacity style={styles.headerButton} onPress={handleShare}>
               <Share size={24} color="#1D1D1F" />
             </TouchableOpacity>
@@ -135,7 +221,18 @@ export default function CarDetailsScreen() {
 
         {/* Car Image */}
         <Animated.View entering={FadeIn} style={styles.imageContainer}>
-          <Image source={{ uri: car.image }} style={styles.carImage} />
+          <Image 
+            source={{ 
+              uri: imageLoadError 
+                ? 'https://via.placeholder.com/400x300?text=No+Image' 
+                : car.image 
+            }} 
+            style={styles.carImage} 
+            onError={() => {
+              console.error('Image loading error for:', car.image);
+              setImageLoadError(true);
+            }}
+          />
         </Animated.View>
 
         {/* Car Info */}
@@ -194,7 +291,7 @@ export default function CarDetailsScreen() {
           <View style={styles.featuresContainer}>
             <Text style={styles.sectionTitle}>Features</Text>
             <View style={styles.featuresGrid}>
-              {car.features.map((feature, index) => (
+              {features.map((feature: string, index: number) => (
                 <FeatureItem key={index} icon={Star} text={feature} />
               ))}
             </View>
@@ -498,13 +595,37 @@ const styles = StyleSheet.create({
   },
   bookButton: {
     backgroundColor: '#007AFF',
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: 16,
+    height: 56,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   bookButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Inter-Bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#8E8E93',
+  },
+  backButton: {
+    marginTop: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+  },
+  backButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
   },
 });

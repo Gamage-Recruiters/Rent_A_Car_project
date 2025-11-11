@@ -8,6 +8,9 @@ import {
 import { Vehicle } from '../types';
 import { mockVehicles } from '../data/mockData';
 
+const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const API_URL = `${BASE.replace(/\/$/, '')}/superadmin`;
+
 const AdminVehicleDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -18,48 +21,89 @@ const AdminVehicleDetailsPage: React.FC = () => {
 
   useEffect(() => {
     const fetchVehicleDetails = async () => {
+      if (!id) return setError('No vehicle id');
+      setLoading(true);
       try {
-        setLoading(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        const foundVehicle = mockVehicles.find(v => v.id === id);
-        if (foundVehicle) {
-          setVehicle({
-            ...foundVehicle,
-            status: foundVehicle.status || 'pending', // Default status
-            contactInfo: foundVehicle.contactInfo || {
-              phone: '',
-              email: '',
-              address: ''
-            },
-            features: foundVehicle.features || []
-          });
-        } else {
-          setError('Vehicle not found');
+        const res = await fetch(`${API_URL}/vehicles/${id}`, { credentials: 'include' });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          setError(body?.message || `Failed to load vehicle (${res.status})`);
+          return;
         }
+        const v = await res.json();
+        setVehicle({
+          // map backend fields to your Vehicle type as needed
+          id: v._id ?? v.id,
+          name: v.name ?? v.vehicleName ?? 'Unnamed',
+          brand: v.brand ?? '',
+          model: v.model ?? '',
+          images: v.images ?? [],
+          pricePerDay: v.pricePerDay ?? v.dailyPrice ?? 0,
+          pricePerKm: v.pricePerKm,
+          type: v.type ?? '',
+          seats: v.seats ?? 0,
+          fuelType: v.fuelType ?? '',
+          transmission: v.transmission ?? '',
+          year: v.year ?? '',
+          mileage: v.mileage ?? '',
+          description: v.description ?? '',
+          rating: v.rating ?? 0,
+          reviewCount: v.reviewCount ?? 0,
+          location: v.location ?? '',
+          contactInfo: v.contactInfo ?? { email: v.email ?? '', phone: v.phone ?? '', address: v.address ?? '' },
+          // add other fields if your Vehicle type expects them
+        } as Vehicle);
       } catch (err) {
         setError('Failed to load vehicle details');
+        console.error(err);
       } finally {
         setLoading(false);
-      }
+        }
     };
 
     fetchVehicleDetails();
   }, [id]);
 
   const handleBack = () => navigate('/admin-vehicle-listings');
-  const handleApprove = () => {
-    // In a real app, you would call an API here
-    alert(`Vehicle ${vehicle?.id} approved!`);
-    navigate('/admin-vehicle-listings');
+  const handleApprove = async () => {
+    if (!vehicle?.id) return;
+    try {
+      const res = await fetch(`${API_URL}/vehicles/approve/${vehicle.id}`, {
+        method: 'PATCH',
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert(body?.message || 'Approve failed');
+        return;
+      }
+      alert('Vehicle approved');
+      navigate('/admin-vehicle-listings');
+    } catch (err) {
+      console.error(err);
+      alert('Error approving vehicle');
+    }
   };
-  const handleReject = () => {
-    // In a real app, you would call an API here
-    alert(`Vehicle ${vehicle?.id} rejected!`);
-    navigate('/admin-vehicle-listings');
+  const handleReject = async () => {
+    if (!vehicle?.id) return;
+    if (!confirm('Reject and delete this vehicle?')) return;
+    try {
+      const res = await fetch(`${API_URL}/vehicles/reject/${vehicle.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert(body?.message || 'Reject failed');
+        return;
+      }
+      alert('Vehicle rejected and deleted');
+      navigate('/admin-vehicle-listings');
+    } catch (err) {
+      console.error(err);
+      alert('Error rejecting vehicle');
+    }
   };
-
   const getStatusBadge = () => {
     if (!vehicle?.status) return null;
     

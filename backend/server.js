@@ -16,6 +16,7 @@ const app = express();
 const allowedOrigins = [
   process.env.CLIENT_URL,
   process.env.ADMIN_URL,
+  "https://rent-a-car-project-two.vercel.app"
 ];
 
 app.use(cors({
@@ -34,8 +35,13 @@ app.use(cookieParser());
 app.use(passport.initialize());
 
 // ✅ Serve static files (profile images, etc.)
-app.use('/uploads/ownerProfileImages', express.static(path.join(__dirname, 'uploads/ownerProfileImages')));
 
+// Serve static files for vehicle images
+app.use('/uploads/ownerProfileImages', express.static(path.join(__dirname, 'uploads/ownerProfileImages')));
+app.use('/uploads/vehicles', express.static(path.join(__dirname, 'uploads/vehicles')));
+app.use('/uploads/customerProfiles', express.static(path.join(__dirname, 'uploads/customerProfiles')));
+app.use('/uploads/customerIdImage', express.static(path.join(__dirname, 'uploads/customerIdImage')));
+app.use('/uploads/customerLicenseImage', express.static(path.join(__dirname, 'uploads/customerLicenseImage')));
 // ============================
 // ✅ Database Connection
 // ============================
@@ -71,6 +77,9 @@ app.use("/api/superadmin", require("./Routers/Admin/admin-ownerRouter"));
 app.use("/api/superadmin", require("./Routers/Admin/admin-vehicleRouter"));
 app.use("/api/superadmin", require("./Routers/Admin/admin-customerRoute"));
 app.use("/api/superadmin", require("./Routers/Admin/admin-profileRouter"));
+
+// 🔹 Cloudinary
+app.use("/api/cloudinary", require("./Routers/Cloudinary/imageUploadRouter"));
 
 // ============================
 // ✅ Health Check

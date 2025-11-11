@@ -34,7 +34,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
       try {
         setLoadingLocations(true);
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/customer/vehicle/locations`
+          `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/customer/vehicle/locations`
         );
 
         if (response.ok) {

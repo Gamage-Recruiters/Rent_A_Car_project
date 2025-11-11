@@ -32,8 +32,9 @@ export default function EditProfileScreen() {
     isNewsletterSubscribed: false,
     photo: null,
   });
-  const [profileImage, setProfileImage] = useState(null);
-  const [imageFile, setImageFile] = useState(null);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  type ImageFileType = { uri: string; type: string; name: string } | null;
+  const [imageFile, setImageFile] = useState<ImageFileType>(null);
 
   const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -45,7 +46,7 @@ export default function EditProfileScreen() {
   const fetchProfileData = async () => {
     try {
       setIsLoading(true);
-      const token = await AsyncStorage.getItem('customerToken');
+      const token = await AsyncStorage.getItem('accessToken');
       
       if (!token) {
         Alert.alert('Error', 'You are not logged in');
@@ -87,7 +88,7 @@ export default function EditProfileScreen() {
         
         // If unauthorized, redirect to login
         if (error.response.status === 401) {
-          await AsyncStorage.removeItem('customerToken');
+          await AsyncStorage.removeItem('accessToken');
           router.replace('/auth/login');
         }
       }
@@ -98,11 +99,17 @@ export default function EditProfileScreen() {
     }
   };
 
-  const getImageUrl = (photoPath) => {
+  const getImageUrl = (photoPath: string) => {
     if (!photoPath) return null;
     if (photoPath.startsWith('http')) return photoPath;
-    return `${API_URL.replace('/api', '')}${photoPath}`;
-  };
+    
+    // Remove '/api' from API_URL when constructing image URLs
+    const baseUrl = API_URL?.includes('/api') 
+        ? API_URL.substring(0, API_URL.indexOf('/api'))
+        : API_URL;
+        
+    return `${baseUrl}${photoPath}`;
+    };
 
   const handleImageChange = async () => {
     try {
@@ -142,7 +149,7 @@ export default function EditProfileScreen() {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      const token = await AsyncStorage.getItem('customerToken');
+      const token = await AsyncStorage.getItem('accessToken');
       
       if (!token) {
         Alert.alert('Error', 'You are not logged in');
@@ -161,7 +168,11 @@ export default function EditProfileScreen() {
       
       // Add image if selected
       if (imageFile) {
-        formData.append('customerProfileImage', imageFile);
+        formData.append(
+          'customerProfileImage',
+          imageFile as any
+        );
+        console.log('Adding image file to form data:', imageFile);
       }
 
       console.log('Sending update with data:', formData);
@@ -215,7 +226,7 @@ export default function EditProfileScreen() {
       <View style={styles.imageContainer}>
         <TouchableOpacity onPress={handleImageChange}>
           {profileImage ? (
-            <Image source={{ uri: profileImage }} style={styles.profileImage} />
+            <Image source={{ uri: profileImage || 'https://via.placeholder.com/150?text=Profile' }} style={styles.profileImage} />
           ) : (
             <View style={[styles.profileImage, styles.profileImagePlaceholder]}>
               <Text style={styles.profileImagePlaceholderText}>

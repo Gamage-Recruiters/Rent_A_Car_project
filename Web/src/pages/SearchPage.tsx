@@ -63,10 +63,13 @@ const SearchPage: React.FC = () => {
         Object.entries(backendFilters).filter(([_, value]) => value !== undefined)
       );
 
+      console.log("Fetching vehicles with filters:", cleanedFilters);
       const data = await getAllVehicles(cleanedFilters);
+      console.log("Received vehicle data:", data);
       setVehicles(Array.isArray(data) ? data : []);
     } catch (err: any) {
       console.error("Error fetching vehicles:", err);
+      console.error("Error details:", err.response || err.message);
       setError(err.response?.data?.message || "Failed to load vehicles. Please try again.");
       setVehicles([]);
     } finally {

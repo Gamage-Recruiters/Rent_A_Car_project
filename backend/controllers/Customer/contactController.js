@@ -112,12 +112,15 @@ async function getCustomerMessages(req, res) {
                 message: "Authentication required. Please log in."
             });
         }
+
+        // Fetch all messages for this customer, including admin replies
         const messages = await Contact.find({ customer: req.user.id })
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .populate('customer', 'firstName lastName email'); // optional
 
         return res.status(200).json({
             success: true,
-            data: messages
+            data: messages // each message contains "replies" array
         });
     } catch (error) {
         console.error("Error fetching customer messages:", error);
@@ -128,5 +131,6 @@ async function getCustomerMessages(req, res) {
         });
     }
 };
+
 
 module.exports = { submitMessage, getCustomerMessages };

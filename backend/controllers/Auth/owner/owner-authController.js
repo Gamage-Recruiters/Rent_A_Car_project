@@ -58,28 +58,43 @@ async function registerOwner(req, res) {
       const accessCookieName = process.env.OWNER_COOKIE_NAME;
       const refreshCookieName = process.env.OWNER_REFRESH_COOKIE_NAME;
 
+      const isProd = process.env.NODE_ENV === 'production';
+
       res.cookie(accessCookieName, accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "Strict",
+        secure: isProd,
+        sameSite: isProd ? 'None' : 'Lax',
         maxAge: 1000 * 60 * 15, // 15 minutes
       });
 
       res.cookie(refreshCookieName, refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "Strict",
+        secure: isProd,
+        sameSite: isProd ? 'None' : 'Lax',
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       });
 
-      return res
-        .status(200)
-        .json({ message: "Owner Registration Successfull" });
+      return res.status(200).json({
+        message: "Owner Registration Successful",
+        accessToken,
+        refreshToken,
+        owner: {
+          id: newOwner._id,
+          email: newOwner.email,
+          firstName: newOwner.firstName,
+          lastName: newOwner.lastName,
+          phone: newOwner.phone,
+        },
+      });
     }
   } catch (error) {
     if (error.code === 11000) {
       console.warn("Duplicate slipped through:", email);
-      return res.status(409).json({ message: "Owner's Email Already Exsist" });
+      return res.status(409).json({
+        message: "Owner's Email Already Exsist",
+        accessToken,
+        refreshToken,
+      });
     }
 
     // Email Validation
@@ -98,9 +113,7 @@ async function loginOwner(req, res) {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res
-      .status(400)
-      .json({ message: "Email or Password cannot be empty" });
+    return res.status(400).json({ message: "Email and Password are required" });
   }
 
   try {
@@ -111,12 +124,12 @@ async function loginOwner(req, res) {
     }
 
     const isPassMatch = await checkPassword(password, existOwner.password);
-
     if (!isPassMatch) {
       return res.status(400).json({ message: "Invalid Password" });
     }
 
-    if (!existOwner.isApproved) {
+    // If you don’t want approval system, remove this check
+    if (existOwner.isApproved === false) {
       return res.status(403).json({
         message: "Your account is pending approval by an administrator",
       });
@@ -131,37 +144,49 @@ async function loginOwner(req, res) {
     const accessToken = createToken(payload);
     const refreshToken = createRefreshToken(payload);
 
-    // Store refresh token in database
+    // Save refresh token in DB
     await Owner.findByIdAndUpdate(existOwner._id, { refreshToken });
 
     // Set cookies
-    const accessCookieName = process.env.OWNER_COOKIE_NAME;
-    const refreshCookieName = process.env.OWNER_REFRESH_COOKIE_NAME;
+    const accessCookieName = process.env.OWNER_COOKIE_NAME || "owner_access";
+    const refreshCookieName = process.env.OWNER_REFRESH_COOKIE_NAME || "owner_refresh";
+
+    const isProd = process.env.NODE_ENV === 'production';
 
     res.cookie(accessCookieName, accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
+      secure: isProd,
+      sameSite: isProd ? 'None' : 'Lax',
       maxAge: 1000 * 60 * 15, // 15 minutes
     });
 
     res.cookie(refreshCookieName, refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      secure: isProd,
+      sameSite: isProd ? 'None' : 'Lax',
+      maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
-    return res.status(200).json({ message: "Owner Login Successful" });
+    return res.status(200).json({
+      message: "Owner Login Successful",
+      userRole: "owner",
+      userId: existOwner._id.toString(),
+      firstName: existOwner.firstName,
+      lastName: existOwner.lastName,
+      email: existOwner.email,
+      phone: existOwner.phone,
+      token: accessToken,
+      accessToken,
+      refreshToken
+    });
   } catch (error) {
-    if (error.name === "ValidationError") {
-      return res.status(400).json({ message: "Invalid Email format" });
-    }
+    console.error("Login error:", error);
     return res
       .status(500)
       .json({ message: "Server Error", error: error.message });
   }
 }
+
 
 async function logoutOwner(req, res) {
   try {
@@ -172,17 +197,19 @@ async function logoutOwner(req, res) {
       await Owner.findOneAndUpdate({ refreshToken }, { refreshToken: null });
     }
 
+    const isProd = process.env.NODE_ENV === 'production';
+
     // Clear cookies both refresh and access
     res.clearCookie(process.env.OWNER_COOKIE_NAME, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
+      secure: isProd,
+      sameSite: isProd ? 'None' : 'Lax', 
     });
 
     res.clearCookie(process.env.OWNER_REFRESH_COOKIE_NAME, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
+      secure: isProd,
+      sameSite: isProd ? 'None' : 'Lax', 
     });
 
     return res.status(200).json({ message: "Logout successful" });

@@ -19,6 +19,10 @@ export interface User {
   newsletterSubscribedAt?: string;
   newsletterUnsubscribedAt?: string;
   userRole?: string;
+  image?: {
+    public_id?: string;
+    url?: string;
+  };
 }
 
 export interface Vehicle {
@@ -47,6 +51,7 @@ export interface Vehicle {
   pricePerKm?: number; // Changed from pricePerDistance
   location: string;
   phoneNumber?: string | number;
+  email: string;
   ownerId?: string;
   owner?: {
     _id?: string;
@@ -68,6 +73,7 @@ export interface Vehicle {
   noSeats?: number; // Keep for backward compatibility
   mileage?: number;
   status?: 'pending' | 'approved' | 'rejected';
+  views?: number;
 }
 
 export interface Booking {

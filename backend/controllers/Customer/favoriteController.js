@@ -2,22 +2,32 @@ const Favorite = require('../../Models/favoriteModel');
 
 async function addToFavorites(req, res) {
     const { vehicleId } = req.body;
+    // Get user ID from the token verification middleware
+    const customerId = req.userId || req.user?.id;
+
+    if (!customerId) {
+        return res.status(401).json({
+            success: false,
+            message: 'User not authenticated properly'
+        });
+    }
 
     try {
         const exists = await Favorite.findOne({
-            customer: req.user.id,
+            customer: customerId,
             vehicle: vehicleId
         });
 
         if (exists) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vehicle is already in favorites'
+            return res.status(200).json({
+                success: true,
+                message: 'Vehicle is already in favorites',
+                favorite: exists
             });
         }
 
         const favorite = await Favorite.create({
-            customer: req.user.id,
+            customer: customerId,
             vehicle: vehicleId
         });
 
@@ -27,6 +37,7 @@ async function addToFavorites(req, res) {
             favorite
         });
     } catch (error) {
+        console.error("Error adding to favorites:", error);
         return res.status(500).json({
             success: false,
             message: 'Server error',
@@ -35,14 +46,21 @@ async function addToFavorites(req, res) {
     }
 };
 
-
 async function removeFromFavorites(req, res) {
     const favoriteId = req.params.id;
+    const customerId = req.userId || req.user?.id;
+
+    if (!customerId) {
+        return res.status(401).json({
+            success: false,
+            message: 'User not authenticated properly'
+        });
+    }
 
     try {
         const removed = await Favorite.findOneAndDelete({
             _id: favoriteId,
-            customer: req.user.id
+            customer: customerId
         });
 
         if (!removed) {
@@ -57,6 +75,7 @@ async function removeFromFavorites(req, res) {
             message: 'Vehicle removed from favorites'
         });
     } catch (error) {
+        console.error("Error removing from favorites:", error);
         return res.status(500).json({
             success: false,
             message: 'Server error',
@@ -66,17 +85,26 @@ async function removeFromFavorites(req, res) {
 };
 
 async function getFavorites(req, res) {
+    const customerId = req.userId || req.user?.id;
+
+    if (!customerId) {
+        return res.status(401).json({
+            success: false,
+            message: 'User not authenticated properly'
+        });
+    }
+
     try {
-        const favorites = await Favorite.find({ customer: req.user.id })
+        const favorites = await Favorite.find({ customer: customerId })
             .populate('vehicle')
-            .populate('customer')
             .sort({ createdAt: -1 });
 
-            return res.status(200).json({
-                success: true,
-                favorites
-            });
+        return res.status(200).json({
+            success: true,
+            favorites
+        });
     } catch (error) {
+        console.error("Error getting favorites:", error);
         return res.status(500).json({
             success: false,
             message: 'Server error',
@@ -87,10 +115,18 @@ async function getFavorites(req, res) {
 
 async function checkIfFavorited(req, res) {
     const { vehicleId } = req.params;
+    const customerId = req.userId || req.user?.id;
+
+    if (!customerId) {
+        return res.status(401).json({
+            success: false,
+            message: 'User not authenticated properly'
+        });
+    }
 
     try {
         const favorite = await Favorite.findOne({
-            customer: req.user.id,
+            customer: customerId,
             vehicle: vehicleId
         });
 
@@ -100,7 +136,7 @@ async function checkIfFavorited(req, res) {
             favoriteId: favorite ? favorite._id : null
         });
     } catch (error) {
-        console.error('Check favorite error:', error);
+        console.error("Check favorite error:", error);
         return res.status(500).json({
             success: false,
             message: 'Server error',
