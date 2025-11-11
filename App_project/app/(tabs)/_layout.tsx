@@ -82,6 +82,7 @@ export default function TabLayout() {
           href: isOwner ? undefined : null,
         }}
       />
+      {/* Owner profile tab visible only for owners */}
       <Tabs.Screen
         name="profile"
         options={{
@@ -89,16 +90,19 @@ export default function TabLayout() {
           tabBarIcon: ({ size, color }) => (
             <User size={size} color={color} />
           ),
-          // Redirect to appropriate profile screen
-          href: isOwner ? '/(tabs)/profile' : '/(tabs)/userProfile',
+          href: isOwner ? '/(tabs)/profile' : null,
         }}
       />
 
+      {/* Customer profile tab visible only for customers */}
       <Tabs.Screen
         name="userProfile"
         options={{
-          // Hide this from tab bar
-          href: null,
+          title: 'Profile',
+          tabBarIcon: ({ size, color }) => (
+            <User size={size} color={color} />
+          ),
+          href: isOwner ? null : '/(tabs)/userProfile',
         }}
       />
 
@@ -109,6 +113,15 @@ export default function TabLayout() {
           tabBarIcon: ({ size, color }) => (
             <Calendar size={size} color={color} />
           ),
+          // Route to appropriate history screen based on user type
+          href: isOwner ? '/(tabs)/rental_history' : '/(tabs)/customer_rental_history',
+        }}
+      />
+      <Tabs.Screen
+        name="customer_rental_history"
+        options={{
+          // Hide this from tab bar
+          href: null,
         }}
       />
       <Tabs.Screen

@@ -31,11 +31,11 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const setStoreUserType = useUserStore(state => state.setUserType);
+  const setStoreUserType = useUserStore((state) => state.setUserType);
   const scaleValue = useSharedValue(1);
 
   const API_URL = process.env.EXPO_PUBLIC_API_URL;
-  
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter your email and password');
@@ -47,7 +47,7 @@ export default function LoginScreen() {
       // Api call
       const endpoint = `/auth/${userType}/login`;
       console.log(`Making login request to: ${API_URL}${endpoint}`);
-      
+
       const response = await axios.post(`${API_URL}${endpoint}`, {
         email,
         password,
@@ -55,14 +55,68 @@ export default function LoginScreen() {
 
       if (response.status === 200) {
         console.log('Login successful:', response.data);
-        
-        // Store the token and user type
-        await AsyncStorage.setItem('customerToken', response.data.token || 'dummy-token');
+
+        // Store the token
+        const accessToken =
+          response.data.accessToken || response.data.token || 'dummy-token';
+        const refreshToken =
+          response.data.refreshToken || 'dummy-refresh-token';
+
+        // Store tokens with user type prefix
+        if (userType === 'owner') {
+          await AsyncStorage.setItem('ownerAccessToken', accessToken);
+          await AsyncStorage.setItem('ownerRefreshToken', refreshToken);
+          // Also store regular accessToken for backward compatibility
+          await AsyncStorage.setItem('accessToken', accessToken);
+        } else {
+          await AsyncStorage.setItem('accessToken', accessToken);
+          await AsyncStorage.setItem('refreshToken', refreshToken);
+        }
+
+        await AsyncStorage.setItem('accessToken', accessToken);
+        await AsyncStorage.setItem('refreshToken', refreshToken);
+
+        // Create a proper user object with an id field
+        const userData = {
+          id:
+            response.data.userId || response.data._id || Date.now().toString(), // Add id field
+          email: email,
+          firstName:
+            response.data.firstName ||
+            response.data.user?.firstName ||
+            email.split('@')[0],
+          lastName:
+            response.data.lastName || response.data.user?.lastName || '',
+          name: response.data.firstName
+            ? `${response.data.firstName} ${response.data.lastName || ''}`
+            : email.split('@')[0],
+          phone:
+            response.data.phone ||
+            response.data.phoneNumber ||
+            response.data.user?.phone ||
+            response.data.user?.phoneNumber ||
+            '',
+          phoneNumber:
+            response.data.phoneNumber ||
+            response.data.phone ||
+            response.data.user?.phoneNumber ||
+            response.data.user?.phone ||
+            '',
+          type: userType === 'owner' ? 'owner' : ('user' as 'user' | 'owner'),
+          userRole: response.data.userRole || userType,
+          createdAt: new Date().toISOString(),
+        };
+
+        // Update the store with the user data
+        useUserStore.getState().setUser(userData);
+        useUserStore
+          .getState()
+          .setUserType(userType === 'owner' ? 'owner' : 'user');
+
+        // Store user data in AsyncStorage
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
         await AsyncStorage.setItem('userType', userType);
-        
-        // Also update the store
-        setStoreUserType(userType === 'owner' ? 'owner' : 'user');
-        
+
         // Login successful, navigate to main app
         router.replace('/(tabs)');
       } else {
@@ -70,15 +124,15 @@ export default function LoginScreen() {
       }
     } catch (error) {
       let errorMessage = 'Please check your credentials and try again.';
-        if (axios.isAxiosError(error) && error.response) {
-          // Get the error message from the API response
-          console.log('Login error:', error.response.data);
-          errorMessage = error.response.data.message || errorMessage;
-        } else if (error instanceof Error) {
-          errorMessage = error.message;
-        }
-        Alert.alert('Login Failed', errorMessage);
-      } finally {
+      if (axios.isAxiosError(error) && error.response) {
+        // Get the error message from the API response
+        console.log('Login error:', error.response.data);
+        errorMessage = error.response.data.message || errorMessage;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      Alert.alert('Login Failed', errorMessage);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -117,29 +171,33 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={[
               styles.userTypeButton,
-              userType === 'customer' && styles.activeUserTypeButton
+              userType === 'customer' && styles.activeUserTypeButton,
             ]}
             onPress={() => setUserType('customer')}
           >
-            <Text style={[
-              styles.userTypeText,
-              userType === 'customer' && styles.activeUserTypeText
-            ]}>
+            <Text
+              style={[
+                styles.userTypeText,
+                userType === 'customer' && styles.activeUserTypeText,
+              ]}
+            >
               Customer
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
-              styles.userTypeButton, 
-              userType === 'owner' && styles.activeUserTypeButton
+              styles.userTypeButton,
+              userType === 'owner' && styles.activeUserTypeButton,
             ]}
             onPress={() => setUserType('owner')}
           >
-            <Text style={[
-              styles.userTypeText,
-              userType === 'owner' && styles.activeUserTypeText
-            ]}>
+            <Text
+              style={[
+                styles.userTypeText,
+                userType === 'owner' && styles.activeUserTypeText,
+              ]}
+            >
               Car Owner
             </Text>
           </TouchableOpacity>
@@ -177,7 +235,10 @@ export default function LoginScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.forgotPassword}>
+        <TouchableOpacity
+          style={styles.forgotPassword}
+          onPress={() => router.push('/auth/forgotpPassword')}
+        >
           <Text style={styles.forgotPasswordText}>Forgot password?</Text>
         </TouchableOpacity>
 

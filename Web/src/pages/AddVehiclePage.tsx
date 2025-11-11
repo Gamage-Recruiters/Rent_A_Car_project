@@ -133,7 +133,7 @@ const AddVehiclePage: React.FC = () => {
 
       // append images
       vehicleData.images.forEach((file) => {
-        formData.append("files", file); // backend expects req.files
+        formData.append("vehicleImages", file);
       });
 
       try{

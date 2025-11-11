@@ -48,21 +48,7 @@ export default function MoreScreen() {
   });
 
   const handleContactAdmin = () => {
-    Alert.alert(
-      'Contact Admin',
-      'Choose how you would like to contact our admin team:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Email',
-          onPress: () => Linking.openURL('mailto:admin@rentacar.com')
-        },
-        {
-          text: 'Phone',
-          onPress: () => Linking.openURL('tel:+1-555-RENTCAR')
-        },
-      ]
-    );
+    router.push('/contact');
   };
 
   const handleOpenWeb = () => {
