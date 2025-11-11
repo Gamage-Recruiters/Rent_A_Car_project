@@ -62,7 +62,7 @@ async function getAllVehicles(req, res) {
         if (vehicleType) filter.vehicleType = vehicleType;
         if (fuelType) filter.fuelType = fuelType;
         if (transmission) filter.transmission = transmission;
-        if (location) filter.location = location;
+        if (location) filter.pickupAddress = location;
         
         if (minPrice || maxPrice) {
             filter.pricePerDay = {};

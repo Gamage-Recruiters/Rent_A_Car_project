@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Car, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const API_URL = import.meta.env.VITE_API_URL;
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -19,20 +19,62 @@ const LoginPage: React.FC = () => {
 
   const from = location.state?.from?.pathname || "/";
 
+  const validateInputs = () => {
+    // Reset previous error
+    setError("");
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address");
+      return false;
+    }
+    
+    // Validate password
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    
+    if (!validateInputs()) {
+      return;
+    }
+    
     setLoading(true);
-
+    setError(""); // Clear previous errors
+    
     try {
       const success = await login(email, password, userType);
+      
       if (success) {
-        navigate(userType === "owner" ? "/owner-dashboard" : from);
+        // ✅ Add a small delay to ensure state updates propagate
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Redirect based on user type
+        if (userType === 'owner') {
+          navigate('/owner-dashboard', { replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
       } else {
-        setError("Invalid credentials. Please try again.");
+        setError("Login failed. Please check your credentials and try again.");
       }
     } catch (err: any) {
-      setError(err.message || "An error occurred. Please try again.");
+      if (err.response) {
+        const message = err.response.data?.message || "Authentication failed";
+        setError(message);
+      } else if (err.request) {
+        setError("Network error. Please check your connection and try again.");
+      } else {
+        setError(`An error occurred: ${err.message}`);
+      }
+      console.error("Login error:", err);
     } finally {
       setLoading(false);
     }
@@ -107,6 +149,7 @@ const LoginPage: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter your email"
+                disabled={loading}
               />
             </div>
 
@@ -127,11 +170,13 @@ const LoginPage: React.FC = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
                   placeholder="Enter your password"
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 px-3 flex items-center"
+                  disabled={loading}
                 >
                   {showPassword ? (
                     <EyeOff className="w-5 h-5 text-gray-400" />
@@ -149,6 +194,7 @@ const LoginPage: React.FC = () => {
                   id="remember"
                   type="checkbox"
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  disabled={loading}
                 />
                 <label
                   htmlFor="remember"
@@ -160,6 +206,7 @@ const LoginPage: React.FC = () => {
               <Link
                 to="/forgot-password"
                 className="text-sm text-blue-600 hover:text-blue-500"
+                tabIndex={loading ? -1 : 0}
               >
                 Forgot password?
               </Link>
@@ -197,6 +244,7 @@ const LoginPage: React.FC = () => {
             <a
               href={`${API_URL}/auth/customer/google`}
               className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+              tabIndex={loading ? -1 : 0}
             >
               <svg width="20" height="20" viewBox="0 0 24 24">
                 <path
@@ -226,6 +274,7 @@ const LoginPage: React.FC = () => {
               <Link
                 to="/signup"
                 className="text-blue-600 hover:text-blue-500 font-medium"
+                tabIndex={loading ? -1 : 0}
               >
                 Sign up
               </Link>

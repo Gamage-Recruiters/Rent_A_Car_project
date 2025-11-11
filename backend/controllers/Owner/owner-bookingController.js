@@ -67,7 +67,7 @@ async function getAllBookings(req, res) {
     try{
         const ownerId = req.user.id;
         const bookings = await Booking.find({owner: ownerId })
-        .populate('vehicle', 'vehicleName vehicleLicenseNumber brand model year vehicleType')
+        .populate('vehicle', 'vehicleName vehicleLicenseNumber brand model year vehicleType images')
         .populate('customer', 'firstName lastName email phoneNumber');
 
         return res.status(200).json({

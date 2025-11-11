@@ -25,6 +25,9 @@ const approveOwner = async (req, res) => {
 
         if (!owner) return res.status(404).json({ message: 'Owner not found' });
 
+        // log owner approval (non-blocking)
+      try { logActivity({ action: 'Owner approved', user: req.user?.email || 'system', type: 'owner', meta: { ownerId: owner._id.toString() } }); } catch (e) {}
+
         res.status(200).json({ message: 'Owner approved successfully', owner });
     } catch (error) {
         res.status(500).json({ message: 'Error approving owner', error: error.message });
@@ -37,6 +40,10 @@ const rejectOwner = async (req, res) => {
                 const owner = await Owner.findByIdAndDelete(ownerId);
 
         if (!owner) return res.status(404).json({ message: 'Owner not found or already deleted' });
+
+        // log owner rejection/deletion (non-blocking)
+       try { logActivity({ action: 'Owner rejected', user: req.user?.email || 'system', type: 'owner', meta: { ownerId: ownerId, ownerEmail: owner.email } }); } catch (e) {}
+
 
          res.status(200).json({ message: 'Owner rejected and deleted successfully' });
     } catch (error) {

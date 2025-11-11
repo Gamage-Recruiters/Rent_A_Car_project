@@ -2,7 +2,8 @@ const router = require('express').Router();
 const passport = require('passport');
 const customerAuthController = require('../../../controllers/Auth/customer/customer-authController');
 const { verifyCustomerToken } = require('../../../middleware/Auth/verifyToken');
-
+// Get current authenticated user
+router.get('/me', verifyCustomerToken, customerAuthController.getCurrentUser);
 // Public routes
 router.route('/register').post(customerAuthController.addUser);
 router.route('/login').post(customerAuthController.loginUser);

@@ -163,13 +163,20 @@ const FavoriteTab: React.FC = () => {
   };
 
   const filteredFavorites = favorites.filter(favorite => {
+    // Check if vehicle exists
+    if (!favorite.vehicle) {
+      return false; // Skip this favorite if vehicle is null
+    }
+
     const vehicle = favorite.vehicle;
-    const matchesSearch = vehicle.vehicleName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         vehicle.pickupAddress.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = 
+      (vehicle.vehicleName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (vehicle.brand?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (vehicle.model?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (vehicle.pickupAddress?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     
-    const matchesFilter = filterType === 'all' || vehicle.vehicleType.toLowerCase() === filterType.toLowerCase();
+    const matchesFilter = filterType === 'all' || 
+      (vehicle.vehicleType?.toLowerCase() || '') === filterType.toLowerCase();
     
     return matchesSearch && matchesFilter;
   });
@@ -265,22 +272,22 @@ const FavoriteTab: React.FC = () => {
                 {/* Vehicle Image */}
                 <div className="relative">
                   <img
-                    src={constructImageUrl(favorite.vehicle.images[0])}
-                    alt={favorite.vehicle.vehicleName}
+                    src={favorite.vehicle?.images?.[0] ? constructImageUrl(favorite.vehicle.images[0]) : '/placeholder-car.jpg'}
+                    alt={favorite.vehicle?.vehicleName || 'Vehicle'}
                     className="w-full h-48 object-cover"
                   />
                   <div className="absolute top-2 right-2 flex space-x-1">
                     <span className={`px-2 py-1 text-xs rounded-full ${
-                      favorite.vehicle.isAvailable 
+                      favorite.vehicle?.isAvailable 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-red-100 text-red-800'
                     }`}>
-                      {favorite.vehicle.isAvailable ? 'Available' : 'Unavailable'}
+                      {favorite.vehicle?.isAvailable ? 'Available' : 'Unavailable'}
                     </span>
                   </div>
                   <div className="absolute top-2 left-2">
                     <span className="bg-blue-600 text-white px-2 py-1 text-xs rounded-full capitalize">
-                      {favorite.vehicle.vehicleType}
+                      {favorite.vehicle?.vehicleType || 'N/A'}
                     </span>
                   </div>
                 </div>
@@ -289,7 +296,7 @@ const FavoriteTab: React.FC = () => {
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-lg text-gray-900 truncate">
-                      {favorite.vehicle.vehicleName}
+                      {favorite.vehicle?.vehicleName || 'Unknown Vehicle'}
                     </h4>
                     <button
                       onClick={() => handleRemoveFavorite(favorite._id)}
@@ -396,7 +403,7 @@ const FavoriteTab: React.FC = () => {
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <div className="flex items-center justify-between text-sm text-gray-600">
               <span>Total Favorites: {favorites.length}</span>
-              <span>Available: {favorites.filter(f => f.vehicle.isAvailable).length}</span>
+              <span>Available: {favorites.filter(f => f.vehicle && f.vehicle.isAvailable).length}</span>
               <span>Showing: {filteredFavorites.length}</span>
             </div>
           </div>

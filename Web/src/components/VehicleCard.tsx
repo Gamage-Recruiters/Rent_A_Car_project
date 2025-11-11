@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Star, Users, Fuel, Settings, MapPin } from 'lucide-react';
 
-const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '');
+const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api')?.replace('/api', '');
 
 interface VehicleCardProps {
   vehicle: any;

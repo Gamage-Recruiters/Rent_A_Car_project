@@ -1,3 +1,30 @@
+// --- ImageWithFallback component ---
+type ImageWithFallbackProps = {
+  src?: string;
+  alt?: string;
+};
+
+function ImageWithFallback({ src, alt }: ImageWithFallbackProps) {
+  const [imgError, setImgError] = React.useState(false);
+  const showFallback = imgError || !src;
+  return (
+    <div className="w-24 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 relative">
+      {!showFallback && (
+        <img
+          src={src}
+          alt={alt}
+          className="w-full h-full object-cover absolute top-0 left-0"
+          onError={() => setImgError(true)}
+        />
+      )}
+      {showFallback && (
+        <div className="w-full h-full flex items-center justify-center text-gray-400 absolute top-0 left-0" style={{ pointerEvents: 'none' }}>
+          <Car className="w-6 h-6" />
+        </div>
+      )}
+    </div>
+  );
+}
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -120,17 +147,11 @@ const RecentBookingsTab: React.FC = () => {
     }
   };
 
-  const constructImageUrl = (imagePath: string) => {
+  const constructImageUrl = (imagePath?: string) => {
     if (!imagePath) return '/placeholder-car.jpg';
-    
-    if (imagePath.startsWith('http')) {
-      return imagePath;
-    }
-    
-    if (imagePath.startsWith('/uploads')) {
-      return `${BASE_URL}${imagePath}`;
-    }
-    
+    if (imagePath.startsWith('http')) return imagePath;
+    if (imagePath.startsWith('/uploads')) return `${BASE_URL}${imagePath}`;
+    // If only filename is provided
     return `${BASE_URL}/uploads/vehicles/${imagePath}`;
   };
 
@@ -249,29 +270,10 @@ const RecentBookingsTab: React.FC = () => {
           {bookings.map((booking) => (
             <div key={booking._id} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
               {/* Vehicle Image */}
-              <div className="w-24 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                {booking.vehicle?.images && booking.vehicle.images.length > 0 ? (
-                  <img
-                    src={constructImageUrl(booking.vehicle.images[0])}
-                    alt={booking.vehicle?.vehicleName || 'Vehicle'}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      console.log('Image failed to load, hiding image');
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                ) : null}
-                
-                {/* Fallback icon */}
-                <div 
-                  className="w-full h-full flex items-center justify-center text-gray-400"
-                  style={{
-                    display: (booking.vehicle?.images && booking.vehicle.images.length > 0) ? 'none' : 'flex'
-                  }}
-                >
-                  <Car className="w-6 h-6" />
-                </div>
-              </div>
+              <ImageWithFallback
+                src={booking.vehicle?.images && booking.vehicle.images.length > 0 ? constructImageUrl(booking.vehicle.images[0]) : undefined}
+                alt={booking.vehicle?.vehicleName || 'Vehicle'}
+              />
 
               {/* Booking Details */}
               <div className="flex-1">

@@ -7,7 +7,7 @@ import VehicleCard from '../components/VehicleCard';
 import { SearchFilters, Vehicle } from '../types';
 
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
