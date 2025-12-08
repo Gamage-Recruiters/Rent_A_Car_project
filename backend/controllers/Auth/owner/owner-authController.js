@@ -58,17 +58,19 @@ async function registerOwner(req, res) {
       const accessCookieName = process.env.OWNER_COOKIE_NAME;
       const refreshCookieName = process.env.OWNER_REFRESH_COOKIE_NAME;
 
+      const isProd = process.env.NODE_ENV === 'production';
+
       res.cookie(accessCookieName, accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "Strict",
+        secure: isProd,
+        sameSite: isProd ? 'None' : 'Lax',
         maxAge: 1000 * 60 * 15, // 15 minutes
       });
 
       res.cookie(refreshCookieName, refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "Strict",
+        secure: isProd,
+        sameSite: isProd ? 'None' : 'Lax',
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       });
 
@@ -149,18 +151,20 @@ async function loginOwner(req, res) {
     const accessCookieName = process.env.OWNER_COOKIE_NAME || "owner_access";
     const refreshCookieName = process.env.OWNER_REFRESH_COOKIE_NAME || "owner_refresh";
 
+    const isProd = process.env.NODE_ENV === 'production';
+
     res.cookie(accessCookieName, accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
+      secure: isProd,
+      sameSite: isProd ? 'None' : 'Lax',
       maxAge: 1000 * 60 * 15, // 15 minutes
     });
 
     res.cookie(refreshCookieName, refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      secure: isProd,
+      sameSite: isProd ? 'None' : 'Lax',
+      maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
     return res.status(200).json({
@@ -193,17 +197,19 @@ async function logoutOwner(req, res) {
       await Owner.findOneAndUpdate({ refreshToken }, { refreshToken: null });
     }
 
+    const isProd = process.env.NODE_ENV === 'production';
+
     // Clear cookies both refresh and access
     res.clearCookie(process.env.OWNER_COOKIE_NAME, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
+      secure: isProd,
+      sameSite: isProd ? 'None' : 'Lax', 
     });
 
     res.clearCookie(process.env.OWNER_REFRESH_COOKIE_NAME, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
+      secure: isProd,
+      sameSite: isProd ? 'None' : 'Lax', 
     });
 
     return res.status(200).json({ message: "Logout successful" });

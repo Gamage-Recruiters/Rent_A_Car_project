@@ -16,6 +16,7 @@ const app = express();
 const allowedOrigins = [
   process.env.CLIENT_URL,
   process.env.ADMIN_URL,
+  "https://rent-a-car-project-two.vercel.app"
 ];
 
 app.use(cors({
