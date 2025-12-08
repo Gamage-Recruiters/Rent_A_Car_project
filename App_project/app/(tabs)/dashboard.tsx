@@ -19,7 +19,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.8.191:8000/api';
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ;
 
 // Define proper TypeScript interfaces for the API response
 interface OwnerVehicle {
@@ -113,28 +113,46 @@ export default function DashboardScreen() {
   };
 
   // Fetch owner's bookings
-  const fetchOwnerBookings = async () => {
-    try {
-      const token = await AsyncStorage.getItem('ownerAccessToken') || await AsyncStorage.getItem('accessToken');
-      
-      const response = await axios.get(`${API_BASE}/owner/bookings`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+const fetchOwnerBookings = async () => {
+ 
 
-      if (response.data && response.data.data) {
-        const ownerBookings: OwnerBooking[] = response.data.data || [];
-        setBookings(ownerBookings);
-      }
-    } catch (error: any) {
-      console.error('Error fetching bookings:', error);
-      // Don't show alert for bookings as it might not be critical
+  try {
+    const token =
+      (await AsyncStorage.getItem('ownerAccessToken')) ||
+      (await AsyncStorage.getItem('accessToken'));
+
+    
+
+    if (!token) {
+      Alert.alert('Error', 'Please login again');
+      return;
     }
-  };
+
+    const response = await axios.get(`${API_BASE}/owner/bookings`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    
+
+if (response.data && response.data.bookings) {
+  const ownerBookings: OwnerBooking[] = response.data.bookings || [];
+  
+  setBookings(ownerBookings);
+} else {
+  console.log(" No bookings found in response");
+}
+  } catch (error: any) {
+    console.error(' Error fetching bookings:', error);
+  }
+};
+
+
 
   // Load data on component mount
   useEffect(() => {
+    console.log(" Dashboard mounted - loading data");
     loadDashboardData();
   }, []);
 

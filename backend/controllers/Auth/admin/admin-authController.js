@@ -3,8 +3,7 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { hashPassword, checkPassword } = require('../../../utils/bcryptUtil');
 const { createToken,createRefreshToken } = require('../../../utils/jwtUtil');
-const { isSuperAdmin ,isSuperAdminUser } = require('../../../middleware/auth/authorization');
-const Activity = require('../../../Models/activityModel');
+const { isSuperAdmin ,isSuperAdminUser } = require('../../../middleware/Auth/authorization');
 
 // helper: non-blocking logger
 async function logActivity({ action, user = 'system', type = 'general', meta = {} } = {}) {

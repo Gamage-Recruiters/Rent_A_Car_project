@@ -154,17 +154,19 @@ async function loginUser(req, res) {
         const accessCookieName = process.env.CUSTOMER_COOKIE_NAME;
         const refreshCookieName = process.env.CUSTOMER_REFRESH_COOKIE_NAME;
 
+        const isProd = process.env.NODE_ENV === 'production';
+
         res.cookie(accessCookieName, accessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'Strict',
+            secure: isProd,
+            sameSite: isProd ? 'None' : 'Lax',
             maxAge: 1000 * 60 * 15, // 15 minutes
         });
 
         res.cookie(refreshCookieName, refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'Strict',
+            secure: isProd,
+            sameSite: isProd ? 'None' : 'Lax',
             maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
         });
 
@@ -256,10 +258,12 @@ async function logoutUser(req, res) {
             await User.findByIdAndUpdate(req.user.id, { refreshToken: null });
         }
 
+        const isProd = process.env.NODE_ENV === 'production';
+
         const cookieOptions = {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'Strict'
+            secure: isProd,
+            sameSite: isProd ? 'None' : 'Lax',
         };
 
         res.clearCookie(process.env.CUSTOMER_COOKIE_NAME, cookieOptions);
