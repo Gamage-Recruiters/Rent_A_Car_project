@@ -3,7 +3,7 @@ const Vehicle = require('../../Models/vehicleModel');
 
 async function createBooking(req, res) {
     try {
-        const { vehicle, pickupLocation, dropoffLocation, pickupDate, dropoffDate, totalAmount } = req.body;
+        const { vehicle, pickupLocation, dropoffLocation, pickupDate, dropoffDate, notes, totalAmount } = req.body;
 
         if (!req.files || 
             !req.files.customerIdImage || 
@@ -32,6 +32,7 @@ async function createBooking(req, res) {
             dropoffLocation,
             pickupDate,
             dropoffDate,
+            notes: notes || '',
             totalAmount,
             idDocument: idDocumentPaths,
             drivingLicenseDocument: licenseDocumentPaths
@@ -122,7 +123,7 @@ async function updateBooking(req, res) {
         console.log('Update booking request body:', req.body);
         console.log('User ID from token:', req.user.id);
         
-        const { pickupLocation, dropoffLocation, pickupDate, dropoffDate, totalAmount } = req.body;
+        const { pickupLocation, dropoffLocation, pickupDate, dropoffDate, notes, totalAmount } = req.body;
         
         const booking = await Booking.findById(req.params.id);
 
@@ -167,6 +168,10 @@ async function updateBooking(req, res) {
         if (dropoffDate !== undefined) {
             console.log('Updating dropoff date from', booking.dropoffDate, 'to', dropoffDate);
             booking.dropoffDate = dropoffDate;
+        }
+        if (notes !== undefined) {
+            console.log('Updating notes:', notes);
+            booking.notes = notes;
         }
         if (totalAmount !== undefined) {
             console.log('Updating total amount:', totalAmount);
