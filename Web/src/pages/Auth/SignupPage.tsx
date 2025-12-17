@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Car, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import toast, { Toaster } from 'react-hot-toast';
 
 const SignupPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -29,13 +30,20 @@ const SignupPage: React.FC = () => {
     e.preventDefault();
     setError('');
 
+    // Checks if the phone number is exactly 10 digits [cite: 18, 70]
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(formData.phone)) {
+      toast.error('Please enter a valid 10-digit phone number'); // Recommendation [cite: 21, 73]
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError('Passwords do not match'); // Matches T004 [cite: 18, 70]
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Password must be at least 6 characters'); // Matches T005 [cite: 18, 70]
       return;
     }
 
@@ -47,14 +55,15 @@ const SignupPage: React.FC = () => {
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: formData.email,
-          phone: formData.phone, // ✅ always included now
+          phone: formData.phone,
           type: formData.userType,
         },
         formData.password
       );
 
       if (success) {
-        navigate(formData.userType === 'owner' ? '/login' : '/login');
+        // Navigation to sign-in page after submission [cite: 16, 68]
+        navigate('/login');
       } else {
         setError('Failed to create account. Please try again.');
       }
@@ -66,14 +75,31 @@ const SignupPage: React.FC = () => {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+
+    // --- NEW: Input Filtering for Phone Field ---
+    // Prevents entering letters and limits to 10 digits in real-time [cite: 20, 72]
+    if (name === 'phone') {
+      const numericValue = value.replace(/\D/g, '').slice(0, 10);
+      setFormData(prev => ({
+        ...prev,
+        [name]: numericValue,
+      }));
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      
+      {/* ✅ TOASTER ADDED HERE */}
+      <Toaster position="top-right" reverseOrder={false} />
+
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <Link to="/" className="inline-flex items-center space-x-2 text-blue-600">
@@ -180,7 +206,7 @@ const SignupPage: React.FC = () => {
                 value={formData.phone}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter your phone number"
+                placeholder="10-digit phone number"
               />
             </div>
 
@@ -197,7 +223,7 @@ const SignupPage: React.FC = () => {
                   value={formData.password}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
-                  placeholder="Enter your password"
+                  placeholder="At least 6 characters"
                 />
                 <button
                   type="button"

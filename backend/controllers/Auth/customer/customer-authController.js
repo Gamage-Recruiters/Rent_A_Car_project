@@ -20,14 +20,28 @@ const { createToken, createRefreshToken, verifyRefreshToken, createResetToken, v
 const { sendPasswordResetEmail } = require('../../../config/nodemailerConfig');
 
 // Signup   Direct Regiter
+// Signup   Direct Register
 async function addUser(req, res) {
-
-
     try {
         const { email, password, firstName, lastName, phoneNumber, phone } = req.body;
 
+        // --- 1. Basic Field Presence Check ---
         if (!email || !password || !firstName) {
             return res.status(400).json({ message: 'All Fields Required' });
+        }
+
+        // --- 2. Phone Number Validation (Fixes T003) ---
+        // Ensure we capture either field name provided by the frontend
+        const activePhone = phoneNumber || phone;
+        const phoneRegex = /^\d{10}$/; // Exactly 10 digits [cite: 18, 21]
+        
+        if (!activePhone || !phoneRegex.test(activePhone)) {
+            return res.status(400).json({ message: "Please enter a valid 10-digit phone number" });
+        }
+
+        // --- 3. Password Length Validation (Fixes T005) ---
+        if (password.length < 6) {
+            return res.status(400).json({ message: "Password must be at least 6 characters long" });
         }
 
         const isUserExsist = await User.findOne({ email });
@@ -42,8 +56,9 @@ async function addUser(req, res) {
             password: hashedPassword, 
             firstName, 
             lastName,
-            phoneNumber: phoneNumber || phone || ''
+            phoneNumber: activePhone // Store the validated number
         });
+
         if (newUser) {
             const payload = {
                 id: newUser._id.toString(),
@@ -64,14 +79,12 @@ async function addUser(req, res) {
             const accessCookieName = process.env.CUSTOMER_COOKIE_NAME;
             const refreshCookieName = process.env.CUSTOMER_REFRESH_COOKIE_NAME;
 
-
-            // Use 'None' for sameSite in production (cross-site), 'Lax' in development
             const isProd = process.env.NODE_ENV === 'production';
             const sameSiteValue = isProd ? 'None' : 'Lax';
 
             res.cookie(accessCookieName, accessToken, {
                 httpOnly: true,
-                secure: isProd, // must be true for 'None'
+                secure: isProd,
                 sameSite: sameSiteValue,
                 maxAge: 1000 * 60 * 15 // 15 minutes
             });
@@ -92,28 +105,21 @@ async function addUser(req, res) {
                 firstName: newUser.firstName,
                 lastName: newUser.lastName,
                 email: newUser.email,
-                phoneNumber: newUser.phoneNumber,
-                phone: newUser.phoneNumber
+                phoneNumber: newUser.phoneNumber
             });
         }
 
     } catch (error) {
-
         if (error.code === 11000) {
-            console.warn("Duplicate slipped through:", email);
             return res.status(409).json({ message: "User Email Already Exsist" });
         }
 
-        // Email Validation
         if (error.name === "ValidationError") {
-
             return res.status(400).json({ message: "Invalid Email format" });
         }
 
-        // Other Errors
         return res.status(500).json({ message: 'Server Error', error: error.message });
     }
-
 }
 
 
