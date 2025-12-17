@@ -8,27 +8,45 @@ const {
 } = require("../../../utils/jwtUtil");
 
 // Direct Registration For Owner
+// Direct Registration For Owner
 async function registerOwner(req, res) {
   try {
     const { email, password, firstName, lastName, phone } = req.body;
 
-    // Check if required fields are not empty
+    // --- 1. Basic Field Presence Check ---
     if (!email || !password || !firstName) {
-      return res
-        .status(400)
-        .json({ message: "Email, Passowrd and FirstName Fields are Required" });
+      return res.status(400).json({ 
+        message: "Email, Password and FirstName Fields are Required" 
+      });
     }
 
-    // Check owner already exsist with this email first
+    // --- 2. Phone Number Validation (Fixes T003) ---
+    // Enforces exactly 10 numeric digits as required by QA 
+    const phoneRegex = /^\d{10}$/;
+    if (!phone || !phoneRegex.test(phone)) {
+      return res.status(400).json({ 
+        message: "Please enter a valid 10-digit phone number" 
+      });
+    }
+
+    // --- 3. Password Length Validation (Fixes T005) ---
+    // Enforces minimum 6 characters for security compliance 
+    if (password.length < 6) {
+      return res.status(400).json({ 
+        message: "Password must be at least 6 characters" 
+      });
+    }
+
+    // Check owner already exists with this email
     const isOwnerExsist = await Owner.findOne({ email });
     if (isOwnerExsist) {
-      return res.status(409).json({ message: "Owner Email Already Exsist" });
+      return res.status(409).json({ message: "Owner Email Already Exists" });
     }
 
     // Hash Password
     const hashedPassword = await hashPassword(password);
 
-    // Add new owner owner to the database
+    // Add new owner to the database
     const newOwner = await Owner.create({
       email,
       password: hashedPassword,
@@ -87,23 +105,14 @@ async function registerOwner(req, res) {
     }
   } catch (error) {
     if (error.code === 11000) {
-      console.warn("Duplicate slipped through:", email);
-      return res.status(409).json({
-        message: "Owner's Email Already Exsist",
-        accessToken,
-        refreshToken,
-      });
+      return res.status(409).json({ message: "Owner's Email Already Exists" });
     }
 
-    // Email Validation
     if (error.name === "ValidationError") {
       return res.status(400).json({ message: "Invalid Email format" });
     }
 
-    // Other Errors
-    return res
-      .status(500)
-      .json({ message: "Server Error", error: error.message });
+    return res.status(500).json({ message: "Server Error", error: error.message });
   }
 }
 
