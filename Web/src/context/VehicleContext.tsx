@@ -17,15 +17,16 @@ const VehicleContext = createContext<VehicleContextType | undefined>(undefined);
 
 export const VehicleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
-  const ownerBaseUrl = 'http://localhost:8000/api/owner/'
+  // ✅ Use environment variable for base URL
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
   const api = axios.create({
-    baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:8000/api') + '/customer/vehicle', 
+    baseURL: `${API_BASE_URL}/customer/vehicle`, 
     withCredentials: true,
   });
 
-    const ownerapi = axios.create({
-    baseURL: ownerBaseUrl + "vehicle",
+  const ownerapi = axios.create({
+    baseURL: `${API_BASE_URL}/owner/vehicle`, // ✅ Fixed
     withCredentials: true,
   });
 

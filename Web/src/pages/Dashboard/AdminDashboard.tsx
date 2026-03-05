@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import AdminProfileDropdown from "../../components/AdminProfileDropdown";
 import { jsPDF } from "jspdf";
+import * as XLSX from "xlsx";
 import autoTable from "jspdf-autotable";
 
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
@@ -61,51 +62,48 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const arrayToCsv = (rows: string[][]) => {
-    return rows
-      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
-      .join("\r\n");
-  };
+  
+const generateExcel = () => {
+  try {
+    // --- Metrics section ---
+    const metricsHeader = ["Metric", "Value", "Change", "Description"];
+    const metricsRows = metrics.map((m) => [
+      m.title,
+      m.value,
+      m.change,
+      m.description,
+    ]);
 
-  const generateExcel = () => {
-    try {
-      // Build CSV content with two sections
-      const metricsHeader = ["Metric", "Value", "Change", "Description"];
-      const metricsRows = metrics.map((m) => [
-        m.title,
-        m.value,
-        m.change,
-        m.description,
-      ]);
-      const actsHeader = ["Action", "User/Detail", "Time"];
-      const actsRows = recentActivities.map((a) => [a.action, a.user, a.time]);
+    // --- User Actions section (Recent Activity) ---
+    const actsHeader = ["Action", "User/Detail", "Time"];
+    const actsRows = recentActivities.map((a) => [a.action, a.user, a.time]);
 
-      const parts: string[][] = [];
-      parts.push(["Admin Dashboard Report"]);
-      parts.push([]);
-      parts.push(metricsHeader);
-      parts.push(...metricsRows);
-      parts.push([]);
-      parts.push(["Recent Activity"]);
-      parts.push(actsHeader);
-      parts.push(...actsRows);
+    // Create a new workbook
+    const wb = XLSX.utils.book_new();
 
-      const csv = arrayToCsv(parts);
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `admin_dashboard_report_${Date.now()}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("generateExcel error", err);
-      alert("Failed to generate CSV. Check console.");
-    }
-  };
+    // Sheet 1: Metrics
+    const metricsSheetData = [
+      ["Admin Dashboard Report"],
+      [],
+      metricsHeader,
+      ...metricsRows,
+    ];
+    const metricsSheet = XLSX.utils.aoa_to_sheet(metricsSheetData);
+    XLSX.utils.book_append_sheet(wb, metricsSheet, "Metrics");
 
+    // Sheet 2: User Actions / Recent Activity
+    const actsSheetData = [["Recent Activity"], [], actsHeader, ...actsRows];
+    const actsSheet = XLSX.utils.aoa_to_sheet(actsSheetData);
+    XLSX.utils.book_append_sheet(wb, actsSheet, "User Actions");
+
+    // Download Excel file
+    const fileName = `admin_dashboard_report_${Date.now()}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  } catch (err) {
+    console.error("generateExcel error", err);
+    alert("Failed to generate Excel file. Check console.");
+  }
+};
   const [recentActivities, setRecentActivities] = useState<
     { action: string; user: string; time: string; type?: string }[]
   >([]);
@@ -128,7 +126,7 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     const fetchActivities = async () => {
       try {
-        const url = `${ADMIN_API}/activities/recent?limit=10`;
+        const url = `${ADMIN_API}/activities/recent?limit=100`;
         console.debug("[activities] fetch ->", url);
         const res = await fetch(url, { credentials: "include" });
         console.debug("[activities] status ->", res.status);

@@ -42,39 +42,36 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate inputs before proceeding
     if (!validateInputs()) {
       return;
     }
     
     setLoading(true);
+    setError(""); // Clear previous errors
     
     try {
       const success = await login(email, password, userType);
       
       if (success) {
+        // ✅ Add a small delay to ensure state updates propagate
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
         // Redirect based on user type
         if (userType === 'owner') {
-          navigate('/owner-dashboard');
+          navigate('/owner-dashboard', { replace: true });
         } else {
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true });
         }
       } else {
-        // This will run if login returns false but doesn't throw an error
         setError("Login failed. Please check your credentials and try again.");
       }
     } catch (err: any) {
-      // Handle different types of errors
       if (err.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
         const message = err.response.data?.message || "Authentication failed";
         setError(message);
       } else if (err.request) {
-        // The request was made but no response was received
         setError("Network error. Please check your connection and try again.");
       } else {
-        // Something happened in setting up the request
         setError(`An error occurred: ${err.message}`);
       }
       console.error("Login error:", err);
