@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Car, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
